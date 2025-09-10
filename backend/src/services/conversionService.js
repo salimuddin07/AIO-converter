@@ -26,22 +26,40 @@ export async function convertSingle(filePath, targetFormat) {
       const stat = await fs.stat(outPath);
       return { outName, outPath, size: stat.size };
     }
-    // Raster -> SVG with background removal
+    // Raster -> SVG with background removal but preserve colors
     console.log('Converting raster to SVG with background removal');
     
     try {
-      // Try to remove white/light backgrounds and create PNG with transparency
-      const transparentPng = await sharp(filePath)
-        .png()
-        .threshold(240) // Convert light colors to white
-        .negate() // Invert colors (white becomes black)
-        .threshold(1) // Make black areas transparent
-        .negate() // Invert back
-        .toBuffer();
+      // Create PNG with transparency - remove white/light backgrounds only
+      const { data, info } = await sharp(filePath)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
       
-      const dim = await sharp(transparentPng).metadata();
-      const width = dim.width || 0;
-      const height = dim.height || 0;
+      // Process pixel data to make white/light backgrounds transparent
+      const pixels = new Uint8Array(data);
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        
+        // If pixel is very light (close to white), make it transparent
+        if (r > 240 && g > 240 && b > 240) {
+          pixels[i + 3] = 0; // Set alpha to 0 (transparent)
+        }
+      }
+      
+      // Create PNG with transparency
+      const transparentPng = await sharp(pixels, {
+        raw: {
+          width: info.width,
+          height: info.height,
+          channels: 4
+        }
+      }).png().toBuffer();
+      
+      const width = info.width;
+      const height = info.height;
       const base64 = transparentPng.toString('base64');
       
       // Create SVG with transparent background
