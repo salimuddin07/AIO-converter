@@ -1,0 +1,10 @@
+node_modules/
+_dist/
+coverage/
+*.log
+backend/src/temp/
+backend/src/output/
+.DS_Store
+frontend/dist/
+.env
+backend/.env

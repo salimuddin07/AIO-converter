@@ -1,0 +1,26 @@
+.container { max-width: 1040px; margin: 0 auto; font-family: system-ui, Arial, sans-serif; padding: 1rem; }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.brand { display: flex; align-items: center; gap: .5rem; }
+.brand h1 { font-size: 1.5rem; margin: 0; }
+.sub { color: #666; font-size: .85rem; }
+.dropzone { border: 2px dashed #888; padding: 2rem; text-align: center; border-radius: 8px; margin-bottom: 1rem; }
+.dropzone:hover { border-color: #555; background: #fafafa; }
+.dropzone p { margin: 0; }
+.controls { display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
+.controls label { display: flex; flex-direction: column; font-size: 0.9rem; }
+.file-list { list-style: none; padding: 0; margin-top: 0.5rem; }
+.file-list li { font-size: 0.85rem; margin-bottom: 0.25rem; }
+.file-list button { margin-left: 0.5rem; }
+.results .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+.card { border: 1px solid #e5e5e5; padding: 0.75rem; border-radius: 10px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.card img { max-width: 100%; height: auto; display: block; margin: 0.5rem 0; }
+.error { background: #ffe5e5; padding: 0.75rem 1rem; border: 1px solid #ff9d9d; border-radius: 6px; margin: 1rem 0; }
+.link { color: #3366cc; text-decoration: underline; cursor: pointer; }
+button { cursor: pointer; }
+.gif-options { display: flex; gap: 0.5rem; }
+.footer { margin-top: 2rem; color: #777; font-size: .85rem; text-align: center; }
+
+/* Modal */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 2rem; z-index: 1000; }
+.modal-content { background: #fff; border-radius: 10px; padding: 1rem; max-width: 95vw; max-height: 80vh; overflow: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.modal-body { display:flex; align-items:center; justify-content:center; margin-top:.5rem; }
