@@ -6,5 +6,5 @@ export const config = {
   fileTTLMinutes: parseInt(process.env.FILE_TTL_MINUTES || '30', 10)
 };
 
-export const supportedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.bmp', '.tiff'];
-export const convertibleTargets = ['png','jpg','jpeg','gif','svg'];
+export const supportedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.bmp', '.tiff', '.mp4', '.avi', '.mov', '.webm'];
+export const convertibleTargets = ['png','jpg','jpeg','gif','svg','mp4','frames'];

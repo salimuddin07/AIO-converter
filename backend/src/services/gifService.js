@@ -8,8 +8,9 @@ import { outputDir } from '../utils/filePaths.js';
 
 export async function createAnimatedGif(framePaths, options = {}) {
   if (!framePaths.length) throw new Error('No frames provided');
-  const delay = options.frameDelay || 100; // ms
-  const loop = options.loop ?? 0; // 0 infinite
+  const delays = options.frameDelays || []; // Array of individual delays
+  const defaultDelay = options.frameDelay || 100; // ms
+  const loop = options.loop ?? 0; // 0 = infinite loop (never stop)
 
   const firstMeta = await sharp(framePaths[0]).metadata();
   const width = firstMeta.width || 1;
@@ -24,10 +25,13 @@ export async function createAnimatedGif(framePaths, options = {}) {
   encoder.createReadStream().pipe(writeStream);
   encoder.start();
   encoder.setRepeat(loop);
-  encoder.setDelay(delay);
-  encoder.setQuality(10);
+  encoder.setQuality(options.quality || 5); // Better quality (1-20, lower is better)
+  encoder.setTransparent(0x00FFFFFF); // Support transparency
 
-  for (const fp of framePaths) {
+  for (let i = 0; i < framePaths.length; i++) {
+    const fp = framePaths[i];
+    const frameDelay = delays[i] || defaultDelay;
+    encoder.setDelay(frameDelay);
     const { data } = await sharp(fp).resize(width, height).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
     encoder.addFrame(data);
   }

@@ -12,7 +12,7 @@ export default function App() {
     fetch(base + '/api/ai/status').then(r=>r.json()).then(setAiStatus).catch(()=>{});
   }, []);
 
-  async function handleConvert({ files, targetFormat, gifOptions }) {
+  async function handleConvert({ files, targetFormat, gifOptions, videoOptions }) {
     setError(null);
     setLoading(true);
     try {
@@ -22,7 +22,12 @@ export default function App() {
       if (targetFormat === 'gif' && gifOptions) {
         if (gifOptions.frameDelay) form.append('gif.frameDelay', gifOptions.frameDelay);
         if (gifOptions.loop !== undefined) form.append('gif.loop', gifOptions.loop);
+        if (gifOptions.quality) form.append('gif.quality', gifOptions.quality);
         if (gifOptions.singleGif) form.append('singleGif', 'true');
+      }
+      if ((targetFormat === 'mp4' || targetFormat === 'frames') && videoOptions) {
+        if (videoOptions.frameRate) form.append('video.frameRate', videoOptions.frameRate);
+        if (videoOptions.quality) form.append('video.quality', videoOptions.quality);
       }
   const base = import.meta.env.VITE_BACKEND_URL || '';
       let res;
@@ -51,8 +56,8 @@ export default function App() {
     <div className="container">
       <header className="header">
         <div className="brand">
-          <h1>Image Converter</h1>
-          <span className="sub">PNG • JPG • GIF • SVG</span>
+          <h1>Image & Video Converter</h1>
+          <span className="sub">PNG • JPG • GIF • SVG • MP4</span>
         </div>
         {aiStatus && (
           <small style={{ opacity: 0.8 }}>AI: {aiStatus.enabled ? `enabled (${aiStatus.provider})` : 'disabled'}</small>

@@ -41,6 +41,9 @@ export default function Results({ results }) {
         {items.map(r => (
           <div key={r.convertedName} className="card">
             <p><strong>{r.originalName}</strong></p>
+            <p style={{fontSize:'0.9rem', color:'#666', marginTop:'0.25rem'}}>
+              → {r.convertedName.split('.').pop().toUpperCase()} format
+            </p>
             <div style={{cursor:'zoom-in'}} onClick={()=>setPreview(r)}>
               {r.ext === 'svg' ? (
                 <object data={r.fileUrl} type="image/svg+xml" aria-label={r.convertedName} style={{width:'100%'}} />

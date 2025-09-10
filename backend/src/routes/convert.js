@@ -34,6 +34,7 @@ router.post('/', upload.array('files'), validateFiles, async (req, res, next) =>
   try {
   console.log('Incoming convert request', { fileCount: (req.files||[]).length, body: req.body });
   const targetFormat = (req.body.targetFormat || '').toLowerCase();
+  console.log(`Target format received: "${targetFormat}"`);
   if (!targetFormat) return next(createError('targetFormat required', 400, 'NO_TARGET_FORMAT'));
   if (!convertibleTargets.includes(targetFormat)) return next(createError('Unsupported targetFormat', 400, 'UNSUPPORTED_TARGET_FORMAT'));
 
