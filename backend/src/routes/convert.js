@@ -38,10 +38,31 @@ router.post('/', upload.array('files'), validateFiles, async (req, res, next) =>
   if (!targetFormat) return next(createError('targetFormat required', 400, 'NO_TARGET_FORMAT'));
   if (!convertibleTargets.includes(targetFormat)) return next(createError('Unsupported targetFormat', 400, 'UNSUPPORTED_TARGET_FORMAT'));
 
+    // Parse advanced GIF options
     const gifOptions = {
-      frameDelay: req.body['gif.frameDelay'] ? parseInt(req.body['gif.frameDelay'], 10) : undefined,
-      loop: req.body['gif.loop'] ? parseInt(req.body['gif.loop'], 10) : undefined
+      frameDelay: req.body['gif.frameDelay'] ? parseInt(req.body['gif.frameDelay'], 10) : 20,
+      loop: req.body['gif.loop'] ? parseInt(req.body['gif.loop'], 10) : 0,
+      quality: req.body['gif.quality'] ? parseInt(req.body['gif.quality'], 10) : 5,
+      globalColormap: req.body['gif.globalColormap'] === 'true',
+      crossfade: req.body['gif.crossfade'] === 'true',
+      crossfadeFrames: req.body['gif.crossfadeFrames'] ? parseInt(req.body['gif.crossfadeFrames'], 10) : 10,
+      crossfadeDelay: req.body['gif.crossfadeDelay'] ? parseInt(req.body['gif.crossfadeDelay'], 10) : 6,
+      noStack: req.body['gif.noStack'] === 'true',
+      keepFirst: req.body['gif.keepFirst'] === 'true',
+      skipFirst: req.body['gif.skipFirst'] === 'true'
     };
+
+    // Parse individual frame delays
+    const frameDelays = [];
+    for (let i = 0; i < (req.files || []).length; i++) {
+      const frameDelayKey = `frameDelay_${i}`;
+      if (req.body[frameDelayKey]) {
+        frameDelays[i] = parseInt(req.body[frameDelayKey], 10);
+      }
+    }
+    if (frameDelays.length > 0) {
+      gifOptions.frameDelays = frameDelays;
+    }
 
     const files = req.files || [];
 
@@ -58,7 +79,8 @@ router.post('/', upload.array('files'), validateFiles, async (req, res, next) =>
           sizeBytes: gif.size,
           mimeType: 'image/gif',
           animated: true,
-          frames: files.length
+          frames: gif.frames || files.length,
+          dimensions: gif.dimensions
         });
       } else if (forceSingle) {
         // Create a 1-frame GIF via encoder to avoid platform-specific sharp.gif() issues
@@ -70,7 +92,8 @@ router.post('/', upload.array('files'), validateFiles, async (req, res, next) =>
           sizeBytes: gif.size,
           mimeType: 'image/gif',
           animated: false,
-          frames: 1
+          frames: gif.frames || 1,
+          dimensions: gif.dimensions
         });
       } else {
         // If single image requested as gif without flag, just passthrough conversion to PNG (default) or JPEG? We'll convert to PNG to keep transparency.

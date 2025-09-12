@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import app from './src/app.js';
 import { scheduleCleanup } from './src/services/cleanupService.js';
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4001;
 const server = createServer(app);
 scheduleCleanup();
 

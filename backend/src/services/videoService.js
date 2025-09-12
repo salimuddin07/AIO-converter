@@ -1,80 +1,247 @@
-import ffmpeg from 'fluent-ffmpeg';
 import fs from 'fs/promises';
 import path from 'path';
-import { v4 as uuid } from 'uuid';
+import ffmpeg from 'fluent-ffmpeg';
+import { v4 as uuidv4 } from 'uuid';
 import { tempDir, outputDir } from '../utils/filePaths.js';
 
-export async function videoToFrames(videoPath, options = {}) {
-  const frameRate = options.frameRate || 10; // frames per second
-  const maxFrames = options.maxFrames || 100;
-  const outputPattern = path.join(tempDir, `${uuid()}_%03d.png`);
-  
-  return new Promise((resolve, reject) => {
-    ffmpeg(videoPath)
-      .outputOptions([
-        `-vf fps=${frameRate}`,
-        `-frames:v ${maxFrames}`,
-        '-y'
-      ])
-      .output(outputPattern)
-      .on('end', async () => {
-        try {
-          // Find generated frames
-          const files = await fs.readdir(tempDir);
-          const frameFiles = files
-            .filter(f => f.includes(path.basename(outputPattern).split('_')[0]))
-            .map(f => path.join(tempDir, f))
-            .sort();
-          resolve({ frames: frameFiles, count: frameFiles.length });
-        } catch (e) {
-          reject(e);
+class VideoService {
+  constructor() {
+    this.tempDir = tempDir;
+    this.outputDir = outputDir;
+    this.ensureDirectories();
+  }
+
+  async ensureDirectories() {
+    try {
+      await fs.mkdir(this.tempDir, { recursive: true });
+      await fs.mkdir(this.outputDir, { recursive: true });
+    } catch (error) {
+      console.error('Error creating directories:', error);
+    }
+  }
+
+  async processVideo(filePath, filename) {
+    const videoId = uuidv4();
+    const videoPath = path.join(this.tempDir, `${videoId}_${filename}`);
+    
+    try {
+      // Copy uploaded file to temp directory
+      await fs.copyFile(filePath, videoPath);
+      
+      // Get video information
+      const videoInfo = await this.getVideoInfo(videoPath);
+      
+      return {
+        videoId,
+        videoPath,
+        originalFilename: filename,
+        ...videoInfo
+      };
+    } catch (error) {
+      console.error('Error processing video:', error);
+      throw error;
+    }
+  }
+
+  async processVideoFromUrl(url) {
+    const videoId = uuidv4();
+    const filename = `${videoId}_${path.basename(url)}`;
+    const videoPath = path.join(this.tempDir, filename);
+    
+    try {
+      // Download video from URL
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to download video: ${response.statusText}`);
+      }
+      
+      const buffer = await response.arrayBuffer();
+      await fs.writeFile(videoPath, Buffer.from(buffer));
+      
+      // Get video information
+      const videoInfo = await this.getVideoInfo(videoPath);
+      
+      return {
+        videoId,
+        videoPath,
+        originalFilename: path.basename(url),
+        ...videoInfo
+      };
+    } catch (error) {
+      console.error('Error processing video from URL:', error);
+      throw error;
+    }
+  }
+
+  async getVideoInfo(videoPath) {
+    return new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(videoPath, (err, metadata) => {
+        if (err) {
+          reject(err);
+          return;
         }
-      })
-      .on('error', reject)
-      .run();
-  });
+        
+        const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
+        if (!videoStream) {
+          reject(new Error('No video stream found'));
+          return;
+        }
+        
+        resolve({
+          duration: metadata.format.duration,
+          width: videoStream.width,
+          height: videoStream.height,
+          fps: this.parseFrameRate(videoStream.r_frame_rate),
+          codec: videoStream.codec_name,
+          fileSize: metadata.format.size
+        });
+      });
+    });
+  }
+
+  parseFrameRate(frameRate) {
+    if (typeof frameRate === 'string' && frameRate.includes('/')) {
+      const [num, den] = frameRate.split('/').map(Number);
+      return Math.round(num / den);
+    }
+    return Number(frameRate) || 25;
+  }
+
+  async convertToGif(videoId, options = {}) {
+    const {
+      startTime = 0,
+      endTime = 5,
+      width,
+      height,
+      fps = 10,
+      quality = 90,
+      method = 'ffmpeg'
+    } = options;
+
+    const outputFilename = `${videoId}_${Date.now()}.gif`;
+    const outputPath = path.join(this.outputDir, outputFilename);
+    
+    try {
+      // Find the actual video file
+      const files = await fs.readdir(this.tempDir);
+      const videoFile = files.find(file => file.startsWith(videoId + '_'));
+      
+      if (!videoFile) {
+        throw new Error('Video file not found');
+      }
+      
+      const actualVideoPath = path.join(this.tempDir, videoFile);
+      
+      await this.convertWithFFmpeg(actualVideoPath, outputPath, options);
+      
+      // Get final GIF info
+      const stats = await fs.stat(outputPath);
+      
+      return {
+        gifPath: outputFilename,
+        fileSize: this.formatFileSize(stats.size),
+        width: width || null,
+        height: height || null,
+        duration: endTime - startTime,
+        fps,
+        frames: Math.ceil((endTime - startTime) * fps)
+      };
+    } catch (error) {
+      console.error('Error converting to GIF:', error);
+      throw error;
+    }
+  }
+
+  async convertWithFFmpeg(videoPath, outputPath, options) {
+    const {
+      startTime = 0,
+      endTime = 5,
+      width,
+      height,
+      fps = 10
+    } = options;
+
+    return new Promise((resolve, reject) => {
+      let scaleFilter = '';
+      
+      // Build scale filter
+      if (width && height) {
+        scaleFilter = `scale=${width}:${height}:flags=lanczos`;
+      } else if (width) {
+        scaleFilter = `scale=${width}:-1:flags=lanczos`;
+      } else if (height) {
+        scaleFilter = `scale=-1:${height}:flags=lanczos`;
+      } else {
+        scaleFilter = 'scale=-1:-1:flags=lanczos';
+      }
+
+      const filterComplex = [
+        `[0:v] fps=${fps},${scaleFilter},palettegen=max_colors=256 [palette]`,
+        `[0:v] fps=${fps},${scaleFilter} [scaled]`,
+        `[scaled][palette] paletteuse=dither=bayer:bayer_scale=3`
+      ];
+
+      ffmpeg(videoPath)
+        .seekInput(startTime)
+        .duration(endTime - startTime)
+        .complexFilter(filterComplex)
+        .output(outputPath)
+        .on('end', resolve)
+        .on('error', reject)
+        .run();
+    });
+  }
+
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  async cleanup(videoId) {
+    try {
+      const files = await fs.readdir(this.tempDir);
+      const videoFiles = files.filter(file => file.startsWith(videoId + '_'));
+      
+      for (const file of videoFiles) {
+        await fs.unlink(path.join(this.tempDir, file));
+      }
+      
+      // Also cleanup old output files (optional)
+      const outputFiles = await fs.readdir(this.outputDir);
+      const oldGifFiles = outputFiles.filter(file => 
+        file.startsWith(videoId + '_') && file.endsWith('.gif')
+      );
+      
+      for (const file of oldGifFiles) {
+        await fs.unlink(path.join(this.outputDir, file));
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    }
+  }
+
+  async getVideoPreviewPath(videoId) {
+    try {
+      const files = await fs.readdir(this.tempDir);
+      const videoFile = files.find(file => file.startsWith(videoId + '_'));
+      
+      if (!videoFile) {
+        throw new Error('Video file not found');
+      }
+      
+      return path.join(this.tempDir, videoFile);
+    } catch (error) {
+      console.error('Error getting video preview path:', error);
+      throw error;
+    }
+  }
+
+  async getGifPath(filename) {
+    return path.join(this.outputDir, filename);
+  }
 }
 
-export async function framesToVideo(framePaths, options = {}) {
-  const frameRate = options.frameRate || 10;
-  const quality = options.quality || 'medium'; // low, medium, high
-  const id = uuid();
-  const outName = `${id}.mp4`;
-  const outPath = path.join(outputDir, outName);
-  
-  // Create temporary input list
-  const listFile = path.join(tempDir, `${id}_list.txt`);
-  const listContent = framePaths.map(fp => `file '${fp.replace(/\\/g, '/')}'`).join('\n');
-  await fs.writeFile(listFile, listContent);
-  
-  return new Promise((resolve, reject) => {
-    let cmd = ffmpeg()
-      .input(listFile)
-      .inputOptions(['-f concat', '-safe 0'])
-      .outputOptions([
-        `-r ${frameRate}`,
-        '-c:v libx264',
-        '-pix_fmt yuv420p',
-        '-y'
-      ]);
-    
-    // Quality settings
-    if (quality === 'high') cmd = cmd.outputOptions(['-crf 18']);
-    else if (quality === 'low') cmd = cmd.outputOptions(['-crf 28']);
-    else cmd = cmd.outputOptions(['-crf 23']); // medium
-    
-    cmd
-      .output(outPath)
-      .on('end', async () => {
-        try {
-          await fs.unlink(listFile); // cleanup
-          const stat = await fs.stat(outPath);
-          resolve({ outName, outPath, size: stat.size });
-        } catch (e) {
-          reject(e);
-        }
-      })
-      .on('error', reject)
-      .run();
-  });
-}
+export default new VideoService();

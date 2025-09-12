@@ -3,6 +3,8 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import convertRouter from './routes/convert.js';
+import splitRouter from './routes/split.js';
+import videoRouter from './routes/video.js';
 import aiRouter from './routes/ai.js';
 import filesRouter from './routes/files.js';
 import errorHandler from './middleware/errorHandler.js';
@@ -28,6 +30,8 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/convert', convertRouter);
+app.use('/api/split', splitRouter);
+app.use('/api/video', videoRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/files', filesRouter);
 
@@ -35,6 +39,7 @@ app.use('/api/files', filesRouter);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use('/api/files', express.static(path.join(__dirname, 'output')));
+app.use('/api/output', express.static(path.join(__dirname, 'output')));
 
 // Multer error handler (e.g., file size)
 // eslint-disable-next-line no-unused-vars

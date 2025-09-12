@@ -1,0 +1,442 @@
+/* Ezgif-like styling for GifMaster.com */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #333;
+  background: #fff;
+}
+
+.ww {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+
+#wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+#header {
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+#logo {
+  display: block;
+  font-size: 24px;
+  font-weight: bold;
+  color: #2c5aa0;
+  text-decoration: none;
+  padding: 15px 20px;
+  float: left;
+}
+
+#logo span {
+  font-size: 11px;
+  color: #666;
+  font-weight: normal;
+  margin-left: 5px;
+}
+
+#hdr.ads {
+  float: right;
+  margin: 10px 20px;
+}
+
+nav {
+  clear: both;
+  background: #f8f8f8;
+  border-top: 1px solid #ddd;
+}
+
+#menu {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0;
+}
+
+#menu li {
+  border-right: 1px solid #ddd;
+}
+
+#menu li:last-child {
+  border-right: none;
+}
+
+#menu li a {
+  display: block;
+  padding: 12px 15px;
+  color: #333;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+#menu li a:hover {
+  background: #e8f4fd;
+  color: #2c5aa0;
+}
+
+.c {
+  clear: both;
+}
+
+/* Content Area */
+#content {
+  flex: 1;
+  display: flex;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  gap: 20px;
+}
+
+#main {
+  flex: 1;
+  max-width: calc(100% - 320px);
+}
+
+#main h1 {
+  font-size: 28px;
+  color: #333;
+  margin-bottom: 30px;
+  font-weight: normal;
+}
+
+/* Tool Grid */
+#giftools-menu {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+  margin: 30px 0;
+}
+
+#giftools-menu li {
+  background: #f8f8f8;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+#giftools-menu li:hover {
+  background: #e8f4fd;
+  border-color: #2c5aa0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+#giftools-menu li a {
+  display: block;
+  padding: 30px 20px;
+  color: #333;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: bold;
+  text-align: center;
+}
+
+#giftools-menu li.video-to-gif a:before {
+  content: "🎬";
+  display: block;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+#giftools-menu li.resize a:before {
+  content: "📏";
+  display: block;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+#giftools-menu li.optim a:before {
+  content: "⚡";
+  display: block;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+#giftools-menu li.maker a:before {
+  content: "🎨";
+  display: block;
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+/* Site Description */
+#site-description {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 30px 0;
+  text-align: center;
+  color: #666;
+}
+
+/* News Section */
+#news {
+  margin-top: 40px;
+}
+
+#news h2 {
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: #333;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+}
+
+.tweet_list {
+  list-style: none;
+}
+
+.tweet_list li {
+  margin-bottom: 15px;
+  padding: 15px;
+  background: #f8f8f8;
+  border-radius: 5px;
+  border-left: 4px solid #2c5aa0;
+}
+
+.tweet_list .date {
+  font-size: 11px;
+  color: #999;
+  font-weight: bold;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.tweet_list p {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Sidebar */
+#sidebar {
+  width: 300px;
+  flex-shrink: 0;
+}
+
+.sidebar_ad {
+  margin-bottom: 20px;
+}
+
+/* Footer */
+footer {
+  background: #f8f8f8;
+  border-top: 1px solid #ddd;
+  padding: 30px 0;
+  margin-top: 40px;
+}
+
+.fm {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 30px;
+  padding: 0 20px;
+}
+
+footer ul {
+  list-style: none;
+}
+
+footer li {
+  margin-bottom: 8px;
+}
+
+footer li strong {
+  font-size: 14px;
+  color: #333;
+}
+
+footer a {
+  color: #2c5aa0;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+footer a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 800px) {
+  #content {
+    flex-direction: column;
+  }
+  
+  #sidebar {
+    width: 100%;
+    order: -1;
+  }
+  
+  #main {
+    max-width: 100%;
+  }
+  
+  #menu {
+    flex-direction: column;
+  }
+  
+  #menu li {
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+  }
+  
+  #logo {
+    float: none;
+    text-align: center;
+  }
+  
+  #hdr.ads {
+    float: none;
+    text-align: center;
+    margin: 10px 0;
+  }
+  
+  .fm {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  #giftools-menu {
+    grid-template-columns: 1fr;
+  }
+  
+  #content {
+    padding: 10px;
+  }
+  
+  #main h1 {
+    font-size: 24px;
+  }
+}
+
+/* Form Styling (ezgif-like) */
+.form {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  margin: 20px 0;
+}
+
+fieldset {
+  border: none;
+  padding: 20px;
+}
+
+legend {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  padding: 0 10px;
+  margin-bottom: 15px;
+}
+
+.up-input {
+  width: 100%;
+  padding: 8px;
+  border: 2px dashed #ccc;
+  border-radius: 5px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.up-input:hover, .up-input.drag-active {
+  border-color: #2c5aa0;
+  background: #f0f8ff;
+}
+
+input.text {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.2s;
+}
+
+.btn.primary {
+  background: #2c5aa0;
+  color: white;
+}
+
+.btn.primary:hover {
+  background: #1e3f73;
+}
+
+.btn.secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn.secondary:hover {
+  background: #545b62;
+}
+
+.btn.small {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.hint {
+  font-size: 11px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.txt {
+  margin: 30px 0;
+  line-height: 1.6;
+}
+
+.txt h2 {
+  font-size: 18px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.txt p {
+  margin-bottom: 15px;
+}
+
+.txt hr {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 20px 0;
+}
