@@ -7,8 +7,15 @@ import AdvancedUploadArea from './components/AdvancedUploadArea.jsx';
 import GifSplitter from './components/GifSplitter.jsx';
 import SplitResults from './components/SplitResults.jsx';
 import VideoToGif from './components/VideoToGif.jsx';
+import AddText from './components/AddText.jsx';
 import Results from './components/Results.jsx';
+import D3ProgressVisualization from './components/D3ProgressVisualization.jsx';
+import KonvaImageEditor from './components/KonvaImageEditor.jsx';
+import SortableFileManager from './components/SortableFileManager.jsx';
+import NotificationService from './utils/NotificationService.js';
+import { colors, colorVariations, buttonStyles } from './utils/polishedHelpers.js';
 import './ezgif-style.css';
+import 'animate.css/animate.min.css';
 
 export default function App() {
   const [results, setResults] = useState([]);
@@ -173,6 +180,8 @@ export default function App() {
         );
       case 'video-to-gif':
         return <VideoToGif />;
+      case 'add-text':
+        return <AddText />;
       default:
         return <HomePage onNavigate={handleNavigation} />;
     }
@@ -180,7 +189,7 @@ export default function App() {
 
   return (
     <div className="ww" id="wrapper">
-      <Header onNavigate={handleNavigation} />
+      <Header onNavigate={handleNavigation} currentPage={currentPage} />
       
       <div id="content">
         <Sidebar />

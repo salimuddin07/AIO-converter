@@ -16,6 +16,9 @@ export default function HomePage({ onNavigate }) {
         <li className="video-to-gif">
           <a href="/video-to-gif" onClick={(e) => handleNavClick(e, 'video-to-gif')} title="Video to GIF online converter">Video to GIF</a>
         </li>
+        <li className="add-text">
+          <a href="/add-text" onClick={(e) => handleNavClick(e, 'add-text')} title="Add text overlays to animated images">Add Text</a>
+        </li>
         <li className="resize">
           <a href="/resize" onClick={(e) => handleNavClick(e, 'resize')} title="Resize GIFs and other animated images">Resizer</a>
         </li>

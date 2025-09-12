@@ -23,7 +23,7 @@ const VideoResults = ({ result, onBack }) => {
 
   const fetchVideoInfo = async () => {
     try {
-      const response = await fetch(`/api/video/info/${result.videoId}`);
+      const response = await fetch(`http://localhost:4002/api/video/info/${result.videoId}`);
       const info = await response.json();
       setVideoInfo(info);
       
@@ -45,7 +45,7 @@ const VideoResults = ({ result, onBack }) => {
     setIsConverting(true);
     
     try {
-      const response = await fetch('/api/video/convert', {
+      const response = await fetch('http://localhost:4002/api/video/convert', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ const VideoResults = ({ result, onBack }) => {
 
   const handleDownload = (gifPath, filename) => {
     const link = document.createElement('a');
-    link.href = `/api/video/download/${gifPath}`;
+    link.href = `http://localhost:4002/api/video/download/${gifPath}`;
     link.download = filename;
     link.click();
   };
@@ -108,7 +108,7 @@ const VideoResults = ({ result, onBack }) => {
         <div className="result-container">
           <div className="gif-preview">
             <img 
-              src={`/api/video/preview/${convertResult.gifPath}`} 
+              src={`http://localhost:4002/api/video/gif-preview/${convertResult.gifPath}`} 
               alt="Converted GIF" 
               style={{ maxWidth: '100%', height: 'auto' }}
             />
@@ -159,7 +159,7 @@ const VideoResults = ({ result, onBack }) => {
         <div className="video-preview">
           <video 
             ref={videoRef}
-            src={`/api/video/preview/${result.videoId}`}
+            src={`http://localhost:4002/api/video/preview/${result.videoId}`}
             controls
             style={{ width: '100%', maxWidth: '600px' }}
             onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}

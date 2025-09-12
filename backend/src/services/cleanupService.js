@@ -34,3 +34,17 @@ export function scheduleCleanup() {
     await cleanupDir(outputDir);
   });
 }
+
+export async function cleanupFiles(filePaths) {
+  if (!Array.isArray(filePaths)) {
+    filePaths = [filePaths];
+  }
+  
+  await Promise.all(filePaths.map(async (filePath) => {
+    try {
+      await fs.unlink(filePath);
+    } catch (error) {
+      // Ignore errors - file might already be deleted or not exist
+    }
+  }));
+}

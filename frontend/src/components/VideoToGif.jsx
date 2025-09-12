@@ -90,7 +90,7 @@ const VideoToGif = () => {
     }
 
     try {
-      const response = await fetch('/api/video/upload', {
+      const response = await fetch('http://localhost:4002/api/video/upload', {
         method: 'POST',
         body: formData
       });

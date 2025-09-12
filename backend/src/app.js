@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import convertRouter from './routes/convert.js';
 import splitRouter from './routes/split.js';
 import videoRouter from './routes/video.js';
+import textRouter from './routes/text.js';
 import aiRouter from './routes/ai.js';
 import filesRouter from './routes/files.js';
 import errorHandler from './middleware/errorHandler.js';
@@ -32,6 +33,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/convert', convertRouter);
 app.use('/api/split', splitRouter);
 app.use('/api/video', videoRouter);
+app.use('/api/text', textRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/files', filesRouter);
 

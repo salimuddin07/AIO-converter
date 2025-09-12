@@ -9,8 +9,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fullpage/react-fullpage": "^0.1.49",
+    "animate.css": "^4.1.1",
+    "d3": "^7.9.0",
+    "fullpage.js": "^4.0.37",
+    "konva": "^10.0.2",
+    "polished": "^4.3.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-konva": "^19.0.10",
+    "sortablejs": "^1.15.6",
+    "sweetalert2": "^11.23.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
