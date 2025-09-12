@@ -1,20 +1,12 @@
 import React from 'react';
 
-export default function Header({ currentTool, setCurrentTool }) {
-  
-  const handleNavClick = (e, toolId) => {
-    e.preventDefault();
-    if (setCurrentTool) {
-      setCurrentTool(toolId);
-    }
-  };
-
+export default function Header() {
   return (
     <header className="ezgif-header">
       <div className="header-container">
         <div className="logo-section">
           <h1 className="site-logo">
-            <a href="#" onClick={(e) => handleNavClick(e, 'home')}>EZGIF.COM</a>
+            <a href="/">EZGIF.COM</a>
           </h1>
           <p className="tagline">online animated gif maker and image editor</p>
         </div>
@@ -26,19 +18,19 @@ export default function Header({ currentTool, setCurrentTool }) {
 
       <nav className="main-nav">
         <ul className="nav-links">
-          <li><a href="#" className={`nav-link gif-maker ${currentTool === 'gif-maker' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'gif-maker')}>GIF maker</a></li>
-          <li><a href="#" className={`nav-link video-to-gif ${currentTool === 'video-to-gif' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'video-to-gif')}>Video to GIF</a></li>
-          <li><a href="#" className={`nav-link resize ${currentTool === 'resize' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'resize')}>Resize</a></li>
-          <li><a href="#" className={`nav-link rotate ${currentTool === 'rotate' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'rotate')}>Rotate</a></li>
-          <li><a href="#" className={`nav-link crop ${currentTool === 'crop' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'crop')}>Crop</a></li>
-          <li><a href="#" className={`nav-link optimize ${currentTool === 'optimize' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'optimize')}>Optimize</a></li>
-          <li><a href="#" className={`nav-link effects ${currentTool === 'effects' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'effects')}>Effects</a></li>
-          <li><a href="#" className={`nav-link split ${currentTool === 'split' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'split')}>Split</a></li>
-          <li><a href="#" className={`nav-link add-text ${currentTool === 'add-text' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'add-text')}>Add text</a></li>
-          <li><a href="#" className={`nav-link webp ${currentTool === 'webp-maker' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'webp-maker')}>WebP</a></li>
-          <li><a href="#" className={`nav-link apng ${currentTool === 'apng-maker' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'apng-maker')}>APNG</a></li>
-          <li><a href="#" className={`nav-link avif ${currentTool === 'avif-converter' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'avif-converter')}>AVIF</a></li>
-          <li><a href="#" className={`nav-link jxl ${currentTool === 'jxl-converter' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'jxl-converter')}>JXL</a></li>
+          <li><a href="#" className="nav-link gif-maker">GIF maker</a></li>
+          <li><a href="#" className="nav-link video-to-gif">Video to GIF</a></li>
+          <li><a href="#" className="nav-link resize">Resize</a></li>
+          <li><a href="#" className="nav-link rotate">Rotate</a></li>
+          <li><a href="#" className="nav-link crop">Crop</a></li>
+          <li><a href="#" className="nav-link optimize">Optimize</a></li>
+          <li><a href="#" className="nav-link effects">Effects</a></li>
+          <li><a href="#" className="nav-link split">Split</a></li>
+          <li><a href="#" className="nav-link add-text">Add text</a></li>
+          <li><a href="#" className="nav-link webp">WebP</a></li>
+          <li><a href="#" className="nav-link apng">APNG</a></li>
+          <li><a href="#" className="nav-link avif">AVIF</a></li>
+          <li><a href="#" className="nav-link jxl">JXL</a></li>
         </ul>
       </nav>
 
@@ -123,14 +115,12 @@ export default function Header({ currentTool, setCurrentTool }) {
           border-right: 1px solid #dee2e6;
           transition: all 0.2s ease;
           font-weight: 500;
-          cursor: pointer;
         }
 
         .nav-link:hover,
-        .nav-link:focus,
-        .nav-link.active {
-          background: #3498db;
-          color: white;
+        .nav-link:focus {
+          background: #e9ecef;
+          color: #212529;
         }
 
         @media (max-width: 768px) {

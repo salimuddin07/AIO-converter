@@ -84,12 +84,12 @@ export const fluidTypography = (minSize, maxSize, minScreen = breakpoints.mobile
 
 // Animation presets
 export const animations = {
-  fadeIn: animation(['fadeIn'], '0.3s ease-in-out'),
-  slideUp: animation(['slideInUp'], '0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)'),
-  bounce: animation(['bounce'], '1s ease-in-out'),
-  pulse: animation(['pulse'], '2s infinite'),
-  spin: animation(['spin'], '1s linear infinite'),
-  zoomIn: animation(['zoomIn'], '0.3s ease-out')
+  fadeIn: animation('fadeIn', '0.3s ease-in-out'),
+  slideUp: animation('slideInUp', '0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)'),
+  bounce: animation('bounce', '1s ease-in-out'),
+  pulse: animation('pulse', '2s infinite'),
+  spin: animation('spin', '1s linear infinite'),
+  zoomIn: animation('zoomIn', '0.3s ease-out')
 };
 
 // Transition presets

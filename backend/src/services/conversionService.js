@@ -1,11 +1,58 @@
 import fs from 'fs/promises';
 import sharp from 'sharp';
 import path from 'path';
+import https from 'https';
+import http from 'http';
 import { v4 as uuid } from 'uuid';
-import { outputDir } from '../utils/filePaths.js';
+import { outputDir, tempDir } from '../utils/filePaths.js';
 import { config } from '../config/index.js';
 
-export async function convertSingle(filePath, targetFormat) {
+// Function to download image from URL
+async function downloadImageFromUrl(imageUrl) {
+  return new Promise((resolve, reject) => {
+    const id = uuid();
+    const tempPath = path.join(tempDir, `url-${id}`);
+    const protocol = imageUrl.startsWith('https') ? https : http;
+    
+    const request = protocol.get(imageUrl, (response) => {
+      if (response.statusCode !== 200) {
+        reject(new Error(`Failed to download image: HTTP ${response.statusCode}`));
+        return;
+      }
+      
+      const contentType = response.headers['content-type'];
+      if (!contentType || !contentType.startsWith('image/')) {
+        reject(new Error('URL does not point to a valid image'));
+        return;
+      }
+      
+      const file = fs.createWriteStream(tempPath);
+      response.pipe(file);
+      
+      file.on('finish', () => {
+        file.close();
+        resolve(tempPath);
+      });
+      
+      file.on('error', (err) => {
+        fs.unlink(tempPath).catch(() => {});
+        reject(err);
+      });
+    });
+    
+    request.on('error', (err) => {
+      reject(new Error(`Failed to download image: ${err.message}`));
+    });
+    
+    // Set timeout
+    request.setTimeout(30000, () => {
+      request.abort();
+      reject(new Error('Download timeout'));
+    });
+  });
+}
+
+export async function convertSingle(filePath, targetFormat, options = {}) {
   const id = uuid();
   const outName = `${id}.${targetFormat}`;
   const outPath = path.join(outputDir, outName);
@@ -103,8 +150,22 @@ export async function convertSingle(filePath, targetFormat) {
       pipeline = pipeline.png();
       break;
     case 'gif':
-  // sharp can output gif (static). Animated GIFs are handled in gifService.
-  pipeline = pipeline.gif();
+      // sharp can output gif (static). Animated GIFs are handled in gifService.
+      pipeline = pipeline.gif();
+      break;
+    case 'webp':
+      const webpOptions = {
+        quality: options.quality || 80,
+        method: options.method || 6,
+        lossless: options.lossless || false
+      };
+      pipeline = pipeline.webp(webpOptions);
+      break;
+    case 'avif':
+      pipeline = pipeline.avif({ quality: options.quality || 80 });
+      break;
+    case 'tiff':
+      pipeline = pipeline.tiff();
       break;
     default:
       throw new Error(`Unsupported target format: ${targetFormat}`);
@@ -112,4 +173,32 @@ export async function convertSingle(filePath, targetFormat) {
   await pipeline.toFile(outPath);
   const stat = await fs.stat(outPath);
   return { outName, outPath, size: stat.size };
+}
+
+export async function convertFromUrl(imageUrl, targetFormat, options = {}) {
+  console.log(`\n=== URL CONVERSION START ===`);
+  console.log(`URL: ${imageUrl}`);
+  console.log(`Format: ${targetFormat}`);
+  console.log(`============================`);
+  
+  let tempPath;
+  try {
+    // Download image from URL
+    tempPath = await downloadImageFromUrl(imageUrl);
+    console.log(`Downloaded to temp: ${tempPath}`);
+    
+    // Convert the downloaded file
+    const result = await convertSingle(tempPath, targetFormat, options);
+    
+    // Clean up temp file
+    await fs.unlink(tempPath).catch(() => {});
+    
+    return result;
+  } catch (error) {
+    // Clean up temp file if exists
+    if (tempPath) {
+      await fs.unlink(tempPath).catch(() => {});
+    }
+    throw error;
+  }
 }

@@ -19,10 +19,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header 
-        currentTool={currentTool}
-        setCurrentTool={setCurrentTool}
-      />
+      <Header />
       <EzgifMainInterface 
         currentTool={currentTool}
         setCurrentTool={setCurrentTool}
