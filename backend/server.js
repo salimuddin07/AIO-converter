@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 5001;
 const server = createServer(app);
 scheduleCleanup();
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Image Converter backend listening on port ${PORT}`);
 });
 

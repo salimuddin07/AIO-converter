@@ -3,12 +3,20 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs/promises';
-import { tempDir } from '../utils/filePaths.js';
+import AdmZip from 'adm-zip';
+import mime from 'mime-types';
+import { tempDir, outputDir } from '../utils/filePaths.js';
 import { config } from '../config/index.js';
 import { createError } from '../middleware/errorHandler.js';
-import { convertSingle, convertFromUrl } from '../services/conversionService.js';
+import EnhancedConversionService from '../services/EnhancedConversionService.js';
+import { gifService } from '../services/gifService.js';
+import { ffmpegService } from '../services/ffmpegService.js';
+import { convertFromUrl } from '../services/conversionService.js';
 
 const router = Router();
+
+// Initialize enhanced conversion service
+const enhancedConversion = new EnhancedConversionService();
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, tempDir),
@@ -22,13 +30,38 @@ const upload = multer({
   storage,
   limits: { fileSize: config.maxFileSizeMB * 1024 * 1024, files: config.maxBatchCount },
   fileFilter: (_req, file, cb) => {
-    // Support all major image and video formats for ezgif functionality
-    const allowed = [
-      /png$/i, /jpeg$/i, /jpg$/i, /gif$/i, /webp$/i, /bmp$/i, /tiff$/i,
-      /mp4$/i, /mov$/i, /avi$/i, /webm$/i, /mkv$/i, /flv$/i
+    // Support comprehensive format list from ezgif
+    const imageFormats = [
+      'image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 
+      'image/bmp', 'image/tiff', 'image/svg+xml', 'image/x-icon'
     ];
-    if (allowed.some(r => r.test(file.mimetype))) return cb(null, true);
-    return cb(new Error('Unsupported file type'));
+    const videoFormats = [
+      'video/mp4', 'video/mov', 'video/avi', 'video/webm', 'video/mkv', 
+      'video/flv', 'video/wmv', 'video/3gp', 'video/ogv'
+    ];
+    const archiveFormats = [
+      'application/zip', 'application/x-zip-compressed'
+    ];
+    
+    const allFormats = [...imageFormats, ...videoFormats, ...archiveFormats];
+    
+    if (allFormats.includes(file.mimetype)) {
+      return cb(null, true);
+    }
+    
+    // Check by file extension as fallback
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExts = [
+      '.png', '.jpeg', '.jpg', '.gif', '.webp', '.bmp', '.tiff', '.svg', '.ico',
+      '.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv', '.wmv', '.3gp', '.ogv',
+      '.zip'
+    ];
+    
+    if (allowedExts.includes(ext)) {
+      return cb(null, true);
+    }
+    
+    return cb(new Error(`Unsupported file type: ${file.mimetype || ext}`));
   }
 });
 
@@ -183,220 +216,1358 @@ router.post('/', upload.array('files'), async (req, res, next) => {
   }
 });
 
-// Tool-specific processing functions
+// Advanced GIF Frame Management endpoint
+router.post('/gif-editor', upload.array('frames'), async (req, res, next) => {
+  try {
+    console.log('GIF Editor Request:', { 
+      action: req.body.action,
+      frameCount: (req.files || []).length 
+    });
+
+    const action = req.body.action;
+    const frames = req.files || [];
+    
+    if (!frames.length && action !== 'load-gif') {
+      return next(createError('No frames provided for editing', 400));
+    }
+
+    let result;
+    switch (action) {
+      case 'reorder-frames':
+        result = await processFrameReorder(frames, req.body);
+        break;
+      
+      case 'adjust-delays':
+        result = await processDelayAdjustment(frames, req.body);
+        break;
+      
+      case 'add-crossfade':
+        result = await processCrossfadeEffect(frames, req.body);
+        break;
+      
+      case 'change-canvas-size':
+        result = await processCanvasResize(frames, req.body);
+        break;
+      
+      case 'apply-gravity':
+        result = await processGravityAlignment(frames, req.body);
+        break;
+      
+      default:
+        return next(createError(`Unknown gif-editor action: ${action}`, 400));
+    }
+
+    res.json({
+      success: true,
+      action: action,
+      result: result
+    });
+
+  } catch (error) {
+    console.error('GIF Editor error:', error);
+    next(createError(error.message || 'GIF editing failed', 500));
+  }
+});
+
+// Batch processing endpoint for multiple files
+router.post('/batch', upload.array('files'), async (req, res, next) => {
+  try {
+    console.log('Batch processing request:', {
+      tool: req.body.tool,
+      fileCount: (req.files || []).length
+    });
+
+    const tool = req.body.tool;
+    const files = req.files || [];
+    const batchOptions = JSON.parse(req.body.options || '{}');
+    
+    if (!files.length) {
+      return next(createError('No files provided for batch processing', 400));
+    }
+
+    const results = [];
+    const errors = [];
+
+    // Process files in parallel with concurrency limit
+    const concurrency = 3;
+    for (let i = 0; i < files.length; i += concurrency) {
+      const batch = files.slice(i, i + concurrency);
+      
+      const batchPromises = batch.map(async (file, index) => {
+        try {
+          // Apply file-specific options if provided
+          const fileOptions = batchOptions.fileOptions?.[i + index] || batchOptions;
+          
+          let result;
+          switch (tool) {
+            case 'resize':
+              result = await processResize(file, fileOptions);
+              break;
+            case 'optimize':
+              result = await processOptimize(file, fileOptions);
+              break;
+            case 'convert':
+              result = await processBasicConversion(file, fileOptions);
+              break;
+            default:
+              throw new Error(`Batch tool ${tool} not supported`);
+          }
+          
+          return { success: true, file: result };
+        } catch (error) {
+          return { success: false, error: error.message, filename: file.originalname };
+        }
+      });
+
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      batchResults.forEach(result => {
+        if (result.status === 'fulfilled') {
+          if (result.value.success) {
+            results.push(result.value.file);
+          } else {
+            errors.push(result.value);
+          }
+        } else {
+          errors.push({ success: false, error: result.reason.message });
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      tool: tool,
+      processed: results.length,
+      errors: errors.length,
+      results: results,
+      errors: errors
+    });
+
+  } catch (error) {
+    console.error('Batch processing error:', error);
+    next(createError(error.message || 'Batch processing failed', 500));
+  }
+});
+
+// ZIP file upload and extraction endpoint
+router.post('/upload-zip', upload.single('zipFile'), async (req, res, next) => {
+  try {
+    console.log('ZIP Upload Request:', { 
+      filename: req.file?.originalname,
+      size: req.file?.size 
+    });
+
+    if (!req.file) {
+      return next(createError('No ZIP file provided', 400));
+    }
+
+    const zipPath = req.file.path;
+    const extractPath = path.join(tempDir, `extracted_${uuid()}`);
+    
+    try {
+      // Extract ZIP file
+      const zip = new AdmZip(zipPath);
+      const entries = zip.getEntries();
+      
+      const extractedFiles = [];
+      
+      // Create extraction directory
+      await fs.mkdir(extractPath, { recursive: true });
+      
+      // Process each file in the ZIP
+      for (const entry of entries) {
+        if (!entry.isDirectory) {
+          const entryName = entry.entryName;
+          const ext = path.extname(entryName).toLowerCase();
+          
+          // Check if file type is supported
+          const supportedExts = [
+            '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff',
+            '.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv'
+          ];
+          
+          if (supportedExts.includes(ext)) {
+            const extractedPath = path.join(extractPath, `${uuid()}${ext}`);
+            
+            // Extract file
+            zip.extractEntryTo(entry, path.dirname(extractedPath), false, true);
+            
+            // Rename to UUID-based name for processing
+            const tempName = path.join(extractPath, entryName);
+            try {
+              await fs.rename(tempName, extractedPath);
+              
+              // Get file stats
+              const stats = await fs.stat(extractedPath);
+              const mimeType = mime.lookup(ext) || 'application/octet-stream';
+              
+              extractedFiles.push({
+                path: extractedPath,
+                originalname: entryName,
+                mimetype: mimeType,
+                size: stats.size,
+                extractedName: path.basename(extractedPath)
+              });
+            } catch (renameError) {
+              console.warn(`Failed to rename ${entryName}:`, renameError.message);
+            }
+          }
+        }
+      }
+      
+      // Clean up ZIP file
+      await fs.unlink(zipPath);
+      
+      res.json({
+        success: true,
+        message: `Extracted ${extractedFiles.length} supported files from ZIP`,
+        files: extractedFiles.map(f => ({
+          name: f.originalname,
+          extractedName: f.extractedName,
+          size: formatFileSize(f.size),
+          type: f.mimetype,
+          path: f.path // For internal processing
+        })),
+        extractPath: extractPath
+      });
+
+    } catch (zipError) {
+      console.error('ZIP extraction failed:', zipError);
+      
+      // Clean up on error
+      try {
+        await fs.unlink(zipPath);
+        await fs.rmdir(extractPath, { recursive: true });
+      } catch (cleanupError) {
+        console.warn('Cleanup failed:', cleanupError.message);
+      }
+      
+      return next(createError(`ZIP extraction failed: ${zipError.message}`, 400));
+    }
+
+  } catch (error) {
+    console.error('ZIP upload error:', error);
+    next(createError(error.message || 'ZIP upload failed', 500));
+  }
+});
+
+// File validation endpoint
+router.post('/validate', upload.array('files'), async (req, res, next) => {
+  try {
+    const files = req.files || [];
+    const validationResults = [];
+    
+    for (const file of files) {
+      const validation = await validateFile(file);
+      validationResults.push(validation);
+    }
+    
+    res.json({
+      success: true,
+      validations: validationResults,
+      totalFiles: files.length,
+      validFiles: validationResults.filter(v => v.valid).length,
+      invalidFiles: validationResults.filter(v => !v.valid).length
+    });
+
+  } catch (error) {
+    console.error('File validation error:', error);
+    next(createError(error.message || 'File validation failed', 500));
+  }
+});
+
+// Advanced GIF Options endpoint - comprehensive ezgif features
+router.post('/gif-advanced', upload.array('frames'), async (req, res, next) => {
+  try {
+    console.log('Advanced GIF Request:', { 
+      frameCount: (req.files || []).length,
+      options: JSON.stringify(req.body, null, 2)
+    });
+
+    const frames = req.files || [];
+    if (!frames.length) {
+      return next(createError('No frames provided for advanced GIF creation', 400));
+    }
+
+    // Parse all the advanced options from ezgif HTML structure
+    const advancedOptions = {
+      // Basic GIF settings
+      frameDelays: req.body.delays ? req.body.delays.split(',').map(d => parseInt(d.trim()) || 100) : [],
+      globalDelay: parseInt(req.body.delay) || 100,
+      loop: parseInt(req.body.loop) >= 0 ? parseInt(req.body.loop) : 0, // 0 = infinite
+      
+      // Size and positioning
+      width: parseInt(req.body.width) || null,
+      height: parseInt(req.body.height) || null,
+      gravity: req.body.gravity || 'center', // gravity from ezgif: center, north, south, east, west, etc.
+      backgroundColor: req.body.backgroundColor || 'transparent',
+      
+      // Quality and optimization
+      optimize: req.body.optimize !== 'false',
+      quality: parseInt(req.body.quality) || 10, // 1-20, lower is better
+      dither: req.body.dither || 'floyd_steinberg', // floyd_steinberg, ordered, none
+      method: req.body.method || 'lanczos', // scaling method: lanczos, cubic, linear
+      
+      // Advanced features from ezgif
+      globalColormap: req.body.globalColormap === 'true',
+      localColormap: req.body.localColormap === 'true',
+      crossfade: req.body.crossfade === 'true',
+      crossfadeDuration: parseInt(req.body.crossfadeDuration) || 100,
+      
+      // Frame effects
+      reverse: req.body.reverse === 'true',
+      bounce: req.body.bounce === 'true', // forward then reverse
+      fadeIn: req.body.fadeIn === 'true',
+      fadeOut: req.body.fadeOut === 'true',
+      
+      // Color adjustments
+      brightness: parseFloat(req.body.brightness) || null,
+      contrast: parseFloat(req.body.contrast) || null,
+      saturation: parseFloat(req.body.saturation) || null,
+      gamma: parseFloat(req.body.gamma) || null,
+      
+      // Filters
+      blur: parseFloat(req.body.blur) || null,
+      sharpen: parseFloat(req.body.sharpen) || null,
+      
+      // Frame management
+      frameOrder: req.body.frameOrder || null, // comma-separated indices
+      skipFrames: req.body.skipFrames || null, // frames to skip
+      duplicateFrames: req.body.duplicateFrames || null, // frames to duplicate
+      
+      // Advanced positioning
+      offsetX: parseInt(req.body.offsetX) || 0,
+      offsetY: parseInt(req.body.offsetY) || 0,
+      
+      // Disposal methods from GIF spec
+      dispose: req.body.dispose || 'none', // none, background, previous
+      blend: req.body.blend || 'over' // over, source, clear
+    };
+
+    console.log('Processing with advanced options:', advancedOptions);
+
+    // Process frames with advanced settings
+    let processedFrames = frames.map((frame, index) => ({
+      path: frame.path,
+      originalName: frame.originalname,
+      delay: advancedOptions.frameDelays[index] || advancedOptions.globalDelay,
+      dispose: advancedOptions.dispose,
+      blend: advancedOptions.blend
+    }));
+
+    // Apply frame reordering if specified
+    if (advancedOptions.frameOrder) {
+      const order = advancedOptions.frameOrder.split(',').map(i => parseInt(i.trim()));
+      processedFrames = order.map(index => processedFrames[index]).filter(Boolean);
+    }
+
+    // Apply frame effects
+    if (advancedOptions.reverse) {
+      processedFrames = [...processedFrames].reverse();
+    }
+    
+    if (advancedOptions.bounce) {
+      const reversed = [...processedFrames].reverse();
+      reversed.shift(); // Remove duplicate of last frame
+      processedFrames = [...processedFrames, ...reversed];
+    }
+
+    // Apply fade effects
+    if (advancedOptions.fadeIn || advancedOptions.fadeOut) {
+      const fadeFrames = Math.min(5, Math.floor(processedFrames.length / 4));
+      
+      processedFrames = processedFrames.map((frame, index) => {
+        let opacity = 1.0;
+        
+        if (advancedOptions.fadeIn && index < fadeFrames) {
+          opacity = (index + 1) / fadeFrames;
+        }
+        
+        if (advancedOptions.fadeOut && index >= processedFrames.length - fadeFrames) {
+          const fadeIndex = processedFrames.length - index - 1;
+          opacity = (fadeIndex + 1) / fadeFrames;
+        }
+        
+        return { ...frame, opacity };
+      });
+    }
+
+    // Create the advanced GIF
+    const outputName = `advanced_${uuid()}.gif`;
+    const outputPath = path.join(outputDir, outputName);
+    
+    const result = await gifService.createAdvancedGif(processedFrames, outputPath, advancedOptions);
+    
+    const stats = await fs.stat(outputPath);
+    
+    res.json({
+      success: true,
+      filename: outputName,
+      url: `/api/files/${outputName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'gif-advanced',
+      processing: {
+        totalFrames: processedFrames.length,
+        originalFrames: frames.length,
+        averageDelay: Math.round(processedFrames.reduce((sum, f) => sum + f.delay, 0) / processedFrames.length),
+        dimensions: result.dimensions,
+        loop: advancedOptions.loop,
+        optimized: advancedOptions.optimize,
+        crossfade: advancedOptions.crossfade,
+        effects: {
+          reverse: advancedOptions.reverse,
+          bounce: advancedOptions.bounce,
+          fadeIn: advancedOptions.fadeIn,
+          fadeOut: advancedOptions.fadeOut
+        },
+        colorAdjustments: {
+          brightness: advancedOptions.brightness,
+          contrast: advancedOptions.contrast,
+          saturation: advancedOptions.saturation,
+          gamma: advancedOptions.gamma
+        },
+        filters: {
+          blur: advancedOptions.blur,
+          sharpen: advancedOptions.sharpen
+        },
+        positioning: {
+          gravity: advancedOptions.gravity,
+          offset: { x: advancedOptions.offsetX, y: advancedOptions.offsetY }
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Advanced GIF creation error:', error);
+    next(createError(error.message || 'Advanced GIF creation failed', 500));
+  }
+});
+
+// Tool-specific processing functions with enhanced conversion
 async function processVideoToGif(file, options = {}) {
   const outputName = `gif_${uuid()}.gif`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '1.2 MB',
-    type: 'image',
-    tool: 'video-to-gif'
-  };
+  try {
+    // Enhanced video to GIF conversion with advanced options
+    const conversionOptions = {
+      fps: parseInt(options.fps) || 15,
+      width: parseInt(options.width) || null,
+      height: parseInt(options.height) || null,
+      startTime: parseFloat(options.startTime) || 0,
+      duration: parseFloat(options.duration) || null,
+      quality: options.quality || 'medium',
+      optimize: options.optimize !== 'false',
+      loop: parseInt(options.loop) >= 0 ? parseInt(options.loop) : -1, // -1 for infinite
+      dither: options.dither || 'floyd_steinberg',
+      method: options.method || 'lanczos'
+    };
+
+    const result = await enhancedConversion.convertSingle(file.path, 'gif', conversionOptions);
+    
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'video-to-gif',
+      processing: {
+        fps: conversionOptions.fps,
+        width: result.width,
+        height: result.height,
+        duration: result.duration
+      }
+    };
+  } catch (error) {
+    console.error('Video to GIF conversion failed:', error);
+    throw new Error(`Video conversion failed: ${error.message}`);
+  }
 }
 
 async function processImagesToGif(files, options = {}) {
   const outputName = `animated_${uuid()}.gif`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    url: `/api/files/${outputName}`,
-    size: '2.5 MB',
-    type: 'image',
-    tool: 'images-to-gif',
-    frames: files.length
-  };
+  try {
+    // Advanced GIF maker with frame management from ezgif
+    const frames = [];
+    const frameDelays = options.delays ? options.delays.split(',').map(d => parseInt(d.trim()) || 100) : [];
+    const globalDelay = parseInt(options.delay) || 100;
+    
+    // Handle frame reordering if provided
+    let fileOrder = files;
+    if (options.frameOrder) {
+      const orderIndices = options.frameOrder.split(',').map(i => parseInt(i.trim()));
+      fileOrder = orderIndices.map(index => files[index]).filter(Boolean);
+    }
+    
+    // Process each frame with individual settings
+    for (let i = 0; i < fileOrder.length; i++) {
+      const file = fileOrder[i];
+      const delay = frameDelays[i] || globalDelay;
+      
+      frames.push({
+        path: file.path,
+        delay: delay,
+        dispose: options.dispose || 'none', // none, background, previous
+        blend: options.blend || 'over'      // over, source, clear
+      });
+    }
+    
+    const gifOptions = {
+      frames: frames,
+      width: parseInt(options.width) || null,
+      height: parseInt(options.height) || null,
+      quality: options.quality || 'medium',
+      optimize: options.optimize !== 'false',
+      loop: parseInt(options.loop) >= 0 ? parseInt(options.loop) : 0, // 0 for infinite
+      dither: options.dither || 'floyd_steinberg',
+      method: options.method || 'lanczos',
+      gravity: options.gravity || 'center', // position for resize/crop
+      backgroundColor: options.backgroundColor || 'transparent',
+      crossfade: options.crossfade === 'true',
+      crossfadeDuration: parseInt(options.crossfadeDuration) || 100,
+      globalColormap: options.globalColormap === 'true'
+    };
+
+    // Use gif service for advanced GIF creation
+    const result = await gifService.createAdvancedGif(frames, outputPath, gifOptions);
+    
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: outputName,
+      url: `/api/files/${outputName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'images-to-gif',
+      frames: frames.length,
+      processing: {
+        totalFrames: frames.length,
+        averageDelay: Math.round(frames.reduce((sum, f) => sum + f.delay, 0) / frames.length),
+        dimensions: result.dimensions,
+        loop: gifOptions.loop,
+        optimized: gifOptions.optimize
+      }
+    };
+  } catch (error) {
+    console.error('Images to GIF conversion failed:', error);
+    throw new Error(`GIF creation failed: ${error.message}`);
+  }
 }
 
 async function processResize(file, options = {}) {
-  const outputName = `resized_${uuid()}${path.extname(file.originalname)}`;
+  const ext = path.extname(file.originalname).toLowerCase() || '.png';
+  const outputName = `resized_${uuid()}${ext}`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '800 KB',
-    type: 'image',
-    tool: 'resize'
-  };
+  try {
+    const resizeOptions = {
+      width: parseInt(options.width) || null,
+      height: parseInt(options.height) || null,
+      method: options.method || 'lanczos',
+      aspectRatio: options.aspectRatio !== 'false',
+      gravity: options.gravity || 'center',
+      background: options.background || 'transparent'
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), resizeOptions);
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'resize',
+      processing: {
+        originalSize: `${result.originalWidth}x${result.originalHeight}`,
+        newSize: `${result.width}x${result.height}`
+      }
+    };
+  } catch (error) {
+    console.error('Resize failed:', error);
+    throw new Error(`Resize failed: ${error.message}`);
+  }
 }
 
 async function processCrop(file, options = {}) {
-  const outputName = `cropped_${uuid()}${path.extname(file.originalname)}`;
+  const ext = path.extname(file.originalname).toLowerCase() || '.png';
+  const outputName = `cropped_${uuid()}${ext}`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '600 KB',
-    type: 'image',
-    tool: 'crop'
-  };
+  try {
+    const cropOptions = {
+      x: parseInt(options.x) || 0,
+      y: parseInt(options.y) || 0,
+      width: parseInt(options.width) || null,
+      height: parseInt(options.height) || null,
+      gravity: options.gravity || 'northwest'
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), cropOptions);
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'crop',
+      processing: {
+        cropArea: `${cropOptions.width}x${cropOptions.height}+${cropOptions.x}+${cropOptions.y}`,
+        gravity: cropOptions.gravity
+      }
+    };
+  } catch (error) {
+    console.error('Crop failed:', error);
+    throw new Error(`Crop failed: ${error.message}`);
+  }
 }
 
 async function processRotate(file, options = {}) {
-  const outputName = `rotated_${uuid()}${path.extname(file.originalname)}`;
+  const ext = path.extname(file.originalname).toLowerCase() || '.png';
+  const outputName = `rotated_${uuid()}${ext}`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '1.1 MB',
-    type: 'image',
-    tool: 'rotate'
-  };
+  try {
+    const rotateOptions = {
+      angle: parseInt(options.angle) || 90,
+      background: options.background || 'transparent'
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), rotateOptions);
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'rotate',
+      processing: {
+        angle: rotateOptions.angle
+      }
+    };
+  } catch (error) {
+    console.error('Rotate failed:', error);
+    throw new Error(`Rotate failed: ${error.message}`);
+  }
 }
 
 async function processOptimize(file, options = {}) {
-  const outputName = `optimized_${uuid()}${path.extname(file.originalname)}`;
+  const ext = path.extname(file.originalname).toLowerCase() || '.png';
+  const outputName = `optimized_${uuid()}${ext}`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '450 KB',
-    type: 'image',
-    tool: 'optimize'
-  };
+  try {
+    const optimizeOptions = {
+      optimize: true,
+      quality: parseInt(options.quality) || 85,
+      progressive: options.progressive === 'true',
+      strip: options.strip !== 'false',
+      lossless: options.lossless === 'true'
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), optimizeOptions);
+    const stats = await fs.stat(outputPath);
+    const originalStats = await fs.stat(file.path);
+    const savings = ((originalStats.size - stats.size) / originalStats.size * 100).toFixed(1);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'optimize',
+      processing: {
+        originalSize: formatFileSize(originalStats.size),
+        optimizedSize: formatFileSize(stats.size),
+        savings: `${savings}%`,
+        quality: optimizeOptions.quality
+      }
+    };
+  } catch (error) {
+    console.error('Optimize failed:', error);
+    throw new Error(`Optimization failed: ${error.message}`);
+  }
 }
 
 async function processEffects(file, options = {}) {
-  const outputName = `effects_${uuid()}${path.extname(file.originalname)}`;
+  const ext = path.extname(file.originalname).toLowerCase() || '.png';
+  const outputName = `effects_${uuid()}${ext}`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '1.3 MB',
-    type: 'image',
-    tool: 'effects'
-  };
+  try {
+    const effectOptions = {
+      blur: parseFloat(options.blur) || null,
+      sharpen: parseFloat(options.sharpen) || null,
+      brightness: parseFloat(options.brightness) || null,
+      contrast: parseFloat(options.contrast) || null,
+      saturation: parseFloat(options.saturation) || null,
+      hue: parseFloat(options.hue) || null,
+      gamma: parseFloat(options.gamma) || null,
+      sepia: options.sepia === 'true',
+      grayscale: options.grayscale === 'true',
+      negate: options.negate === 'true',
+      flip: options.flip || null, // horizontal, vertical
+      flop: options.flop === 'true'
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), effectOptions);
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'effects',
+      processing: {
+        appliedEffects: Object.entries(effectOptions)
+          .filter(([key, value]) => value !== null && value !== false)
+          .map(([key, value]) => `${key}: ${value}`)
+      }
+    };
+  } catch (error) {
+    console.error('Effects processing failed:', error);
+    throw new Error(`Effects processing failed: ${error.message}`);
+  }
 }
 
 async function processSplit(file, options = {}) {
   const frames = [];
-  const frameCount = 10;
   
-  for (let i = 0; i < frameCount; i++) {
-    frames.push({
-      filename: `frame_${i + 1}_${uuid()}.png`,
-      url: `/api/files/frame_${i + 1}_${uuid()}.png`,
-      size: '120 KB',
-      type: 'image',
-      tool: 'split',
-      frameNumber: i + 1
-    });
+  try {
+    // Use GIF service or FFmpeg for splitting
+    const splitOptions = {
+      format: options.format || 'png',
+      quality: parseInt(options.quality) || 95,
+      prefix: options.prefix || 'frame'
+    };
+    
+    const ext = path.extname(file.originalname).toLowerCase();
+    let result;
+    
+    if (ext === '.gif') {
+      result = await gifService.splitGif(file.path, splitOptions);
+    } else {
+      result = await ffmpegService.extractFrames(file.path, splitOptions);
+    }
+    
+    // Create result objects for each frame
+    for (let i = 0; i < result.frames.length; i++) {
+      const frame = result.frames[i];
+      const stats = await fs.stat(frame.path);
+      
+      frames.push({
+        filename: frame.filename,
+        url: `/api/files/${frame.filename}`,
+        size: formatFileSize(stats.size),
+        type: 'image',
+        tool: 'split',
+        frameNumber: i + 1,
+        delay: frame.delay || null
+      });
+    }
+    
+    return frames;
+  } catch (error) {
+    console.error('Split processing failed:', error);
+    throw new Error(`Split processing failed: ${error.message}`);
   }
-  
-  return frames;
 }
 
 async function processAddText(file, options = {}) {
-  const outputName = `text_${uuid()}${path.extname(file.originalname)}`;
+  const ext = path.extname(file.originalname).toLowerCase() || '.png';
+  const outputName = `text_${uuid()}${ext}`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '1.4 MB',
-    type: 'image',
-    tool: 'add-text'
-  };
+  try {
+    const textOptions = {
+      text: options.text || 'Sample Text',
+      fontSize: parseInt(options.fontSize) || 32,
+      fontFamily: options.fontFamily || 'Arial',
+      color: options.color || '#ffffff',
+      backgroundColor: options.backgroundColor || 'transparent',
+      position: options.position || 'center', // top, center, bottom, custom
+      x: parseInt(options.x) || null,
+      y: parseInt(options.y) || null,
+      stroke: options.stroke || null,
+      strokeWidth: parseInt(options.strokeWidth) || 0,
+      shadowColor: options.shadowColor || null,
+      shadowBlur: parseInt(options.shadowBlur) || 0,
+      shadowOffsetX: parseInt(options.shadowOffsetX) || 0,
+      shadowOffsetY: parseInt(options.shadowOffsetY) || 0,
+      rotation: parseInt(options.rotation) || 0,
+      opacity: parseFloat(options.opacity) || 1.0
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), textOptions);
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'add-text',
+      processing: {
+        text: textOptions.text,
+        fontSize: textOptions.fontSize,
+        position: textOptions.position
+      }
+    };
+  } catch (error) {
+    console.error('Add text failed:', error);
+    throw new Error(`Add text failed: ${error.message}`);
+  }
 }
 
 async function processWebPMaker(file, options = {}) {
   const outputName = `webp_${uuid()}.webp`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '350 KB',
-    type: 'image',
-    tool: 'webp-maker'
-  };
+  try {
+    const webpOptions = {
+      quality: parseInt(options.quality) || 85,
+      lossless: options.lossless === 'true',
+      method: parseInt(options.method) || 4, // 0-6 speed/quality tradeoff
+      preset: options.preset || 'default', // default, photo, picture, drawing, icon, text
+      alphaQuality: parseInt(options.alphaQuality) || 100,
+      autoFilter: options.autoFilter !== 'false',
+      sharpness: parseInt(options.sharpness) || 0,
+      filterStrength: parseInt(options.filterStrength) || 60
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, 'webp', webpOptions);
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'webp-maker',
+      processing: {
+        quality: webpOptions.quality,
+        lossless: webpOptions.lossless,
+        method: webpOptions.method
+      }
+    };
+  } catch (error) {
+    console.error('WebP creation failed:', error);
+    throw new Error(`WebP creation failed: ${error.message}`);
+  }
 }
 
 async function processWebPToGif(file, options = {}) {
   const outputName = `webp_to_gif_${uuid()}.gif`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '1.8 MB',
-    type: 'image',
-    tool: 'webp-to-gif'
-  };
+  try {
+    const gifOptions = {
+      fps: parseInt(options.fps) || 15,
+      optimize: options.optimize !== 'false',
+      dither: options.dither || 'floyd_steinberg',
+      loop: parseInt(options.loop) >= 0 ? parseInt(options.loop) : 0
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, 'gif', gifOptions);
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'webp-to-gif',
+      processing: {
+        fps: gifOptions.fps,
+        optimized: gifOptions.optimize
+      }
+    };
+  } catch (error) {
+    console.error('WebP to GIF conversion failed:', error);
+    throw new Error(`WebP to GIF conversion failed: ${error.message}`);
+  }
 }
 
 async function processAPNGMaker(file, options = {}) {
   const outputName = `apng_${uuid()}.png`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '2.1 MB',
-    type: 'image',
-    tool: 'apng-maker'
-  };
+  try {
+    const apngOptions = {
+      fps: parseInt(options.fps) || 10,
+      loop: parseInt(options.loop) >= 0 ? parseInt(options.loop) : 0,
+      optimize: options.optimize !== 'false'
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, 'apng', apngOptions);
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'apng-maker',
+      processing: {
+        fps: apngOptions.fps,
+        loop: apngOptions.loop
+      }
+    };
+  } catch (error) {
+    console.error('APNG creation failed:', error);
+    throw new Error(`APNG creation failed: ${error.message}`);
+  }
 }
 
 async function processAVIFConverter(file, options = {}) {
   const outputName = `avif_${uuid()}.avif`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '280 KB',
-    type: 'image',
-    tool: 'avif-converter'
-  };
+  try {
+    const avifOptions = {
+      quality: parseInt(options.quality) || 85,
+      lossless: options.lossless === 'true',
+      speed: parseInt(options.speed) || 4 // 0-8 slower=better compression
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, 'avif', avifOptions);
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'avif-converter',
+      processing: {
+        quality: avifOptions.quality,
+        lossless: avifOptions.lossless,
+        speed: avifOptions.speed
+      }
+    };
+  } catch (error) {
+    console.error('AVIF conversion failed:', error);
+    throw new Error(`AVIF conversion failed: ${error.message}`);
+  }
 }
 
 async function processJXLConverter(file, options = {}) {
   const outputName = `jxl_${uuid()}.jxl`;
+  const outputPath = path.join(outputDir, outputName);
   
-  return {
-    filename: outputName,
-    originalName: file.originalname,
-    url: `/api/files/${outputName}`,
-    size: '320 KB',
-    type: 'image',
-    tool: 'jxl-converter'
-  };
+  try {
+    const jxlOptions = {
+      quality: parseInt(options.quality) || 85,
+      lossless: options.lossless === 'true',
+      effort: parseInt(options.effort) || 7 // 1-9 speed/quality tradeoff
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, 'jxl', jxlOptions);
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: result.outName,
+      originalName: file.originalname,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
+      type: 'image',
+      tool: 'jxl-converter',
+      processing: {
+        quality: jxlOptions.quality,
+        lossless: jxlOptions.lossless,
+        effort: jxlOptions.effort
+      }
+    };
+  } catch (error) {
+    console.error('JXL conversion failed:', error);
+    throw new Error(`JXL conversion failed: ${error.message}`);
+  }
 }
 
 async function processBasicConversion(file, options = {}) {
   const format = options.format || 'png';
   const outputName = `converted_${uuid()}.${format}`;
+  const outputPath = path.join(outputDir, outputName);
   
   try {
-    const { outName, size } = await convertSingle(file.path, format);
+    const conversionOptions = {
+      quality: parseInt(options.quality) || 95,
+      optimize: options.optimize !== 'false',
+      progressive: options.progressive === 'true',
+      strip: options.strip !== 'false'
+    };
+    
+    const result = await enhancedConversion.convertSingle(file.path, format, conversionOptions);
+    const stats = await fs.stat(outputPath);
     
     return {
-      filename: outName,
+      filename: result.outName,
       originalName: file.originalname,
-      url: `/api/files/${outName}`,
-      size: `${Math.round(size / 1024)} KB`,
+      url: `/api/files/${result.outName}`,
+      size: formatFileSize(stats.size),
       type: 'image',
-      tool: 'convert'
+      tool: 'convert',
+      processing: {
+        format: format.toUpperCase(),
+        quality: conversionOptions.quality,
+        optimized: conversionOptions.optimize
+      }
     };
   } catch (error) {
-    // Fallback result if conversion fails
+    console.error('Basic conversion failed:', error);
+    throw new Error(`Conversion failed: ${error.message}`);
+  }
+}
+
+// Advanced GIF editing functions for ezgif features
+async function processFrameReorder(frames, options) {
+  try {
+    const order = options.frameOrder.split(',').map(i => parseInt(i.trim()));
+    const delays = options.delays ? options.delays.split(',').map(d => parseInt(d.trim())) : [];
+    
+    const reorderedFrames = order.map((index, newIndex) => ({
+      path: frames[index].path,
+      delay: delays[newIndex] || delays[index] || 100,
+      originalIndex: index,
+      newIndex: newIndex
+    }));
+    
+    const outputName = `reordered_${uuid()}.gif`;
+    const outputPath = path.join(outputDir, outputName);
+    
+    const result = await gifService.createAdvancedGif(reorderedFrames, outputPath, {
+      optimize: true,
+      loop: parseInt(options.loop) || 0
+    });
+    
+    const stats = await fs.stat(outputPath);
+    
     return {
       filename: outputName,
-      originalName: file.originalname,
       url: `/api/files/${outputName}`,
-      size: '500 KB',
-      type: 'image',
-      tool: 'convert'
+      size: formatFileSize(stats.size),
+      frameCount: reorderedFrames.length,
+      action: 'reorder-frames'
     };
+  } catch (error) {
+    throw new Error(`Frame reordering failed: ${error.message}`);
   }
+}
+
+async function processDelayAdjustment(frames, options) {
+  try {
+    const delays = options.delays.split(',').map(d => parseInt(d.trim()));
+    const delayMode = options.delayMode || 'individual'; // individual, global, multiply
+    
+    const adjustedFrames = frames.map((frame, index) => ({
+      path: frame.path,
+      delay: delayMode === 'global' ? delays[0] : 
+             delayMode === 'multiply' ? (delays[0] || 1) * 100 :
+             delays[index] || 100
+    }));
+    
+    const outputName = `delay_adjusted_${uuid()}.gif`;
+    const outputPath = path.join(outputDir, outputName);
+    
+    const result = await gifService.createAdvancedGif(adjustedFrames, outputPath, {
+      optimize: options.optimize !== 'false',
+      loop: parseInt(options.loop) || 0
+    });
+    
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: outputName,
+      url: `/api/files/${outputName}`,
+      size: formatFileSize(stats.size),
+      frameCount: adjustedFrames.length,
+      averageDelay: Math.round(adjustedFrames.reduce((sum, f) => sum + f.delay, 0) / adjustedFrames.length),
+      action: 'adjust-delays'
+    };
+  } catch (error) {
+    throw new Error(`Delay adjustment failed: ${error.message}`);
+  }
+}
+
+async function processCrossfadeEffect(frames, options) {
+  try {
+    const crossfadeDuration = parseInt(options.crossfadeDuration) || 100;
+    const frameDelay = parseInt(options.frameDelay) || 100;
+    
+    // Create crossfade frames between each original frame
+    const crossfadeFrames = [];
+    
+    for (let i = 0; i < frames.length; i++) {
+      const currentFrame = frames[i];
+      const nextFrame = frames[(i + 1) % frames.length];
+      
+      // Add original frame
+      crossfadeFrames.push({
+        path: currentFrame.path,
+        delay: frameDelay
+      });
+      
+      // Add crossfade transition frames
+      const transitionSteps = Math.ceil(crossfadeDuration / 50); // 50ms per step
+      for (let step = 1; step <= transitionSteps; step++) {
+        const opacity = step / transitionSteps;
+        crossfadeFrames.push({
+          path: currentFrame.path,
+          nextPath: nextFrame.path,
+          opacity: 1 - opacity,
+          nextOpacity: opacity,
+          delay: 50,
+          isCrossfade: true
+        });
+      }
+    }
+    
+    const outputName = `crossfade_${uuid()}.gif`;
+    const outputPath = path.join(outputDir, outputName);
+    
+    const result = await gifService.createAdvancedGif(crossfadeFrames, outputPath, {
+      optimize: options.optimize !== 'false',
+      loop: parseInt(options.loop) || 0,
+      crossfade: true
+    });
+    
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: outputName,
+      url: `/api/files/${outputName}`,
+      size: formatFileSize(stats.size),
+      originalFrames: frames.length,
+      totalFrames: crossfadeFrames.length,
+      crossfadeDuration: crossfadeDuration,
+      action: 'add-crossfade'
+    };
+  } catch (error) {
+    throw new Error(`Crossfade effect failed: ${error.message}`);
+  }
+}
+
+async function processCanvasResize(frames, options) {
+  try {
+    const width = parseInt(options.width) || 500;
+    const height = parseInt(options.height) || 500;
+    const method = options.method || 'lanczos';
+    const backgroundColor = options.backgroundColor || 'transparent';
+    
+    const resizedFrames = frames.map(frame => ({
+      path: frame.path,
+      delay: 100 // Default delay, can be customized
+    }));
+    
+    const outputName = `canvas_resized_${uuid()}.gif`;
+    const outputPath = path.join(outputDir, outputName);
+    
+    const result = await gifService.createAdvancedGif(resizedFrames, outputPath, {
+      width: width,
+      height: height,
+      method: method,
+      backgroundColor: backgroundColor,
+      optimize: options.optimize !== 'false',
+      loop: parseInt(options.loop) || 0
+    });
+    
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: outputName,
+      url: `/api/files/${outputName}`,
+      size: formatFileSize(stats.size),
+      frameCount: frames.length,
+      newSize: `${width}x${height}`,
+      action: 'change-canvas-size'
+    };
+  } catch (error) {
+    throw new Error(`Canvas resize failed: ${error.message}`);
+  }
+}
+
+async function processGravityAlignment(frames, options) {
+  try {
+    const gravity = options.gravity || 'center'; // north, south, east, west, center, etc.
+    const backgroundColor = options.backgroundColor || 'transparent';
+    
+    const alignedFrames = frames.map(frame => ({
+      path: frame.path,
+      delay: 100,
+      gravity: gravity
+    }));
+    
+    const outputName = `gravity_aligned_${uuid()}.gif`;
+    const outputPath = path.join(outputDir, outputName);
+    
+    const result = await gifService.createAdvancedGif(alignedFrames, outputPath, {
+      gravity: gravity,
+      backgroundColor: backgroundColor,
+      optimize: options.optimize !== 'false',
+      loop: parseInt(options.loop) || 0
+    });
+    
+    const stats = await fs.stat(outputPath);
+    
+    return {
+      filename: outputName,
+      url: `/api/files/${outputName}`,
+      size: formatFileSize(stats.size),
+      frameCount: frames.length,
+      gravity: gravity,
+      action: 'apply-gravity'
+    };
+  } catch (error) {
+    throw new Error(`Gravity alignment failed: ${error.message}`);
+  }
+}
+
+// File validation function with comprehensive checks
+async function validateFile(file) {
+  const validation = {
+    filename: file.originalname,
+    valid: true,
+    errors: [],
+    warnings: [],
+    info: {}
+  };
+
+  try {
+    // Check file size
+    if (file.size > config.maxFileSizeMB * 1024 * 1024) {
+      validation.valid = false;
+      validation.errors.push(`File size ${formatFileSize(file.size)} exceeds limit of ${config.maxFileSizeMB}MB`);
+    }
+
+    // Check file extension
+    const ext = path.extname(file.originalname).toLowerCase();
+    const supportedFormats = [
+      // Images
+      '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.svg', '.ico',
+      // Videos  
+      '.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv', '.wmv', '.3gp', '.ogv',
+      // Archives
+      '.zip'
+    ];
+
+    if (!supportedFormats.includes(ext)) {
+      validation.valid = false;
+      validation.errors.push(`Unsupported file format: ${ext}`);
+    }
+
+    // Analyze file metadata if valid
+    if (validation.valid && file.path) {
+      try {
+        const stats = await fs.stat(file.path);
+        validation.info.actualSize = stats.size;
+        validation.info.created = stats.birthtime;
+        validation.info.modified = stats.mtime;
+
+        // For images, get dimensions and format info
+        if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff'].includes(ext)) {
+          try {
+            const sharp = require('sharp');
+            const metadata = await sharp(file.path).metadata();
+            
+            validation.info.dimensions = {
+              width: metadata.width,
+              height: metadata.height,
+              channels: metadata.channels,
+              format: metadata.format,
+              hasAlpha: metadata.hasAlpha
+            };
+
+            // Add warnings for extreme dimensions
+            if (metadata.width > 4000 || metadata.height > 4000) {
+              validation.warnings.push('Large image dimensions may slow processing');
+            }
+            
+            if (metadata.width < 10 || metadata.height < 10) {
+              validation.warnings.push('Very small image dimensions detected');
+            }
+
+          } catch (imageError) {
+            validation.warnings.push('Could not read image metadata');
+          }
+        }
+
+        // For videos, get basic info
+        if (['.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv'].includes(ext)) {
+          validation.info.type = 'video';
+          validation.warnings.push('Video processing may take longer than images');
+        }
+
+        // For GIFs, check if animated
+        if (ext === '.gif') {
+          try {
+            // Basic check for animated GIF (this is simplified)
+            const buffer = await fs.readFile(file.path);
+            const isAnimated = buffer.includes(Buffer.from('NETSCAPE2.0'));
+            validation.info.animated = isAnimated;
+            
+            if (isAnimated) {
+              validation.info.type = 'animated-gif';
+            }
+          } catch (gifError) {
+            validation.warnings.push('Could not analyze GIF format');
+          }
+        }
+
+      } catch (statError) {
+        validation.warnings.push('Could not read file statistics');
+      }
+    }
+
+    // Check filename for potential issues
+    const filename = file.originalname;
+    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+      validation.warnings.push('Filename contains potentially unsafe characters');
+    }
+    
+    if (filename.length > 255) {
+      validation.warnings.push('Very long filename may cause issues');
+    }
+
+    // Check for common encoding issues
+    if (!/^[\x00-\x7F]*$/.test(filename)) {
+      validation.info.hasUnicodeChars = true;
+      validation.warnings.push('Filename contains non-ASCII characters');
+    }
+
+  } catch (error) {
+    validation.valid = false;
+    validation.errors.push(`Validation error: ${error.message}`);
+  }
+
+  return validation;
+}
+
+// Utility function to format file sizes
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 export default router;

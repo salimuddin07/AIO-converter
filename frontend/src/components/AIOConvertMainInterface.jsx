@@ -291,6 +291,112 @@ export default function AIOConvertMainInterface({ currentTool, setCurrentTool, l
                 </div>
               ))}
             </div>
+            
+            {/* Editing Options */}
+            <div className="editing-options">
+              <h3>Edit Options</h3>
+              <div className="options-grid">
+                <div className="option-group">
+                  <label>Frame Delay (ms)</label>
+                  <input 
+                    type="number" 
+                    min="10" 
+                    max="5000" 
+                    defaultValue="100" 
+                    className="option-input"
+                    placeholder="100"
+                  />
+                  <small>Time between frames (milliseconds)</small>
+                </div>
+                
+                <div className="option-group">
+                  <label>Left Position</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="1000" 
+                    defaultValue="0" 
+                    className="option-input"
+                    placeholder="0"
+                  />
+                  <small>Horizontal offset (pixels)</small>
+                </div>
+                
+                <div className="option-group">
+                  <label>Top Position</label>
+                  <input 
+                    type="number" 
+                    min="0" 
+                    max="1000" 
+                    defaultValue="0" 
+                    className="option-input"
+                    placeholder="0"
+                  />
+                  <small>Vertical offset (pixels)</small>
+                </div>
+                
+                <div className="option-group">
+                  <label>Width</label>
+                  <input 
+                    type="number" 
+                    min="10" 
+                    max="2000" 
+                    defaultValue="400" 
+                    className="option-input"
+                    placeholder="400"
+                  />
+                  <small>Output width (pixels)</small>
+                </div>
+                
+                <div className="option-group">
+                  <label>Height</label>
+                  <input 
+                    type="number" 
+                    min="10" 
+                    max="2000" 
+                    defaultValue="300" 
+                    className="option-input"
+                    placeholder="300"
+                  />
+                  <small>Output height (pixels)</small>
+                </div>
+                
+                <div className="option-group">
+                  <label>Quality</label>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="100" 
+                    defaultValue="80" 
+                    className="option-slider"
+                  />
+                  <small>Compression quality (1-100)</small>
+                </div>
+                
+                <div className="option-group checkbox-group">
+                  <label>
+                    <input type="checkbox" /> Loop Animation
+                  </label>
+                  <small>Repeat animation continuously</small>
+                </div>
+                
+                <div className="option-group checkbox-group">
+                  <label>
+                    <input type="checkbox" /> Auto Crop
+                  </label>
+                  <small>Remove transparent borders</small>
+                </div>
+              </div>
+              
+              <div className="editing-actions">
+                <button className="apply-button" disabled={loading}>
+                  {loading ? 'Applying...' : 'Apply Changes'}
+                </button>
+                <button className="reset-button">
+                  Reset to Default
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -596,6 +702,133 @@ export default function AIOConvertMainInterface({ currentTool, setCurrentTool, l
           margin-top: 20px;
         }
 
+        /* Editing Options Styles */
+        .editing-options {
+          margin-top: 30px;
+          padding: 25px;
+          background: white;
+          border-radius: 10px;
+          border: 1px solid #e1e5e9;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .editing-options h3 {
+          color: #2c3e50;
+          margin-bottom: 20px;
+          font-size: 1.3rem;
+          font-weight: 600;
+          border-bottom: 2px solid #e9ecef;
+          padding-bottom: 10px;
+        }
+
+        .options-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          gap: 20px;
+          margin-bottom: 25px;
+        }
+
+        .option-group {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .option-group label {
+          font-weight: 600;
+          color: #495057;
+          font-size: 0.9rem;
+        }
+
+        .option-input, .option-slider {
+          padding: 10px;
+          border: 1px solid #ced4da;
+          border-radius: 6px;
+          font-size: 0.95rem;
+          transition: border-color 0.2s ease;
+        }
+
+        .option-input:focus, .option-slider:focus {
+          outline: none;
+          border-color: #3498db;
+          box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .option-slider {
+          padding: 5px 0;
+        }
+
+        .option-group small {
+          color: #6c757d;
+          font-size: 0.8rem;
+          font-style: italic;
+        }
+
+        .checkbox-group {
+          flex-direction: row;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .checkbox-group label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 500;
+          margin: 0;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+          width: 18px;
+          height: 18px;
+          accent-color: #3498db;
+        }
+
+        .editing-actions {
+          display: flex;
+          gap: 15px;
+          justify-content: flex-start;
+          padding-top: 20px;
+          border-top: 1px solid #e9ecef;
+        }
+
+        .apply-button {
+          background: #28a745;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 6px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background-color 0.2s ease;
+          font-size: 0.95rem;
+        }
+
+        .apply-button:hover:not(:disabled) {
+          background: #218838;
+        }
+
+        .apply-button:disabled {
+          background: #6c757d;
+          cursor: not-allowed;
+        }
+
+        .reset-button {
+          background: #6c757d;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 6px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background-color 0.2s ease;
+          font-size: 0.95rem;
+        }
+
+        .reset-button:hover {
+          background: #5a6268;
+        }
+
         @media (max-width: 768px) {
           .tools-grid {
             grid-template-columns: 1fr;
@@ -607,6 +840,20 @@ export default function AIOConvertMainInterface({ currentTool, setCurrentTool, l
           
           .results-grid {
             grid-template-columns: 1fr;
+          }
+          
+          .options-grid {
+            grid-template-columns: 1fr;
+            gap: 15px;
+          }
+          
+          .editing-actions {
+            flex-direction: column;
+            gap: 10px;
+          }
+          
+          .apply-button, .reset-button {
+            width: 100%;
           }
         }
       `}</style>

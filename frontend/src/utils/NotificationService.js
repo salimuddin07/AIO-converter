@@ -373,6 +373,72 @@ export const NotificationService = {
       confirmButtonColor: colorVariations('#28a745').base,
       ...options
     });
+  },
+
+  // Progress toast for file processing
+  progressToast: (title, message = 'Processing...', initialProgress = 0) => {
+    const Toast = Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      width: 400,
+      didOpen: (toast) => {
+        // Create progress elements
+        const progressContainer = document.createElement('div');
+        progressContainer.style.cssText = `
+          margin-top: 10px;
+          padding: 0 16px;
+        `;
+        
+        const progressBar = document.createElement('div');
+        progressBar.style.cssText = `
+          width: 100%;
+          height: 4px;
+          background: rgba(255,255,255,0.3);
+          border-radius: 2px;
+          overflow: hidden;
+        `;
+        
+        const progressFill = document.createElement('div');
+        progressFill.className = 'progress-fill';
+        progressFill.style.cssText = `
+          height: 100%;
+          background: ${colorVariations('#28a745').base};
+          width: ${initialProgress}%;
+          transition: width 0.3s ease;
+          border-radius: 2px;
+        `;
+        
+        progressBar.appendChild(progressFill);
+        progressContainer.appendChild(progressBar);
+        toast.appendChild(progressContainer);
+        
+        // Store update function globally
+        window.updateProgressToast = (progress) => {
+          if (progressFill) {
+            progressFill.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+          }
+        };
+      }
+    });
+
+    const toastPromise = Toast.fire({
+      icon: 'info',
+      title: title,
+      text: message
+    });
+
+    return {
+      updateProgress: (progress) => {
+        if (window.updateProgressToast) {
+          window.updateProgressToast(progress);
+        }
+      },
+      close: () => Toast.close(),
+      promise: toastPromise
+    };
   }
 };
 
