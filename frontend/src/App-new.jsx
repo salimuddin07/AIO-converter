@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import EzgifMainInterface from './components/EzgifMainInterface.jsx';
+import AIOConvertMainInterface from './components/AIOConvertMainInterface.jsx';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import NotificationService from './utils/NotificationService.js';
@@ -20,7 +20,7 @@ export default function App() {
   return (
     <div className="app">
       <Header />
-      <EzgifMainInterface 
+      <AIOConvertMainInterface 
         currentTool={currentTool}
         setCurrentTool={setCurrentTool}
         loading={loading}

@@ -2,10 +2,10 @@ import React from 'react';
 
 export default function Footer() {
   return (
-    <footer className="ezgif-footer">
+    <footer className="aio-convert-footer">
       <div className="footer-container">
         <div className="footer-section">
-          <h4>EZGIF resources</h4>
+          <h4>AIO Convert resources</h4>
           <ul>
             <li><a href="#">Help / FAQ</a></li>
             <li><a href="#">About and contacts</a></li>
@@ -49,11 +49,11 @@ export default function Footer() {
       </div>
       
       <div className="footer-bottom">
-        <p>&copy; 2024 EZGIF Clone - Professional Media Converter</p>
+        <p>&copy; 2024 AIO Convert - Professional Media Converter</p>
       </div>
 
       <style>{`
-        .ezgif-footer {
+        .aio-convert-footer {
           background: #2c3e50;
           color: #ecf0f1;
           margin-top: auto;

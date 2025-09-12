@@ -8,7 +8,6 @@ import {
   modularScale,
   transitions,
   animation,
-  borderRadius,
   hiDPI,
   fluidRange,
   normalize,
@@ -104,11 +103,11 @@ export const transitionPresets = {
 // Border radius presets
 export const borderRadii = {
   none: '0',
-  sm: borderRadius('4px'),
-  base: borderRadius('8px'),
-  lg: borderRadius('12px'),
-  xl: borderRadius('16px'),
-  full: borderRadius('50%')
+  sm: '4px',
+  base: '8px',
+  lg: '12px',
+  xl: '16px',
+  full: '50%'
 };
 
 // Professional button styles

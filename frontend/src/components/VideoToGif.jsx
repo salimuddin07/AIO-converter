@@ -173,7 +173,7 @@ const VideoToGif = () => {
           
           <p className="hint">
             All uploaded files are automatically deleted 1 hour after upload.<br />
-            For permanent links you can use: https://ezgif.com/video-to-gif?url=<span style={{color:'#2c882c'}}>https://example.com/source-video.mp4</span>
+            For permanent links you can use: https://aio-convert.com/video-to-gif?url=<span style={{color:'#2c882c'}}>https://example.com/source-video.mp4</span>
           </p>
         </fieldset>
       </form>

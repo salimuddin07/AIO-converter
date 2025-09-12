@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import EzgifMainInterface from './components/EzgifMainInterface.jsx';
+import AIOConvertMainInterface from './components/AIOConvertMainInterface.jsx';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import NotificationService from './utils/NotificationService.js';
-import './ezgif-style.css';
+import './aio-convert-style.css';
 
 export default function App() {
   const [currentTool, setCurrentTool] = useState('home');
@@ -11,7 +11,7 @@ export default function App() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    NotificationService.toast('EzGIF Clone - Professional Media Converter Ready!', 'success', { 
+    NotificationService.toast('AIO Convert - Professional Media Converter Ready!', 'success', { 
       timer: 3000,
       position: 'top-center'
     });
@@ -23,7 +23,7 @@ export default function App() {
         currentTool={currentTool}
         setCurrentTool={setCurrentTool}
       />
-      <EzgifMainInterface 
+      <AIOConvertMainInterface 
         currentTool={currentTool}
         setCurrentTool={setCurrentTool}
         loading={loading}

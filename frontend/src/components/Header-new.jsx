@@ -2,13 +2,13 @@ import React from 'react';
 
 export default function Header() {
   return (
-    <header className="ezgif-header">
+    <header className="aio-convert-header">
       <div className="header-container">
         <div className="logo-section">
           <h1 className="site-logo">
-            <a href="/">EZGIF.COM</a>
+            <a href="/">AIO Convert</a>
           </h1>
-          <p className="tagline">online animated gif maker and image editor</p>
+          <p className="tagline">All-in-One Media Converter</p>
         </div>
         
         <div className="header-ad">
@@ -35,7 +35,7 @@ export default function Header() {
       </nav>
 
       <style>{`
-        .ezgif-header {
+        .aio-convert-header {
           background: #fff;
           border-bottom: 1px solid #ddd;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);

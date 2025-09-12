@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import AdvancedUploadArea from './AdvancedUploadArea';
 import Results from './Results';
-import '../ezgif-style.css';
+import '../aio-convert-style.css';
 
 const AddText = () => {
     const [file, setFile] = useState(null);
