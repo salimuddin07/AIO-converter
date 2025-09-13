@@ -6,18 +6,15 @@ import http from "http";
 import { v4 as uuid } from "uuid";
 import { outputDir, tempDir } from "../utils/filePaths.js";
 import { config } from "../config/index.js";
-import FFmpegService from "./ffmpegService.js";
-import SharpService from "./SharpService.js";
-import JimpService from "./JimpService.js";
-import GifService, { gifService } from "./gifService.js";
-import ImageMagickService from "./ImageMagickService.js";
+import {
+  ffmpegService,
+  sharpService,
+  jimpService,
+  gifService,
+  imageMagickService
+} from "./index.js";
 
-// Initialize service instances
-const ffmpegService = new FFmpegService();
-const sharpService = new SharpService();
-const jimpService = new JimpService();
-// gifService is imported directly from gifService.js
-const imageMagickService = new ImageMagickService();
+// Service instances are imported directly from index.js
 
 // Function to download image from URL
 async function downloadImageFromUrl(imageUrl) {

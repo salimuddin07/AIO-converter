@@ -1,6 +1,6 @@
-const Jimp = require('jimp');
-const path = require('path');
-const fs = require('fs').promises;
+import { Jimp } from 'jimp';
+import path from 'path';
+import fs from 'fs/promises';
 
 /**
  * JimpService - Pure JavaScript image processing using Jimp library
@@ -546,4 +546,4 @@ class JimpService {
     }
 }
 
-module.exports = JimpService;
+export default JimpService;

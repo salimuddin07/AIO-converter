@@ -1,7 +1,7 @@
-const imagemagick = require("imagemagick");
-const path = require("path");
-const fs = require("fs").promises;
-const { promisify } = require("util");
+import imagemagick from "imagemagick";
+import path from "path";
+import fs from "fs/promises";
+import { promisify } from "util";
 
 /**
  * ImageMagickService - Advanced image processing using ImageMagick
@@ -685,4 +685,4 @@ class ImageMagickService {
   }
 }
 
-module.exports = ImageMagickService;
+export default ImageMagickService;

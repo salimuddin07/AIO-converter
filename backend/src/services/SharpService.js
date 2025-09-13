@@ -1,6 +1,6 @@
-const sharp = require('sharp');
-const path = require('path');
-const fs = require('fs').promises;
+import sharp from 'sharp';
+import path from 'path';
+import fs from 'fs/promises';
 
 /**
  * SharpService - High-performance image processing using Sharp library
@@ -498,4 +498,4 @@ class SharpService {
     }
 }
 
-module.exports = SharpService;
+export default SharpService;

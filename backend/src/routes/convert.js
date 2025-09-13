@@ -8,15 +8,10 @@ import mime from 'mime-types';
 import { tempDir, outputDir } from '../utils/filePaths.js';
 import { config } from '../config/index.js';
 import { createError } from '../middleware/errorHandler.js';
-import EnhancedConversionService from '../services/EnhancedConversionService.js';
-import { gifService } from '../services/gifService.js';
-import { ffmpegService } from '../services/ffmpegService.js';
+import { enhancedConversionService, gifService, ffmpegService } from '../services/index.js';
 import { convertFromUrl } from '../services/conversionService.js';
 
 const router = Router();
-
-// Initialize enhanced conversion service
-const enhancedConversion = new EnhancedConversionService();
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, tempDir),
@@ -664,7 +659,7 @@ async function processVideoToGif(file, options = {}) {
       method: options.method || 'lanczos'
     };
 
-    const result = await enhancedConversion.convertSingle(file.path, 'gif', conversionOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, 'gif', conversionOptions);
     
     const stats = await fs.stat(outputPath);
     
@@ -775,7 +770,7 @@ async function processResize(file, options = {}) {
       background: options.background || 'transparent'
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), resizeOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), resizeOptions);
     const stats = await fs.stat(outputPath);
     
     return {
@@ -810,7 +805,7 @@ async function processCrop(file, options = {}) {
       gravity: options.gravity || 'northwest'
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), cropOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), cropOptions);
     const stats = await fs.stat(outputPath);
     
     return {
@@ -842,7 +837,7 @@ async function processRotate(file, options = {}) {
       background: options.background || 'transparent'
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), rotateOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), rotateOptions);
     const stats = await fs.stat(outputPath);
     
     return {
@@ -876,7 +871,7 @@ async function processOptimize(file, options = {}) {
       lossless: options.lossless === 'true'
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), optimizeOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), optimizeOptions);
     const stats = await fs.stat(outputPath);
     const originalStats = await fs.stat(file.path);
     const savings = ((originalStats.size - stats.size) / originalStats.size * 100).toFixed(1);
@@ -922,7 +917,7 @@ async function processEffects(file, options = {}) {
       flop: options.flop === 'true'
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), effectOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), effectOptions);
     const stats = await fs.stat(outputPath);
     
     return {
@@ -1012,7 +1007,7 @@ async function processAddText(file, options = {}) {
       opacity: parseFloat(options.opacity) || 1.0
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, ext.slice(1), textOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), textOptions);
     const stats = await fs.stat(outputPath);
     
     return {
@@ -1050,7 +1045,7 @@ async function processWebPMaker(file, options = {}) {
       filterStrength: parseInt(options.filterStrength) || 60
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, 'webp', webpOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, 'webp', webpOptions);
     const stats = await fs.stat(outputPath);
     
     return {
@@ -1084,7 +1079,7 @@ async function processWebPToGif(file, options = {}) {
       loop: parseInt(options.loop) >= 0 ? parseInt(options.loop) : 0
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, 'gif', gifOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, 'gif', gifOptions);
     const stats = await fs.stat(outputPath);
     
     return {
@@ -1116,7 +1111,7 @@ async function processAPNGMaker(file, options = {}) {
       optimize: options.optimize !== 'false'
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, 'apng', apngOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, 'apng', apngOptions);
     const stats = await fs.stat(outputPath);
     
     return {
@@ -1148,7 +1143,7 @@ async function processAVIFConverter(file, options = {}) {
       speed: parseInt(options.speed) || 4 // 0-8 slower=better compression
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, 'avif', avifOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, 'avif', avifOptions);
     const stats = await fs.stat(outputPath);
     
     return {
@@ -1181,7 +1176,7 @@ async function processJXLConverter(file, options = {}) {
       effort: parseInt(options.effort) || 7 // 1-9 speed/quality tradeoff
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, 'jxl', jxlOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, 'jxl', jxlOptions);
     const stats = await fs.stat(outputPath);
     
     return {
@@ -1216,7 +1211,7 @@ async function processBasicConversion(file, options = {}) {
       strip: options.strip !== 'false'
     };
     
-    const result = await enhancedConversion.convertSingle(file.path, format, conversionOptions);
+    const result = await enhancedConversionService.convertSingle(file.path, format, conversionOptions);
     const stats = await fs.stat(outputPath);
     
     return {

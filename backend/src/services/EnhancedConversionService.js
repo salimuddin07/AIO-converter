@@ -1,16 +1,17 @@
-const fs = require('fs').promises;
-const sharp = require('sharp');
-const path = require('path');
-const https = require('https');
-const http = require('http');
-const { v4: uuid } = require('uuid');
-const { outputDir, tempDir } = require('../utils/filePaths.js');
-const { config } = require('../config/index.js');
-const FFmpegService = require('./ffmpegService.js');
-const SharpService = require('./SharpService.js');
-const JimpService = require('./JimpService.js');
-const GifService = require('./gifService.js');
-const ImageMagickService = require('./ImageMagickService.js');
+import fs from 'fs/promises';
+import { createWriteStream } from 'fs';
+import sharp from 'sharp';
+import path from 'path';
+import https from 'https';
+import http from 'http';
+import { v4 as uuid } from 'uuid';
+import { outputDir, tempDir } from '../utils/filePaths.js';
+import { config } from '../config/index.js';
+import FFmpegService from './ffmpegService.js';
+import SharpService from './SharpService.js';
+import JimpService from './JimpService.js';
+import GifService from './gifService.js';
+import ImageMagickService from './ImageMagickService.js';
 
 // Initialize service instances
 const ffmpegService = new FFmpegService();
@@ -451,7 +452,7 @@ class EnhancedConversionService {
                     return;
                 }
                 
-                const writeStream = require('fs').createWriteStream(tempPath);
+                const writeStream = createWriteStream(tempPath);
                 response.pipe(writeStream);
                 
                 writeStream.on('finish', () => {
@@ -554,10 +555,8 @@ class EnhancedConversionService {
 const enhancedConversionService = new EnhancedConversionService();
 
 // Export both individual functions (for backward compatibility) and the service
-module.exports = {
-    convertSingle: enhancedConversionService.convertSingle.bind(enhancedConversionService),
-    convertFromUrl: enhancedConversionService.convertFromUrl.bind(enhancedConversionService),
-    batchConvert: enhancedConversionService.batchConvert.bind(enhancedConversionService),
-    EnhancedConversionService,
-    enhancedConversionService
-};
+export default EnhancedConversionService;
+export { enhancedConversionService };
+export const convertSingle = enhancedConversionService.convertSingle.bind(enhancedConversionService);
+export const convertFromUrl = enhancedConversionService.convertFromUrl.bind(enhancedConversionService);
+export const batchConvert = enhancedConversionService.batchConvert.bind(enhancedConversionService);

@@ -4,9 +4,10 @@ import path from 'path';
 import { v4 as uuid } from 'uuid';
 import sharp from 'sharp';
 import GIFEncoder from 'gif-encoder-2';
-import GIF from 'gif-js';
-import Jimp from 'jimp';
-import { outputDir } from '../utils/filePaths.js';
+// Note: gif-js has ES module compatibility issues, using GIFEncoder instead
+const GIF = null; // Placeholder for gif-js
+import { Jimp } from 'jimp';
+import { outputDir, tempDir } from '../utils/filePaths.js';
 
 /**
  * Enhanced GifService - GIF creation and processing using multiple libraries
@@ -98,7 +99,7 @@ class GifService {
         writeStream.on('error', reject);
       });
 
-      const stat = await fsPromises.stat(outPath);
+      const stat = await fs_promises.stat(outPath);
       console.log(`GIF created: ${outName}, ${processedFrames} frames, size: ${stat.size} bytes`);
       
       return { 
@@ -119,6 +120,12 @@ class GifService {
    */
   async createGifWithJS(imagePaths, outputPath, options = {}) {
     try {
+      // gif-js library has ES module compatibility issues, falling back to GIFEncoder
+      if (!GIF) {
+        console.warn('gif-js not available, using GIFEncoder fallback');
+        return this.createAnimatedGif(imagePaths, outputPath, options);
+      }
+      
       const settings = { ...this.defaultOptions, ...options };
       
       // Initialize GIF encoder
@@ -161,7 +168,7 @@ class GifService {
             // Convert blob to buffer and save
             const arrayBuffer = await blob.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
-            await fsPromises.writeFile(outputPath, buffer);
+            await fs_promises.writeFile(outputPath, buffer);
             
             resolve({
               outputPath,
@@ -211,7 +218,7 @@ class GifService {
         })
         .toBuffer();
 
-      await fsPromises.writeFile(outputPath, optimizedBuffer);
+      await fs_promises.writeFile(outputPath, optimizedBuffer);
 
       const originalSize = await this.getFileSize(inputPath);
       const newSize = optimizedBuffer.length;
@@ -249,7 +256,7 @@ class GifService {
         .gif()
         .toBuffer();
 
-      await fsPromises.writeFile(outputPath, resizedBuffer);
+      await fs_promises.writeFile(outputPath, resizedBuffer);
 
       return {
         inputPath,
@@ -271,7 +278,7 @@ class GifService {
       const frameDir = options.frameDir || path.join(path.dirname(videoPath), 'frames');
       
       // Get all frame files
-      const files = await fsPromises.readdir(frameDir);
+      const files = await fs_promises.readdir(frameDir);
       const frameFiles = files
         .filter(file => /\.(jpg|jpeg|png)$/i.test(file))
         .sort()
@@ -299,7 +306,7 @@ class GifService {
   async createGifWithText(imagePaths, outputPath, textOptions = {}, gifOptions = {}) {
     try {
       const tempDir = path.join(outputDir, 'temp_text_frames');
-      await fsPromises.mkdir(tempDir, { recursive: true });
+      await fs_promises.mkdir(tempDir, { recursive: true });
 
       const processedFrames = [];
 
@@ -330,14 +337,14 @@ class GifService {
       // Cleanup temp files
       for (const framePath of processedFrames) {
         try {
-          await fsPromises.unlink(framePath);
+          await fs_promises.unlink(framePath);
         } catch (error) {
           // Ignore cleanup errors
         }
       }
       
       try {
-        await fsPromises.rmdir(tempDir);
+        await fs_promises.rmdir(tempDir);
       } catch (error) {
         // Ignore cleanup errors
       }
@@ -357,7 +364,7 @@ class GifService {
   async getGifInfo(inputPath) {
     try {
       const metadata = await sharp(inputPath).metadata();
-      const stats = await fsPromises.stat(inputPath);
+      const stats = await fs_promises.stat(inputPath);
       
       return {
         width: metadata.width,
@@ -408,7 +415,7 @@ class GifService {
    */
   async getFileSize(filePath) {
     try {
-      const stats = await fsPromises.stat(filePath);
+      const stats = await fs_promises.stat(filePath);
       return stats.size;
     } catch (error) {
       return 0;
@@ -621,6 +628,33 @@ class GifService {
    */
   async createGifFromBuffers(frames, outputPath, options = {}) {
     try {
+      // gif-js library has ES module compatibility issues, using alternative method
+      if (!GIF) {
+        console.warn('gif-js not available, converting buffers to temp files for GIFEncoder');
+        
+        // Convert buffers to temporary files
+        const tempFrames = [];
+        for (let i = 0; i < frames.length; i++) {
+          const tempPath = path.join(tempDir, `temp_frame_${Date.now()}_${i}.png`);
+          await fs_promises.writeFile(tempPath, frames[i].buffer);
+          tempFrames.push(tempPath);
+        }
+        
+        // Use GIFEncoder method
+        const result = await this.createAnimatedGif(tempFrames, outputPath, options);
+        
+        // Clean up temp files
+        for (const tempPath of tempFrames) {
+          try {
+            await fs_promises.unlink(tempPath);
+          } catch (e) {
+            console.warn('Failed to clean up temp file:', tempPath);
+          }
+        }
+        
+        return result;
+      }
+
       const {
         optimize = true,
         loop = 0,
@@ -652,7 +686,7 @@ class GifService {
         gif.on('finished', async (blob) => {
           try {
             const buffer = Buffer.from(await blob.arrayBuffer());
-            await fsPromises.writeFile(outputPath, buffer);
+            await fs_promises.writeFile(outputPath, buffer);
             
             resolve({
               path: outputPath,
@@ -729,14 +763,10 @@ class GifService {
   }
 }
 
-// Create instance and export methods for backward compatibility
+// Create instance and export
 const gifService = new GifService();
 
-// Export the main function for backward compatibility
-export async function createAnimatedGif(framePaths, options = {}) {
-  return gifService.createAnimatedGif(framePaths, options);
-}
-
-// Export the service class and instance using ES modules
+// Export as ES module
 export default GifService;
 export { gifService };
+export const createAnimatedGif = gifService.createAnimatedGif.bind(gifService);
