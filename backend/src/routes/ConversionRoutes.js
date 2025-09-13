@@ -68,6 +68,17 @@ const upload = multer({
   }
 });
 
+// Simple test route to debug issues
+router.post('/test', async (req, res) => {
+  try {
+    console.log('TEST ROUTE HIT:', req.body);
+    return res.json({ success: true, message: 'Test route working', body: req.body });
+  } catch (error) {
+    console.error('TEST ROUTE ERROR:', error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 // Main conversion endpoint that handles all ezgif tools
 router.post('/', upload.array('files'), async (req, res, next) => {
   try {
@@ -111,22 +122,28 @@ router.post('/', upload.array('files'), async (req, res, next) => {
     const results = [];
 
     // Process files based on tool selection
-    switch (tool) {
-      case 'video-to-gif':
-        for (const file of files) {
-          const result = await processVideoToGif(file, req.body);
-          results.push(result);
-        }
-        break;
+    console.log(`Processing tool: ${tool} with ${files.length} files`);
+    
+    try {
+      switch (tool) {
+        case 'video-to-gif':
+          console.log('Processing video-to-gif');
+          for (const file of files) {
+            const result = await processVideoToGif(file, req.body);
+            results.push(result);
+          }
+          break;
 
-      case 'images-to-gif':
-      case 'gif-maker':
-        const gifResult = await processImagesToGif(files, req.body);
-        results.push(gifResult);
-        break;
+        case 'images-to-gif':
+        case 'gif-maker':
+          console.log('Processing images-to-gif');
+          const gifResult = await processImagesToGif(files, req.body);
+          results.push(gifResult);
+          break;
 
-      case 'resize':
-        for (const file of files) {
+        case 'resize':
+          console.log('Processing resize');
+          for (const file of files) {
           const result = await processResize(file, req.body);
           results.push(result);
         }
@@ -209,13 +226,25 @@ router.post('/', upload.array('files'), async (req, res, next) => {
 
       default:
         // Default to basic format conversion
+        console.log('Processing default/basic conversion');
         for (const file of files) {
           const result = await processBasicConversion(file, req.body);
           results.push(result);
         }
         break;
     }
+    } catch (processingError) {
+      console.error('PROCESSING ERROR in switch:', processingError);
+      return res.status(500).json({
+        error: {
+          code: 'PROCESSING_ERROR',
+          message: `Processing failed: ${processingError.message}`,
+          tool: tool
+        }
+      });
+    }
 
+    console.log(`Processing completed successfully for tool: ${tool}`);
     res.json({ 
       files: results,
       tool: tool,
