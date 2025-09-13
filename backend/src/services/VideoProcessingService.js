@@ -14,7 +14,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { EventEmitter } from 'events';
 import { v4 as uuid } from 'uuid';
-import { outputDir, tempDir } from '../lib/file-paths.js';
+import { outputDir, tempDir } from '../utils/FilePathUtils.js';
 
 // Configure ffmpeg paths
 ffmpeg.setFfmpegPath(ffmpegPath);

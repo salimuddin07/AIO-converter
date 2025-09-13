@@ -2,10 +2,10 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import WebPController from '../controllers/webpController.js';
-import validateFiles from '../middleware/validateFiles.js';
+import validateFiles from '../middleware/FileValidator.js';
 
 // Import consolidated file utilities
-import { tempDir, getSafeFilename, ensureDirectories } from '../lib/file-paths.js';
+import { tempDir, getSafeFilename, ensureDirectories } from '../utils/FilePathUtils.js';
 
 const router = express.Router();
 

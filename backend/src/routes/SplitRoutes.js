@@ -13,7 +13,7 @@ import crypto from 'crypto';
 
 // Import consolidated services
 import { videoProcessor, gifProcessor } from '../services/index.js';
-import { tempDir, outputDir, getSafeFilename, ensureDirectories } from '../lib/file-paths.js';
+import { tempDir, outputDir, getSafeFilename, ensureDirectories } from '../utils/FilePathUtils.js';
 
 const router = Router();
 

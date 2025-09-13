@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { statSync } from 'fs';
 import { v4 as uuid } from 'uuid';
-import { outputDir } from '../lib/file-paths.js';
+import { outputDir } from '../utils/FilePathUtils.js';
 
 /**
  * Video.js Integration Service

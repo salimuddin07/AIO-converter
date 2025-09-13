@@ -15,7 +15,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { createCanvas } from 'canvas';
 import { v4 as uuid } from 'uuid';
-import { outputDir, tempDir } from '../lib/file-paths.js';
+import { outputDir, tempDir } from '../utils/FilePathUtils.js';
 
 /**
  * Core image processing service with intelligent library selection

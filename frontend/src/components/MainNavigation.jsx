@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ReactFullpage } from '@fullpage/react-fullpage';
 
-const FullPageNavigation = ({ children, options = {}, onSectionChange }) => {
+const MainNavigation = ({ children, options = {}, onSectionChange }) => {
   const defaultOptions = {
     // Navigation
     menu: '#navigation',
@@ -468,7 +468,7 @@ export const CTASection = ({
 };
 
 // Navigation component for FullPage
-export const FullPageNavigation = ({ 
+export const MainNavigation = ({ 
   sections = [], 
   activeSection = 0,
   position = 'right' // 'left', 'right', 'top', 'bottom'
@@ -528,4 +528,4 @@ export const FullPageNavigation = ({
   );
 };
 
-export default FullPageNavigation;
+export default MainNavigation;

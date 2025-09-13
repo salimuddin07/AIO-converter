@@ -3,7 +3,7 @@ import Konva from 'konva';
 import { Stage, Layer, Image as KonvaImage, Text as KonvaText, Transformer } from 'react-konva';
 import { colorVariations } from '../utils/polishedHelpers';
 
-const KonvaImageEditor = ({ 
+const ImageEditor = ({ 
   imageUrl, 
   width = 800, 
   height = 600, 
@@ -543,7 +543,7 @@ export const AdvancedImageEditor = ({ imageUrl, onSave }) => {
   return (
     <div style={{ display: 'flex', gap: '20px' }}>
       <div style={{ flex: 1 }}>
-        <KonvaImageEditor
+        <ImageEditor
           imageUrl={imageUrl}
           width={600}
           height={400}
@@ -626,4 +626,4 @@ export const AdvancedImageEditor = ({ imageUrl, onSave }) => {
   );
 };
 
-export default KonvaImageEditor;
+export default ImageEditor;

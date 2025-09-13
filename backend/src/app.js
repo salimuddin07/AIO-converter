@@ -2,15 +2,15 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import convertRouter from './routes/convert.js';
-// import splitRouter from './routes/split.js'; // Temporarily disabled due to file corruption
-import videoRouter from './routes/video.js';
-import textRouter from './routes/text.js';
-import aiRouter from './routes/ai.js';
-import filesRouter from './routes/files.js';
-import webpRouter from './routes/webp.js';
-import errorHandler from './middleware/errorHandler.js';
-import { ensureDirectories } from './lib/file-paths.js';
+import convertRouter from './routes/ConversionRoutes.js';
+// import splitRouter from './routes/SplitRoutes.js'; // Temporarily disabled due to file corruption
+import videoRouter from './routes/VideoRoutes.js';
+import textRouter from './routes/TextRoutes.js';
+import aiRouter from './routes/AiRoutes.js';
+import filesRouter from './routes/FileRoutes.js';
+import webpRouter from './routes/WebpRoutes.js';
+import errorHandler from './middleware/ErrorHandler.js';
+import { ensureDirectories } from './utils/FilePathUtils.js';
 
 const app = express();
 

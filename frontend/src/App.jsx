@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import AIOConvertMainInterface from './components/AIOConvertMainInterface.jsx';
+import MainConversionInterface from './components/MainConversionInterface.jsx';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import NotificationService from './utils/NotificationService.js';
@@ -23,7 +23,7 @@ export default function App() {
         currentTool={currentTool}
         setCurrentTool={setCurrentTool}
       />
-      <AIOConvertMainInterface 
+      <MainConversionInterface 
         currentTool={currentTool}
         setCurrentTool={setCurrentTool}
         loading={loading}

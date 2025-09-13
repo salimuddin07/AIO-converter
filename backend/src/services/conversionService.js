@@ -4,7 +4,7 @@ import path from "path";
 import https from "https";
 import http from "http";
 import { v4 as uuid } from "uuid";
-import { outputDir, tempDir } from "../lib/file-paths.js";
+import { outputDir, tempDir } from "../utils/FilePathUtils.js";
 import { config } from "../config/index.js";
 import {
   ffmpegService,

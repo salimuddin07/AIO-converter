@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import D3ProgressVisualization from './D3ProgressVisualization.jsx';
+import ProgressVisualization from './ProgressVisualization.jsx';
 import { colors, colorVariations, buttonStyles } from '../utils/polishedHelpers.js';
 import NotificationService from '../utils/NotificationService.js';
 
@@ -130,7 +130,7 @@ export default function HomePage({ onNavigate }) {
           zIndex: 1
         }}>
           <div style={{ textAlign: 'center' }}>
-            <D3ProgressVisualization
+            <ProgressVisualization
               progress={85}
               total={100}
               type="circular"
@@ -149,7 +149,7 @@ export default function HomePage({ onNavigate }) {
           </div>
           
           <div style={{ textAlign: 'center' }}>
-            <D3ProgressVisualization
+            <ProgressVisualization
               progress={92}
               total={100}
               type="circular"
@@ -168,7 +168,7 @@ export default function HomePage({ onNavigate }) {
           </div>
           
           <div style={{ textAlign: 'center' }}>
-            <D3ProgressVisualization
+            <ProgressVisualization
               progress={78}
               total={100}
               type="circular"

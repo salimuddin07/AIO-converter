@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import cron from 'node-cron';
-import { tempDir, outputDir } from '../lib/file-paths.js';
+import { tempDir, outputDir } from '../utils/FilePathUtils.js';
 
 const TTL_MINUTES = parseInt(process.env.FILE_TTL_MINUTES || '30', 10);
 const CRON_EXPR = process.env.CLEANUP_INTERVAL_CRON || '*/15 * * * *';

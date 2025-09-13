@@ -3,7 +3,7 @@ import Sortable from 'sortablejs';
 import { colorVariations } from '../utils/polishedHelpers';
 import NotificationService from '../utils/NotificationService';
 
-const SortableFileManager = ({ 
+const FileManager = ({ 
   files = [], 
   onFilesReorder, 
   onFileRemove,
@@ -763,4 +763,4 @@ export const SortableImageGrid = ({
   );
 };
 
-export default SortableFileManager;
+export default FileManager;

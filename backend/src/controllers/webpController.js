@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import archiver from 'archiver';
 import { v4 as uuid } from 'uuid';
-import { outputDir, tempDir, ensureDirectories } from '../lib/file-paths.js';
+import { outputDir, tempDir, ensureDirectories } from '../utils/FilePathUtils.js';
 
 // Get WebP service from factory
 const webpService = serviceFactory.legacyServices.webp;

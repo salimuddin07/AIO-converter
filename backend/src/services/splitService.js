@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import archiver from 'archiver';
 import { v4 as uuid } from 'uuid';
-import { outputDir, tempDir } from '../lib/file-paths.js';
+import { outputDir, tempDir } from '../utils/FilePathUtils.js';
 import { EventEmitter } from 'events';
 
 const __filename = fileURLToPath(import.meta.url);

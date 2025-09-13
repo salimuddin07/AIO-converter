@@ -1,10 +1,10 @@
 # AIO Convert - All-in-One Media Converter
 
-> **Founded by [Salimuddin](https://github.com/salimuddin93)** - Full-Stack Developer & Media Processing Expert
+> **Created by [Salimuddin](https://github.com/salimuddin07)** - Full-Stack Developer & Media Processing Expert
 
-A comprehensive, modern media conversion platform built with Node.js and React. This application provides a unified interface for converting, processing, and manipulating various media formats including images, videos, and GIFs.
+A comprehensive, modern media conversion platform built with Node.js and React. Features professional-grade architecture with properly named services and clean code structure.
 
-[![GitHub](https://img.shields.io/badge/GitHub-salimuddin93-181717?style=for-the-badge&logo=github)](https://github.com/salimuddin93)
+[![GitHub](https://img.shields.io/badge/GitHub-salimuddin07-181717?style=for-the-badge&logo=github)](https://github.com/salimuddin07)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-salimuddin--shaikh-0077B5?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/salimuddin-shaikh-330a7b2a5)
 [![Instagram](https://img.shields.io/badge/Instagram-@salimuddin__shaikh__786-E4405F?style=for-the-badge&logo=instagram)](https://www.instagram.com/salimuddin_shaikh_786)
 
@@ -45,31 +45,89 @@ A comprehensive, modern media conversion platform built with Node.js and React. 
 ├── 📂 backend/                 # Node.js Express API
 │   ├── 📂 src/
 │   │   ├── 📂 controllers/     # Request handlers
-│   │   ├── 📂 routes/          # API route definitions
-│   │   ├── 📂 services/        # Core processing services
-│   │   │   ├── 📄 image-processor.js    # Unified image processing
-│   │   │   ├── 📄 video-processor.js    # Unified video processing
-│   │   │   ├── 📄 gif-processor.js      # Unified GIF processing
-│   │   │   └── 📄 index.js              # ServiceFactory & orchestration
-│   │   ├── 📂 lib/             # Utility libraries
-│   │   │   └── 📄 file-paths.js         # Centralized file management
-│   │   ├── 📂 middleware/      # Express middleware
-│   │   ├── 📂 config/          # Configuration files
+│   │   │   └── 📄 webpController.js         # WebP-specific operations
+│   │   ├── 📂 routes/          # API route definitions (NEW PROPER NAMING!)
+│   │   │   ├── 📄 ConversionRoutes.js       # Main conversion endpoints
+│   │   │   ├── 📄 SplitRoutes.js           # Video/GIF splitting operations
+│   │   │   ├── 📄 VideoRoutes.js           # Video processing endpoints
+│   │   │   ├── 📄 AiRoutes.js              # AI-powered enhancements
+│   │   │   ├── 📄 TextRoutes.js            # Text processing operations
+│   │   │   ├── 📄 FileRoutes.js            # File management endpoints
+│   │   │   └── 📄 WebpRoutes.js            # WebP conversion routes
+│   │   ├── 📂 services/        # Core processing services (COMPLETELY REFACTORED!)
+│   │   │   ├── 📄 ImageProcessingService.js # Unified image processing
+│   │   │   ├── 📄 VideoProcessingService.js # Unified video processing  
+│   │   │   ├── 📄 GifProcessingService.js   # Unified GIF processing
+│   │   │   ├── 📄 AiService.js              # AI-powered enhancements
+│   │   │   ├── 📄 CleanupService.js         # File cleanup management
+│   │   │   ├── 📄 ConversionService.js      # General conversion utilities
+│   │   │   ├── 📄 EditService.js            # Image editing operations
+│   │   │   ├── 📄 FfmpegService.js          # FFmpeg wrapper service
+│   │   │   ├── 📄 GifService.js             # Advanced GIF operations
+│   │   │   ├── 📄 SplitService.js           # Media splitting utilities
+│   │   │   ├── 📄 TextService.js            # Text overlay processing
+│   │   │   ├── 📄 VideoService.js           # Video manipulation tools
+│   │   │   ├── 📄 WebPService.js            # WebP format handling
+│   │   │   ├── 📄 SharpService.js           # Sharp image processing
+│   │   │   ├── 📄 JimpService.js            # Pure JS image processing
+│   │   │   ├── 📄 ImageMagickService.js     # ImageMagick integration
+│   │   │   ├── 📄 EnhancedConversionService.js # Advanced conversions
+│   │   │   ├── 📄 EnhancedJimpService.js    # Extended Jimp functionality
+│   │   │   ├── 📄 MediaAnalysisService.js   # Media analysis tools
+│   │   │   ├── 📄 CanvasGraphicsService.js  # Canvas-based graphics
+│   │   │   ├── 📄 VideoJSService.js         # Video.js integration
+│   │   │   ├── � VideoSplitterService.js   # Video splitting utilities
+│   │   │   └── 📄 index.js                  # ServiceFactory & Registry
+│   │   ├── 📂 utils/           # Utility libraries (RENAMED FROM lib/)
+│   │   │   └── 📄 FilePathUtils.js          # Centralized file management
+│   │   ├── 📂 middleware/      # Express middleware (PROPER NAMING!)
+│   │   │   ├── � ErrorHandler.js           # Error handling middleware
+│   │   │   └── 📄 FileValidator.js          # File validation middleware
+│   │   ├── �📂 config/          # Configuration files
+│   │   │   └── 📄 index.js                  # Main configuration
 │   │   ├── 📄 app.js           # Express application setup
 │   │   └── 📄 server.js        # Server entry point
 │   ├── 📄 package.json
 │   └── 📄 eslint.config.js
 ├── 📂 frontend/                # React SPA
 │   ├── 📂 src/
-│   │   ├── 📂 components/      # React components
-│   │   ├── 📂 utils/           # Frontend utilities
+│   │   ├── 📂 components/      # React components (RENAMED & ORGANIZED!)
+│   │   │   ├── 📄 MainConversionInterface.jsx   # Main conversion UI
+│   │   │   ├── 📄 ProgressVisualization.jsx     # Progress tracking
+│   │   │   ├── 📄 MainNavigation.jsx            # Navigation component
+│   │   │   ├── 📄 ImageEditor.jsx               # Image editing interface
+│   │   │   ├── 📄 FileManager.jsx               # File management UI
+│   │   │   ├── 📄 VideoToGifConverter.jsx       # Video to GIF converter
+│   │   │   ├── 📄 WebPConverter.jsx             # WebP conversion UI
+│   │   │   ├── 📄 GifSplitter.jsx               # GIF splitting interface
+│   │   │   ├── 📄 AddText.jsx                   # Text overlay component
+│   │   │   ├── 📄 AdvancedUploadArea.jsx        # Advanced file upload
+│   │   │   ├── � Footer.jsx                    # Footer component
+│   │   │   ├── 📄 Header.jsx                    # Header component
+│   │   │   ├── 📄 HomePage.jsx                  # Home page component
+│   │   │   ├── 📄 Results.jsx                   # Results display
+│   │   │   ├── 📄 Sidebar.jsx                   # Sidebar navigation
+│   │   │   ├── 📄 SplitResults.jsx              # Split results display
+│   │   │   ├── 📄 UploadArea.jsx                # File upload area
+│   │   │   └── 📄 VideoResults.jsx              # Video results display
+│   │   ├── �📂 utils/           # Frontend utilities
+│   │   │   ├── 📄 NotificationService.js        # Notification system
+│   │   │   └── 📄 polishedHelpers.js           # UI helper functions
 │   │   ├── 📄 App.jsx          # Main application component
-│   │   └── 📄 main.jsx         # React entry point
+│   │   ├── 📄 main.jsx         # React entry point
+│   │   └── 📄 aio-convert-style.css # Main stylesheet
 │   ├── 📄 package.json
 │   ├── 📄 vite.config.js
 │   └── 📄 index.html
+├── 📂 logs/                    # Application logs
+├── 📂 output/                  # Processed file output
+├── 📂 public/                  # Static assets
+│   └── 📂 static/
+├── 📂 temp/                    # Temporary processing files
+├── 📂 uploads/                 # Uploaded files
 ├── 📄 README.md                # This file
-└── 📄 ARCHITECTURE.md          # Detailed architecture documentation
+├── 📄 ARCHITECTURE.md          # Detailed architecture documentation
+└── 📄 package.json             # Root package configuration
 ```
 
 ## 🛠️ Installation & Setup
@@ -115,7 +173,10 @@ VITE_MAX_FILE_SIZE=500
 
 ## 🔧 Core Services Architecture
 
-### ImageProcessor
+### Modern Service Organization
+This project features a completely refactored service architecture with proper naming conventions:
+
+### ImageProcessingService.js
 The consolidated image processing service that intelligently selects the optimal library:
 
 ```javascript
@@ -135,7 +196,7 @@ const results = await imageProcessor.batchConvert(files, {
 });
 ```
 
-### VideoProcessor  
+### VideoProcessingService.js  
 Event-driven video processing with progress tracking:
 
 ```javascript  
@@ -155,7 +216,7 @@ const result = await videoProcessor.convertVideo('input.mp4', {
 });
 ```
 
-### GifProcessor
+### GifProcessingService.js
 Advanced GIF creation with scene detection:
 
 ```javascript
@@ -176,28 +237,52 @@ const frames = await gifProcessor.extractFrames('input.gif', {
 });
 ```
 
+### ServiceFactory Pattern
+Centralized service management with intelligent selection:
+
+```javascript
+import { serviceFactory } from './services/index.js';
+
+// Get optimal service for file type and operation
+const service = serviceFactory.getServiceFor('.mp4', 'convert');
+const result = await service.convertVideo(inputPath, options);
+
+// Get services by capability
+const videoServices = serviceFactory.getServicesByCategory('video');
+```
+
 ## 🎯 API Endpoints
 
 ### Image Operations
-- `POST /api/convert/image` - Convert image formats
+- `POST /api/convert` - Convert image formats (via ConversionRoutes.js)
 - `POST /api/convert/batch` - Batch image conversion
-- `POST /api/image/resize` - Resize images  
-- `POST /api/image/effects` - Apply effects and filters
+- `POST /api/convert/gif-editor` - Advanced GIF editing
+- `POST /api/convert/validate` - Validate conversion options
 
 ### Video Operations
-- `POST /api/convert/video` - Convert video formats
-- `POST /api/video/split` - Split videos into segments
-- `POST /api/video/extract` - Extract frames from video
-- `GET /api/video/status/:jobId` - Get conversion status
+- `POST /api/video/convert` - Convert video formats (via VideoRoutes.js)
+- `POST /api/split/video` - Split videos into segments (via SplitRoutes.js)
+- `GET /api/split/video/status/:jobId` - Get video processing status
+- `GET /api/split/video/download/:jobId` - Download processed video segments
 
 ### GIF Operations  
-- `POST /api/gif/create` - Create GIF from video/images
-- `POST /api/gif/split` - Extract frames from GIF
-- `POST /api/gif/optimize` - Optimize GIF size and quality
-- `POST /api/gif/text` - Add text overlay to GIF
+- `POST /api/convert/gif-advanced` - Advanced GIF processing
+- `POST /api/split/gif` - Extract frames from GIF (via SplitRoutes.js)
+- `GET /api/split/gif/status/:jobId` - Get GIF processing status
+- `GET /api/split/gif/download-zip/:jobId` - Download extracted frames
 
-### Utility Endpoints
-- `GET /api/files/list` - List processed files
+### WebP Operations
+- `POST /api/webp/convert` - WebP conversion (via WebpRoutes.js)
+- `POST /api/webp/batch` - Batch WebP processing
+
+### Text & AI Operations
+- `POST /api/text/overlay` - Add text overlays (via TextRoutes.js)
+- `POST /api/ai/enhance` - AI-powered enhancements (via AiRoutes.js)
+
+### File Management
+- `GET /api/files/:filename` - Download processed files (via FileRoutes.js)
+- `GET /api/files/list` - List available files
+- `DELETE /api/files/cleanup` - Clean up temporary files
 - `GET /api/files/download/:id` - Download processed files
 - `DELETE /api/files/cleanup` - Clean up temporary files
 
@@ -267,25 +352,60 @@ Ensure all production environment variables are configured:
 4. **Service Integration**: Use the ServiceFactory pattern for new services
 5. **Error Handling**: Implement comprehensive error handling
 
-## 📋 Recent Refactoring
+## 📋 Recent Major Refactoring ✅
 
-This project underwent a major refactoring to improve code quality and maintainability:
+This project underwent a comprehensive refactoring with professional naming conventions:
 
-### ✅ Completed Improvements
-- **Service Consolidation**: Replaced 20+ duplicate services with 3 unified processors
-- **Architecture Modernization**: Implemented ServiceFactory pattern and WorkflowOrchestrator  
-- **Code Cleanup**: Removed corrupted files and duplicate components
-- **Import Path Updates**: Centralized utilities and updated all import statements
-- **Component Consolidation**: Removed duplicate Header/Footer/WebP components
-- **Documentation**: Added comprehensive inline documentation
-- **Configuration**: Added ESLint configuration and improved npm scripts
+### ✅ File Structure Improvements
+- **Services Renamed**: All services now use proper PascalCase with descriptive suffixes
+  - `image-processor.js` → `ImageProcessingService.js`
+  - `video-processor.js` → `VideoProcessingService.js` 
+  - `gif-processor.js` → `GifProcessingService.js`
+  - `aiService.js` → `AiService.js`
+  - `cleanupService.js` → `CleanupService.js`
+  - And 15+ more services properly renamed
 
-### 🔧 Technical Debt Resolved
-- Fixed severely corrupted `split.js` route file (2638+ lines of duplicate imports)
-- Eliminated service overlap and confusion
-- Standardized file path utilities
-- Improved error handling consistency
-- Enhanced code organization and modularity
+- **Routes Renamed**: All route files now clearly indicate their purpose
+  - `convert.js` → `ConversionRoutes.js`
+  - `split.js` → `SplitRoutes.js`
+  - `video.js` → `VideoRoutes.js`
+  - `ai.js` → `AiRoutes.js`
+  - `text.js` → `TextRoutes.js`
+  - `files.js` → `FileRoutes.js`
+  - `webp.js` → `WebpRoutes.js`
+
+- **Utilities Reorganized**: Better structure and naming
+  - `lib/` directory → `utils/` directory
+  - `file-paths.js` → `FilePathUtils.js`
+  - `errorHandler.js` → `ErrorHandler.js`
+  - `validateFiles.js` → `FileValidator.js`
+
+- **Frontend Components**: React components now have clear, descriptive names
+  - `AIOConvertMainInterface.jsx` → `MainConversionInterface.jsx`
+  - `D3ProgressVisualization.jsx` → `ProgressVisualization.jsx`
+  - `FullPageNavigation.jsx` → `MainNavigation.jsx`
+  - `KonvaImageEditor.jsx` → `ImageEditor.jsx`
+  - `SortableFileManager.jsx` → `FileManager.jsx`
+  - `VideoToGif.jsx` → `VideoToGifConverter.jsx`
+
+### ✅ Import System Overhaul
+- **All Import Statements Updated**: Every import throughout the entire codebase has been updated
+- **Path Consistency**: All utilities now use consistent `../utils/FilePathUtils.js` paths
+- **Service References**: All service imports use the new proper names
+- **Component References**: All React component imports and function names updated
+
+### ✅ Code Quality Improvements
+- **Professional Naming**: All files now follow industry-standard naming conventions
+- **Better Organization**: Clear separation of concerns with descriptive file names
+- **Improved Maintainability**: Much easier to locate and understand code purpose
+- **Enhanced Readability**: Self-documenting file names that explain functionality
+
+### 🔧 Technical Benefits Achieved
+- **Service Consolidation**: Unified processors replace 20+ duplicate services
+- **Architecture Modernization**: ServiceFactory pattern and WorkflowOrchestrator implemented
+- **Documentation**: Comprehensive inline documentation added
+- **Error Handling**: Improved consistency across all services
+- **Modularity**: Clean separation between services, routes, and utilities
 
 ## 📄 License
 
@@ -667,40 +787,21 @@ We welcome contributions! Please follow these steps:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👨‍💻 **About the Developer**
+## 👨‍💻 About the Developer
 
 **Salimuddin** is a passionate Full-Stack Developer and Media Processing Expert with extensive experience in building scalable web applications and media processing solutions.
 
 ### **Connect with Salimuddin**
-- 🐙 **GitHub**: [salimuddin93](https://github.com/salimuddin93)
+- 🐙 **GitHub**: [salimuddin07](https://github.com/salimuddin07)
 - 💼 **LinkedIn**: [salimuddin-shaikh](https://www.linkedin.com/in/salimuddin-shaikh-330a7b2a5)
 - 📸 **Instagram**: [@salimuddin_shaikh_786](https://www.instagram.com/salimuddin_shaikh_786)
-- 🐦 **X (Twitter)**: [@salim_sk_7860](https://x.com/salim_sk_7860)
-- 📘 **Facebook**: [salimuddin.shaikh.7](https://www.facebook.com/salimuddin.shaikh.7)
-
-## 🎯 **Support**
-
-If you encounter any issues or have questions:
-
-1. **Check the Documentation**: Most common issues are covered above
-2. **Search Issues**: Check if your issue already exists in GitHub Issues
-3. **Create New Issue**: If you can't find a solution, create a detailed issue report
-4. **Contact Developer**: Reach out through any of the social media links above
-
-## ⭐ **Show Your Support**
-
-If you find this project helpful, please consider:
-- Giving it a ⭐ on GitHub
-- Sharing it with others who might benefit
-- Contributing to the codebase
-- Following the developer on social media
 
 ---
 
 <div align="center">
 
-**Built with ❤️ by [Salimuddin](https://github.com/salimuddin93)**
+**Built with ❤️ by [Salimuddin](https://github.com/salimuddin07)**
 
-*Professional Media Processing Made Simple*
+*Professional Media Processing with Clean Architecture*
 
 </div>

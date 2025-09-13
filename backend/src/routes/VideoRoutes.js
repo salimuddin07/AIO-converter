@@ -5,7 +5,7 @@ import fs from 'fs';
 
 // Import consolidated services and utilities
 import { videoProcessor } from '../services/index.js';
-import { tempDir, getSafeFilename, ensureDirectories } from '../lib/file-paths.js';
+import { tempDir, getSafeFilename, ensureDirectories } from '../utils/FilePathUtils.js';
 
 const router = express.Router();
 

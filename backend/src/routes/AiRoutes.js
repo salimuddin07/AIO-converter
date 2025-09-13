@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import path from 'path';
-import { outputDir } from '../lib/file-paths.js';
-import { describeImage } from '../services/aiService.js';
+import { outputDir } from '../utils/FilePathUtils.js';
+import { describeImage } from '../service./AiService.js';
 
 const router = Router();
 

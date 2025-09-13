@@ -2,7 +2,7 @@ import webp from 'node-webp';
 import path from 'path';
 import fs from 'fs/promises';
 import { v4 as uuid } from 'uuid';
-import { outputDir, tempDir } from '../lib/file-paths.js';
+import { outputDir, tempDir } from '../utils/FilePathUtils.js';
 
 /**
  * WebP Service - Specialized WebP encoding/decoding

@@ -5,12 +5,12 @@ import path from 'path';
 import https from 'https';
 import http from 'http';
 import { v4 as uuid } from 'uuid';
-import { outputDir, tempDir } from '../lib/file-paths.js';
+import { outputDir, tempDir } from '../utils/FilePathUtils.js';
 import { config } from '../config/index.js';
-import FFmpegService from './ffmpegService.js';
+import FFmpegService from './FfmpegService.js';
 import SharpService from './SharpService.js';
 import JimpService from './JimpService.js';
-import GifService from './gifService.js';
+import GifService from './GifService.js';
 import ImageMagickService from './ImageMagickService.js';
 
 // Initialize service instances

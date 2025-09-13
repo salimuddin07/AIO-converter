@@ -1,7 +1,7 @@
 import { Jimp } from 'jimp';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
-import { outputDir } from '../lib/file-paths.js';
+import { outputDir } from '../utils/FilePathUtils.js';
 
 /**
  * Enhanced Jimp Service - Pure JavaScript image manipulation

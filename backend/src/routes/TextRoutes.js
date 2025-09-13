@@ -3,8 +3,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
-import textService from '../services/textService.js';
-import { cleanupFiles } from '../services/cleanupService.js';
+import textService from '../service./TextService.js';
+import { cleanupFiles } from '../service./CleanupService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

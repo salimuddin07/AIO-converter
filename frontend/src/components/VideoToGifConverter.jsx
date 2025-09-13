@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import VideoResults from './VideoResults';
 
-const VideoToGif = () => {
+const VideoToGifConverter = () => {
   const [file, setFile] = useState(null);
   const [url, setUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -231,4 +231,4 @@ const VideoToGif = () => {
   );
 };
 
-export default VideoToGif;
+export default VideoToGifConverter;

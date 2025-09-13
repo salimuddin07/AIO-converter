@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { colorVariations } from '../utils/polishedHelpers';
 
-const D3ProgressVisualization = ({ 
+const ProgressVisualization = ({ 
   progress = 0, 
   total = 100, 
   type = 'circular', // 'circular', 'linear', 'animated-bars', 'wave'
@@ -527,4 +527,4 @@ export const AnalyticsDashboard = ({ data, title = "Analytics Dashboard" }) => {
   );
 };
 
-export default D3ProgressVisualization;
+export default ProgressVisualization;

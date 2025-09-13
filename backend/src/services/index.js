@@ -6,15 +6,15 @@
  */
 
 // New consolidated processors (primary services)
-import ImageProcessor, { imageProcessor } from './image-processor.js';
-import VideoProcessor, { videoProcessor } from './video-processor.js';
-import GifProcessor, { gifProcessor } from './gif-processor.js';
+import ImageProcessor, { imageProcessor } from './ImageProcessingService.js';
+import VideoProcessor, { videoProcessor } from './VideoProcessingService.js';
+import GifProcessor, { gifProcessor } from './GifProcessingService.js';
 
 // Legacy services (for backward compatibility and specialized use cases)
-import FFmpegService from './ffmpegService.js';
+import FFmpegService from './FfmpegService.js';
 import SharpService from './SharpService.js';
 import JimpService from './JimpService.js';
-import GifService, { gifService } from './gifService.js';
+import GifService, { gifService } from './GifService.js';
 import ImageMagickService from './ImageMagickService.js';
 import EnhancedConversionService, { enhancedConversionService } from './EnhancedConversionService.js';
 
@@ -26,9 +26,9 @@ import CanvasGraphicsService from './CanvasGraphicsService.js';
 import VideoJSService from './VideoJSService.js';
 
 // Utility services
-import textService from './textService.js';
-import { scheduleCleanup, cleanupFiles } from './cleanupService.js';
-import { describeImage } from './aiService.js';
+import textService from './TextService.js';
+import { scheduleCleanup, cleanupFiles } from './CleanupService.js';
+import { describeImage } from './AiService.js';
 
 // Create service objects
 const cleanupService = { scheduleCleanup, cleanupFiles };

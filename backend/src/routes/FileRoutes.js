@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import path from 'path';
 import fs from 'fs/promises';
-import { outputDir } from '../lib/file-paths.js';
+import { outputDir } from '../utils/FilePathUtils.js';
 
 const router = Router();
 

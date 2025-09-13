@@ -6,7 +6,7 @@ import fs from 'fs/promises';
 import AdmZip from 'adm-zip';
 import mime from 'mime-types';
 import { config } from '../config/index.js';
-import { createError } from '../middleware/errorHandler.js';
+import { createError } from '../middleware/ErrorHandler.js';
 
 // Import consolidated services and utilities
 import { 
@@ -15,7 +15,7 @@ import {
   gifProcessor, 
   serviceFactory 
 } from '../services/index.js';
-import { tempDir, outputDir, getSafeFilename, ensureDirectories } from '../lib/file-paths.js';
+import { tempDir, outputDir, getSafeFilename, ensureDirectories } from '../utils/FilePathUtils.js';
 
 const router = Router();
 

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import NotificationService from '../utils/NotificationService.js';
 import WebPConverter from './WebPConverter.jsx';
 
-export default function AIOConvertMainInterface({ currentTool, setCurrentTool, loading, setLoading, error, setError }) {
+export default function MainConversionInterface({ currentTool, setCurrentTool, loading, setLoading, error, setError }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [results, setResults] = useState([]);
   const [uploadProgress, setUploadProgress] = useState(0);
