@@ -90,7 +90,8 @@ const VideoToGifConverter = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:4002/api/video/upload', {
+      const base = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const response = await fetch(`${base}/api/video/upload`, {
         method: 'POST',
         body: formData
       });

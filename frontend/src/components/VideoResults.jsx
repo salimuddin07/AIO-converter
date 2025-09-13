@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 const VideoResults = ({ result, onBack }) => {
+  const base = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+  
   const [isConverting, setIsConverting] = useState(false);
   const [convertResult, setConvertResult] = useState(null);
   const [settings, setSettings] = useState({
@@ -23,7 +25,7 @@ const VideoResults = ({ result, onBack }) => {
 
   const fetchVideoInfo = async () => {
     try {
-      const response = await fetch(`http://localhost:4002/api/video/info/${result.videoId}`);
+      const response = await fetch(`${base}/api/video/info/${result.videoId}`);
       const info = await response.json();
       setVideoInfo(info);
       
@@ -45,7 +47,7 @@ const VideoResults = ({ result, onBack }) => {
     setIsConverting(true);
     
     try {
-      const response = await fetch('http://localhost:4002/api/video/convert', {
+      const response = await fetch(`${base}/api/video/convert`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +88,7 @@ const VideoResults = ({ result, onBack }) => {
 
   const handleDownload = (gifPath, filename) => {
     const link = document.createElement('a');
-    link.href = `http://localhost:4002/api/video/download/${gifPath}`;
+    link.href = `${base}/api/video/download/${gifPath}`;
     link.download = filename;
     link.click();
   };
@@ -108,7 +110,7 @@ const VideoResults = ({ result, onBack }) => {
         <div className="result-container">
           <div className="gif-preview">
             <img 
-              src={`http://localhost:4002/api/video/gif-preview/${convertResult.gifPath}`} 
+              src={`${base}/api/video/gif-preview/${convertResult.gifPath}`} 
               alt="Converted GIF" 
               style={{ maxWidth: '100%', height: 'auto' }}
             />
@@ -159,7 +161,7 @@ const VideoResults = ({ result, onBack }) => {
         <div className="video-preview">
           <video 
             ref={videoRef}
-            src={`http://localhost:4002/api/video/preview/${result.videoId}`}
+            src={`${base}/api/video/preview/${result.videoId}`}
             controls
             style={{ width: '100%', maxWidth: '600px' }}
             onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
