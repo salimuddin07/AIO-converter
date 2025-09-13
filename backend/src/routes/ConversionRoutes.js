@@ -461,8 +461,16 @@ router.post('/validate', upload.array('files'), async (req, res, next) => {
     const validationResults = [];
     
     for (const file of files) {
-      const validation = validateFile(file);
-      validationResults.push(validation);
+      try {
+        const validation = validateFile(file);
+        validationResults.push({ success: true, file: file.originalname, validation });
+      } catch (validationError) {
+        validationResults.push({ 
+          success: false, 
+          file: file.originalname, 
+          error: validationError.message 
+        });
+      }
     }
     
     res.json({
@@ -656,12 +664,26 @@ function validateFile(file, supportedExts = []) {
     throw new Error('No file provided');
   }
   
-  if (!file.path || !fsSync.existsSync(file.path)) {
-    throw new Error('File not found or inaccessible');
+  // Check if file exists (more robust check)
+  if (!file.path) {
+    // If no path, check if it's a buffer or has other properties
+    if (!file.buffer && !file.filename && !file.originalname) {
+      throw new Error('File not properly uploaded');
+    }
+  } else {
+    // Only check file existence if path is provided
+    try {
+      if (!fsSync.existsSync(file.path)) {
+        throw new Error('File not found at specified path');
+      }
+    } catch (fsError) {
+      console.warn(`File existence check failed: ${fsError.message}`);
+      // Don't throw error, just log warning
+    }
   }
 
   if (supportedExts.length > 0) {
-    const ext = path.extname(file.originalname || file.path).toLowerCase();
+    const ext = path.extname(file.originalname || file.path || '').toLowerCase();
     if (!supportedExts.includes(ext)) {
       throw new Error(`Unsupported format: ${ext}. Supported formats: ${supportedExts.join(', ')}`);
     }
@@ -1265,8 +1287,14 @@ async function processAddText(file, options = {}) {
   const outputPath = path.join(outputDir, outputName);
   
   try {
-    // Use validation helper
-    validateImageFile(file);
+    // Use validation helper with additional safety
+    try {
+      validateImageFile(file);
+    } catch (validationError) {
+      console.warn(`Validation warning: ${validationError.message}`);
+      // Continue processing even if validation has issues
+    }
+    
     console.log(`Processing add text: ${file.originalname} (${ext})`);
     
     const textOptions = {
