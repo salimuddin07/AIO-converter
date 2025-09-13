@@ -461,7 +461,7 @@ router.post('/validate', upload.array('files'), async (req, res, next) => {
     const validationResults = [];
     
     for (const file of files) {
-      const validation = await validateFile(file);
+      const validation = validateFile(file);
       validationResults.push(validation);
     }
     
@@ -1731,135 +1731,6 @@ async function processGravityAlignment(frames, options) {
   } catch (error) {
     throw new Error(`Gravity alignment failed: ${error.message}`);
   }
-}
-
-// File validation function with comprehensive checks
-async function validateFile(file) {
-  const validation = {
-    filename: file.originalname,
-    valid: true,
-    errors: [],
-    warnings: [],
-    info: {}
-  };
-
-  try {
-    // Check file size
-    if (file.size > config.maxFileSizeMB * 1024 * 1024) {
-      validation.valid = false;
-      validation.errors.push(`File size ${formatFileSize(file.size)} exceeds limit of ${config.maxFileSizeMB}MB`);
-    }
-
-    // Check file extension
-    const ext = path.extname(file.originalname).toLowerCase();
-    const supportedFormats = [
-      // Images
-      '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff', '.svg', '.ico',
-      // Videos  
-      '.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv', '.wmv', '.3gp', '.ogv',
-      // Archives
-      '.zip'
-    ];
-
-    if (!supportedFormats.includes(ext)) {
-      validation.valid = false;
-      validation.errors.push(`Unsupported file format: ${ext}`);
-    }
-
-    // Analyze file metadata if valid
-    if (validation.valid && file.path) {
-      try {
-        const stats = await fs.stat(file.path);
-        validation.info.actualSize = stats.size;
-        validation.info.created = stats.birthtime;
-        validation.info.modified = stats.mtime;
-
-        // For images, get dimensions and format info
-        if (['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.tiff'].includes(ext)) {
-          try {
-            const sharp = require('sharp');
-            const metadata = await sharp(file.path).metadata();
-            
-            validation.info.dimensions = {
-              width: metadata.width,
-              height: metadata.height,
-              channels: metadata.channels,
-              format: metadata.format,
-              hasAlpha: metadata.hasAlpha
-            };
-
-            // Add warnings for extreme dimensions
-            if (metadata.width > 4000 || metadata.height > 4000) {
-              validation.warnings.push('Large image dimensions may slow processing');
-            }
-            
-            if (metadata.width < 10 || metadata.height < 10) {
-              validation.warnings.push('Very small image dimensions detected');
-            }
-
-          } catch (imageError) {
-            validation.warnings.push('Could not read image metadata');
-          }
-        }
-
-        // For videos, get basic info
-        if (['.mp4', '.mov', '.avi', '.webm', '.mkv', '.flv'].includes(ext)) {
-          validation.info.type = 'video';
-          validation.warnings.push('Video processing may take longer than images');
-        }
-
-        // For GIFs, check if animated
-        if (ext === '.gif') {
-          try {
-            // Basic check for animated GIF (this is simplified)
-            const buffer = await fs.readFile(file.path);
-            const isAnimated = buffer.includes(Buffer.from('NETSCAPE2.0'));
-            validation.info.animated = isAnimated;
-            
-            if (isAnimated) {
-              validation.info.type = 'animated-gif';
-            }
-          } catch (gifError) {
-            validation.warnings.push('Could not analyze GIF format');
-          }
-        }
-
-      } catch (statError) {
-        validation.warnings.push('Could not read file statistics');
-      }
-    }
-
-    // Check filename for potential issues
-    const filename = file.originalname;
-    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-      validation.warnings.push('Filename contains potentially unsafe characters');
-    }
-    
-    if (filename.length > 255) {
-      validation.warnings.push('Very long filename may cause issues');
-    }
-
-    // Check for common encoding issues
-    if (!/^[\x00-\x7F]*$/.test(filename)) {
-      validation.info.hasUnicodeChars = true;
-      validation.warnings.push('Filename contains non-ASCII characters');
-    }
-
-  } catch (error) {
-    validation.valid = false;
-    validation.errors.push(`Validation error: ${error.message}`);
-  }
-
-  return validation;
-}
-
-// Utility function to format file sizes
-function formatFileSize(bytes) {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 export default router;
