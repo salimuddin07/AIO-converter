@@ -1,4 +1,3 @@
-# Railway configuration for backend deployment
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
@@ -9,4 +8,3 @@ restartPolicyMaxRetries = 10
 
 [env]
 NODE_ENV = "production"
-PORT = "8080"

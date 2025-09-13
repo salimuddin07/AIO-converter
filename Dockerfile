@@ -16,12 +16,13 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 
-# Copy package files
+# Copy backend files only
 COPY backend/package*.json ./
-RUN npm install --production
+COPY backend/src ./src
+COPY backend/server.js ./
 
-# Copy backend source
-COPY backend/ ./
+# Install dependencies
+RUN npm install --only=production
 
 # Create necessary directories
 RUN mkdir -p uploads output temp logs
@@ -29,9 +30,9 @@ RUN mkdir -p uploads output temp logs
 # Expose port
 EXPOSE 8080
 
-# Set environment variable for Railway
+# Set environment variables
 ENV NODE_ENV=production
 ENV PORT=8080
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
