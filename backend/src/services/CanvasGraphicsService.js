@@ -2,7 +2,7 @@ import { createCanvas, loadImage, registerFont } from 'canvas';
 import path from 'path';
 import fs from 'fs/promises';
 import { v4 as uuid } from 'uuid';
-import { outputDir } from '../utils/filePaths.js';
+import { outputDir } from '../lib/file-paths.js';
 
 /**
  * Canvas Graphics Service using node-canvas

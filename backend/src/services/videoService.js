@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import { v4 as uuidv4 } from 'uuid';
-import { tempDir, outputDir } from '../utils/filePaths.js';
+import { tempDir, outputDir } from '../lib/file-paths.js';
 
 class VideoService {
   constructor() {

@@ -26,9 +26,13 @@ import CanvasGraphicsService from './CanvasGraphicsService.js';
 import VideoJSService from './VideoJSService.js';
 
 // Utility services
-import { textService } from './textService.js';
-import { cleanupService } from './cleanupService.js';
-import { aiService } from './aiService.js';
+import textService from './textService.js';
+import { scheduleCleanup, cleanupFiles } from './cleanupService.js';
+import { describeImage } from './aiService.js';
+
+// Create service objects
+const cleanupService = { scheduleCleanup, cleanupFiles };
+const aiService = { describeImage };
 
 // ============================================================================
 // SERVICE INSTANCES - Ready-to-use instances

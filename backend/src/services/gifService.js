@@ -7,7 +7,7 @@ import GIFEncoder from 'gif-encoder-2';
 // Note: gif-js has ES module compatibility issues, using GIFEncoder instead
 const GIF = null; // Placeholder for gif-js
 import { Jimp } from 'jimp';
-import { outputDir, tempDir } from '../utils/filePaths.js';
+import { outputDir, tempDir } from '../lib/file-paths.js';
 
 /**
  * Enhanced GifService - GIF creation and processing using multiple libraries

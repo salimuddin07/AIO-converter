@@ -9,7 +9,7 @@
  */
 
 import sharp from 'sharp';
-import Jimp from 'jimp';
+import { Jimp } from 'jimp';
 import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';

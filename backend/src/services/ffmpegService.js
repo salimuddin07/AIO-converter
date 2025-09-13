@@ -4,7 +4,7 @@ import ffprobeStatic from 'ffprobe-static';
 import path from 'path';
 import fs from 'fs/promises';
 import { v4 as uuid } from 'uuid';
-import { tempDir, outputDir } from '../utils/filePaths.js';
+import { tempDir, outputDir } from '../lib/file-paths.js';
 
 // Configure FFmpeg with static binaries
 ffmpeg.setFfmpegPath(ffmpegStatic);

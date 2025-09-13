@@ -9,7 +9,7 @@
 
 import GIFEncoder from 'gif-encoder-2';
 import { createCanvas, loadImage } from 'canvas';
-import Jimp from 'jimp';
+import { Jimp } from 'jimp';
 import fs from 'fs/promises';
 import path from 'path';
 import { EventEmitter } from 'events';

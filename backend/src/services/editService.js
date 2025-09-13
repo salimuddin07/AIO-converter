@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import { v4 as uuid } from 'uuid';
 import path from 'path';
 import fs from 'fs/promises';
-import { outputDir } from '../utils/filePaths.js';
+import { outputDir } from '../lib/file-paths.js';
 
 export async function resizeImage(filePath, options = {}) {
   const { width, height, fit = 'inside' } = options;
