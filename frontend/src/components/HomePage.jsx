@@ -395,16 +395,4 @@ export default function HomePage({ onNavigate }) {
       </div>
     </div>
   );
-          <li>
-            <span className="date">Sep 12, 2025</span>
-            <p>Added support for SVG to transparent background conversion with color preservation.</p>
-          </li>
-          <li>
-            <span className="date">Sep 12, 2025</span>
-            <p>Professional animated GIF maker with advanced controls like crossfading, frame delays, and transparency.</p>
-          </li>
-        </ul>
-      </div>
-    </div>
-  );
 }

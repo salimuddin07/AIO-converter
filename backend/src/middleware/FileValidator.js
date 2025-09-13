@@ -1,5 +1,5 @@
 import path from 'path';
-import { createError } from './errorHandler.js';
+import { createError } from './ErrorHandler.js';
 import { config, supportedExtensions } from '../config/index.js';
 
 const MAX_BYTES = config.maxFileSizeMB * 1024 * 1024;

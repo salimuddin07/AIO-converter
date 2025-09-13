@@ -8,3 +8,4 @@ backend/src/output/
 frontend/dist/
 .env
 backend/.env
+.vercel
