@@ -647,12 +647,80 @@ router.post('/gif-advanced', upload.array('frames'), async (req, res, next) => {
   }
 });
 
+// ============================================================================
+// VALIDATION HELPER FUNCTIONS
+// ============================================================================
+
+function validateFile(file, supportedExts = []) {
+  if (!file) {
+    throw new Error('No file provided');
+  }
+  
+  if (!file.path || !fsSync.existsSync(file.path)) {
+    throw new Error('File not found or inaccessible');
+  }
+
+  if (supportedExts.length > 0) {
+    const ext = path.extname(file.originalname || file.path).toLowerCase();
+    if (!supportedExts.includes(ext)) {
+      throw new Error(`Unsupported format: ${ext}. Supported formats: ${supportedExts.join(', ')}`);
+    }
+  }
+
+  return true;
+}
+
+function validateImageFile(file) {
+  const imageExts = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp', '.gif', '.svg'];
+  return validateFile(file, imageExts);
+}
+
+function validateVideoFile(file) {
+  const videoExts = ['.mp4', '.avi', '.mov', '.webm', '.mkv', '.flv', '.wmv', '.m4v', '.3gp'];
+  return validateFile(file, videoExts);
+}
+
+function validateProcessingResult(result, outputPath) {
+  if (!result || !result.outName) {
+    throw new Error('Processing failed - no output generated');
+  }
+
+  const finalOutputPath = result.outputPath || outputPath;
+  if (!fsSync.existsSync(finalOutputPath)) {
+    throw new Error('Processing failed - output file not created');
+  }
+
+  return finalOutputPath;
+}
+
+// ============================================================================
+// TOOL-SPECIFIC PROCESSING FUNCTIONS WITH ENHANCED VALIDATION
+// ============================================================================
+
 // Tool-specific processing functions with enhanced conversion
 async function processVideoToGif(file, options = {}) {
   const outputName = `gif_${uuid()}.gif`;
   const outputPath = path.join(outputDir, outputName);
   
   try {
+    // Comprehensive input validation
+    if (!file) {
+      throw new Error('No video file provided');
+    }
+    
+    if (!file.path || !fsSync.existsSync(file.path)) {
+      throw new Error('Video file not found or inaccessible');
+    }
+
+    // Validate file is actually a video
+    const videoExts = ['.mp4', '.avi', '.mov', '.webm', '.mkv', '.flv', '.wmv', '.m4v', '.3gp'];
+    const fileExt = path.extname(file.originalname || file.path).toLowerCase();
+    if (!videoExts.includes(fileExt)) {
+      throw new Error(`Unsupported video format: ${fileExt}. Supported formats: ${videoExts.join(', ')}`);
+    }
+
+    console.log(`Processing video to GIF: ${file.originalname} (${fileExt})`);
+    
     // Enhanced video to GIF conversion with advanced options
     const conversionOptions = {
       fps: parseInt(options.fps) || 15,
@@ -667,9 +735,32 @@ async function processVideoToGif(file, options = {}) {
       method: options.method || 'lanczos'
     };
 
+    // Validate conversion options
+    if (conversionOptions.fps < 1 || conversionOptions.fps > 60) {
+      throw new Error('FPS must be between 1 and 60');
+    }
+    
+    if (conversionOptions.startTime < 0) {
+      throw new Error('Start time cannot be negative');
+    }
+    
+    if (conversionOptions.duration && conversionOptions.duration <= 0) {
+      throw new Error('Duration must be positive');
+    }
+
     const result = await enhancedConversionService.convertSingle(file.path, 'gif', conversionOptions);
     
-    const stats = await fs.stat(outputPath);
+    if (!result || !result.outName) {
+      throw new Error('Video conversion failed - no output generated');
+    }
+
+    // Verify output file exists
+    const finalOutputPath = result.outputPath || outputPath;
+    if (!fsSync.existsSync(finalOutputPath)) {
+      throw new Error('Video conversion failed - output file not created');
+    }
+    
+    const stats = await fs.stat(finalOutputPath);
     
     return {
       filename: result.outName,
@@ -791,6 +882,23 @@ async function processResize(file, options = {}) {
   const outputPath = path.join(outputDir, outputName);
   
   try {
+    // Comprehensive input validation
+    if (!file) {
+      throw new Error('No file provided for resize');
+    }
+    
+    if (!file.path || !fsSync.existsSync(file.path)) {
+      throw new Error('File not found or inaccessible');
+    }
+
+    // Validate file is an image
+    const imageExts = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp', '.gif', '.svg'];
+    if (!imageExts.includes(ext)) {
+      throw new Error(`Unsupported image format: ${ext}. Supported formats: ${imageExts.join(', ')}`);
+    }
+
+    console.log(`Processing resize: ${file.originalname} (${ext})`);
+    
     const resizeOptions = {
       width: parseInt(options.width) || null,
       height: parseInt(options.height) || null,
@@ -799,9 +907,33 @@ async function processResize(file, options = {}) {
       gravity: options.gravity || 'center',
       background: options.background || 'transparent'
     };
+
+    // Validate resize options
+    if (!resizeOptions.width && !resizeOptions.height) {
+      throw new Error('Either width or height must be specified for resize');
+    }
+    
+    if (resizeOptions.width && (resizeOptions.width < 1 || resizeOptions.width > 8000)) {
+      throw new Error('Width must be between 1 and 8000 pixels');
+    }
+    
+    if (resizeOptions.height && (resizeOptions.height < 1 || resizeOptions.height > 8000)) {
+      throw new Error('Height must be between 1 and 8000 pixels');
+    }
     
     const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), resizeOptions);
-    const stats = await fs.stat(outputPath);
+    
+    if (!result || !result.outName) {
+      throw new Error('Resize failed - no output generated');
+    }
+
+    // Verify output file exists
+    const finalOutputPath = result.outputPath || outputPath;
+    if (!fsSync.existsSync(finalOutputPath)) {
+      throw new Error('Resize failed - output file not created');
+    }
+    
+    const stats = await fs.stat(finalOutputPath);
     
     return {
       filename: result.outName,
@@ -811,8 +943,8 @@ async function processResize(file, options = {}) {
       type: 'image',
       tool: 'resize',
       processing: {
-        originalSize: `${result.originalWidth}x${result.originalHeight}`,
-        newSize: `${result.width}x${result.height}`
+        originalSize: `${result.originalWidth || 'unknown'}x${result.originalHeight || 'unknown'}`,
+        newSize: `${result.width || resizeOptions.width || 'auto'}x${result.height || resizeOptions.height || 'auto'}`
       }
     };
   } catch (error) {
@@ -827,6 +959,23 @@ async function processCrop(file, options = {}) {
   const outputPath = path.join(outputDir, outputName);
   
   try {
+    // Comprehensive input validation
+    if (!file) {
+      throw new Error('No file provided for crop');
+    }
+    
+    if (!file.path || !fsSync.existsSync(file.path)) {
+      throw new Error('File not found or inaccessible');
+    }
+
+    // Validate file is an image
+    const imageExts = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp', '.gif'];
+    if (!imageExts.includes(ext)) {
+      throw new Error(`Unsupported image format: ${ext}. Supported formats: ${imageExts.join(', ')}`);
+    }
+
+    console.log(`Processing crop: ${file.originalname} (${ext})`);
+    
     const cropOptions = {
       x: parseInt(options.x) || 0,
       y: parseInt(options.y) || 0,
@@ -834,8 +983,35 @@ async function processCrop(file, options = {}) {
       height: parseInt(options.height) || null,
       gravity: options.gravity || 'northwest'
     };
+
+    // Validate crop options
+    if (!cropOptions.width || !cropOptions.height) {
+      throw new Error('Both width and height must be specified for crop');
+    }
+    
+    if (cropOptions.x < 0 || cropOptions.y < 0) {
+      throw new Error('Crop coordinates (x, y) cannot be negative');
+    }
+    
+    if (cropOptions.width < 1 || cropOptions.height < 1) {
+      throw new Error('Crop width and height must be at least 1 pixel');
+    }
+    
+    if (cropOptions.width > 8000 || cropOptions.height > 8000) {
+      throw new Error('Crop dimensions cannot exceed 8000 pixels');
+    }
     
     const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), cropOptions);
+    
+    if (!result || !result.outName) {
+      throw new Error('Crop failed - no output generated');
+    }
+
+    // Verify output file exists
+    const finalOutputPath = result.outputPath || outputPath;
+    if (!fsSync.existsSync(finalOutputPath)) {
+      throw new Error('Crop failed - output file not created');
+    }
     const stats = await fs.stat(outputPath);
     
     return {
@@ -862,13 +1038,49 @@ async function processRotate(file, options = {}) {
   const outputPath = path.join(outputDir, outputName);
   
   try {
+    // Comprehensive input validation
+    if (!file) {
+      throw new Error('No file provided for rotate');
+    }
+    
+    if (!file.path || !fsSync.existsSync(file.path)) {
+      throw new Error('File not found or inaccessible');
+    }
+
+    // Validate file is an image
+    const imageExts = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp', '.gif'];
+    if (!imageExts.includes(ext)) {
+      throw new Error(`Unsupported image format: ${ext}. Supported formats: ${imageExts.join(', ')}`);
+    }
+
+    console.log(`Processing rotate: ${file.originalname} (${ext})`);
+    
     const rotateOptions = {
       angle: parseInt(options.angle) || 90,
       background: options.background || 'transparent'
     };
+
+    // Validate rotation angle
+    if (isNaN(rotateOptions.angle)) {
+      throw new Error('Invalid rotation angle - must be a number');
+    }
+    
+    // Normalize angle to 0-360 range
+    rotateOptions.angle = ((rotateOptions.angle % 360) + 360) % 360;
     
     const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), rotateOptions);
-    const stats = await fs.stat(outputPath);
+    
+    if (!result || !result.outName) {
+      throw new Error('Rotate failed - no output generated');
+    }
+
+    // Verify output file exists
+    const finalOutputPath = result.outputPath || outputPath;
+    if (!fsSync.existsSync(finalOutputPath)) {
+      throw new Error('Rotate failed - output file not created');
+    }
+    
+    const stats = await fs.stat(finalOutputPath);
     
     return {
       filename: result.outName,
@@ -893,6 +1105,23 @@ async function processOptimize(file, options = {}) {
   const outputPath = path.join(outputDir, outputName);
   
   try {
+    // Comprehensive input validation
+    if (!file) {
+      throw new Error('No file provided for optimization');
+    }
+    
+    if (!file.path || !fsSync.existsSync(file.path)) {
+      throw new Error('File not found or inaccessible');
+    }
+
+    // Validate file is an image
+    const imageExts = ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp', '.gif'];
+    if (!imageExts.includes(ext)) {
+      throw new Error(`Unsupported image format: ${ext}. Supported formats: ${imageExts.join(', ')}`);
+    }
+
+    console.log(`Processing optimize: ${file.originalname} (${ext})`);
+    
     const optimizeOptions = {
       optimize: true,
       quality: parseInt(options.quality) || 85,
@@ -900,11 +1129,29 @@ async function processOptimize(file, options = {}) {
       strip: options.strip !== 'false',
       lossless: options.lossless === 'true'
     };
+
+    // Validate optimization options
+    if (optimizeOptions.quality < 1 || optimizeOptions.quality > 100) {
+      throw new Error('Quality must be between 1 and 100');
+    }
     
     const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), optimizeOptions);
-    const stats = await fs.stat(outputPath);
+    
+    if (!result || !result.outName) {
+      throw new Error('Optimization failed - no output generated');
+    }
+
+    // Verify output file exists
+    const finalOutputPath = result.outputPath || outputPath;
+    if (!fsSync.existsSync(finalOutputPath)) {
+      throw new Error('Optimization failed - output file not created');
+    }
+    
+    const stats = await fs.stat(finalOutputPath);
     const originalStats = await fs.stat(file.path);
-    const savings = ((originalStats.size - stats.size) / originalStats.size * 100).toFixed(1);
+    const savings = originalStats.size > 0 
+      ? ((originalStats.size - stats.size) / originalStats.size * 100).toFixed(1)
+      : '0.0';
     
     return {
       filename: result.outName,
@@ -1018,6 +1265,10 @@ async function processAddText(file, options = {}) {
   const outputPath = path.join(outputDir, outputName);
   
   try {
+    // Use validation helper
+    validateImageFile(file);
+    console.log(`Processing add text: ${file.originalname} (${ext})`);
+    
     const textOptions = {
       text: options.text || 'Sample Text',
       fontSize: parseInt(options.fontSize) || 32,
@@ -1036,9 +1287,25 @@ async function processAddText(file, options = {}) {
       rotation: parseInt(options.rotation) || 0,
       opacity: parseFloat(options.opacity) || 1.0
     };
+
+    // Validate text options
+    if (!textOptions.text || textOptions.text.trim().length === 0) {
+      throw new Error('Text content cannot be empty');
+    }
+    
+    if (textOptions.fontSize < 1 || textOptions.fontSize > 500) {
+      throw new Error('Font size must be between 1 and 500');
+    }
+    
+    if (textOptions.opacity < 0 || textOptions.opacity > 1) {
+      throw new Error('Opacity must be between 0 and 1');
+    }
     
     const result = await enhancedConversionService.convertSingle(file.path, ext.slice(1), textOptions);
-    const stats = await fs.stat(outputPath);
+    
+    // Validate result
+    const finalOutputPath = validateProcessingResult(result, outputPath);
+    const stats = await fs.stat(finalOutputPath);
     
     return {
       filename: result.outName,
