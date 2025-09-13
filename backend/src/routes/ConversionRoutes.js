@@ -71,10 +71,13 @@ const upload = multer({
 // Main conversion endpoint that handles all ezgif tools
 router.post('/', upload.array('files'), async (req, res, next) => {
   try {
+    console.log('=== CONVERT REQUEST START ===');
     console.log('EzGIF Convert Request:', { 
       tool: req.body.tool,
       fileCount: (req.files || []).length, 
-      url: req.body.url 
+      url: req.body.url,
+      hasBody: !!req.body,
+      bodyKeys: Object.keys(req.body || {})
     });
 
     const tool = req.body.tool || 'video-to-gif';
@@ -96,7 +99,13 @@ router.post('/', upload.array('files'), async (req, res, next) => {
     }
 
     if (!files.length) {
-      return next(createError('No files provided', 400));
+      console.log('No files provided in request');
+      return res.status(400).json({ 
+        error: { 
+          code: 'NO_FILES', 
+          message: 'No files provided for conversion' 
+        } 
+      });
     }
 
     const results = [];
@@ -214,8 +223,20 @@ router.post('/', upload.array('files'), async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Conversion error:', error);
-    next(createError(error.message || 'Conversion failed', 500));
+    console.error('=== CONVERSION ERROR ===');
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Return error response directly instead of using next()
+    return res.status(500).json({
+      error: {
+        code: 'CONVERSION_ERROR',
+        message: error.message || 'Conversion failed'
+      }
+    });
   }
 });
 
