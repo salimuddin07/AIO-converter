@@ -4,6 +4,8 @@ import Results from './Results';
 import '../aio-convert-style.css';
 
 const AddText = () => {
+    const base = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+    
     const [file, setFile] = useState(null);
     const [imageInfo, setImageInfo] = useState(null);
     const [previewUrl, setPreviewUrl] = useState('');
@@ -56,7 +58,7 @@ const AddText = () => {
             setIsProcessing(true);
             setError('');
             
-            const response = await fetch('/api/text/upload', {
+            const response = await fetch(`${base}/api/text/upload`, {
                 method: 'POST',
                 body: formData
             });
@@ -88,7 +90,7 @@ const AddText = () => {
             setIsProcessing(true);
             setError('');
             
-            const response = await fetch('/api/text/upload-url', {
+            const response = await fetch(`${base}/api/text/upload-url`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ imageUrl: url })
@@ -116,7 +118,7 @@ const AddText = () => {
 
     const fetchFonts = async () => {
         try {
-            const response = await fetch('/api/text/fonts');
+            const response = await fetch(`${base}/api/text/fonts`);
             const data = await response.json();
             if (data.fonts) {
                 setAvailableFonts(data.fonts);
@@ -140,7 +142,7 @@ const AddText = () => {
             setIsProcessing(true);
             setError('');
             
-            const response = await fetch('/api/text/preview', {
+            const response = await fetch(`${base}/api/text/preview`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -177,7 +179,7 @@ const AddText = () => {
             setError('');
             setResult(null);
             
-            const response = await fetch('/api/text/add-text', {
+            const response = await fetch(`${base}/api/text/add-text`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
