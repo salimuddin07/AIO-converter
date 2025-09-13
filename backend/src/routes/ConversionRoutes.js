@@ -13,6 +13,7 @@ import {
   imageProcessor, 
   videoProcessor, 
   gifProcessor, 
+  gifService,
   serviceFactory 
 } from '../services/index.js';
 import { tempDir, outputDir, getSafeFilename, ensureDirectories } from '../utils/FilePathUtils.js';
