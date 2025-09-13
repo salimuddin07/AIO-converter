@@ -1,0 +1,16 @@
+# Render configuration for backend deployment
+services:
+  - type: web
+    name: gif-converter-backend
+    env: node
+    region: ohio
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        sync: false
+    scaling:
+      minInstances: 1
+      maxInstances: 3

@@ -325,24 +325,78 @@ const videoServices = serviceFactory.getServicesByCategory('video');
 
 ## 🚀 Deployment
 
-### Production Build
-```bash
-# Backend (API server)
-cd backend  
-npm start
+### **⚠️ Important: Vercel Limitations**
+**Vercel CANNOT host the backend** due to:
+- No persistent file storage
+- Serverless function limitations  
+- Heavy binary dependencies (FFmpeg, ImageMagick)
+- Large file processing requirements
 
-# Frontend (Static files)
+### **✅ Recommended Deployment Strategy**
+
+#### **Frontend → Vercel (Perfect Match!)**
+```bash
+# Deploy frontend to Vercel
 cd frontend
 npm run build
-# Deploy dist/ folder to CDN/web server
+# Connect to Vercel dashboard or use Vercel CLI
+vercel --prod
 ```
 
-### Environment Variables
-Ensure all production environment variables are configured:
-- API endpoints
-- File size limits  
-- Storage paths
-- External service API keys
+#### **Backend → Railway/Render/DigitalOcean**
+
+**Option A: Railway (Recommended)**
+1. Connect your GitHub repo to Railway
+2. Railway will automatically detect the Dockerfile
+3. Set environment variables in Railway dashboard
+4. Deploy backend with Docker support
+
+**Option B: Render**
+1. Connect GitHub repo to Render
+2. Use the included `render.yaml` configuration
+3. Render will build and deploy automatically
+
+**Option C: DigitalOcean App Platform**
+```bash
+# Use the Dockerfile for container deployment
+# Set up environment variables in DO dashboard
+```
+
+### **Environment Configuration**
+
+**Frontend Environment (.env for Vercel)**
+```env
+VITE_API_BASE_URL=https://your-backend-url.railway.app
+VITE_MAX_FILE_SIZE=500
+```
+
+**Backend Environment (Railway/Render)**
+```env
+NODE_ENV=production
+PORT=8080
+MAX_FILE_SIZE_MB=500
+MAX_BATCH_COUNT=20
+OPENAI_API_KEY=your_openai_key_here
+CORS_ORIGIN=https://your-frontend-url.vercel.app
+```
+
+### **Deployment Steps**
+
+1. **Deploy Backend First**:
+   - Push code to GitHub
+   - Connect to Railway/Render
+   - Set environment variables
+   - Get backend URL
+
+2. **Deploy Frontend**:
+   - Update `VITE_API_BASE_URL` with backend URL
+   - Deploy to Vercel
+   - Update CORS_ORIGIN in backend with frontend URL
+
+3. **Test Connection**:
+   - Verify API endpoints work
+   - Test file uploads/downloads
+   - Check CORS configuration
 
 ## 🤝 Contributing
 

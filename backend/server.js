@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { createServer } from 'http';
 import app from './src/app.js';
-import { scheduleCleanup } from './src/service./CleanupService.js';
+import { scheduleCleanup } from './src/services/CleanupService.js';
 
 const PORT = process.env.PORT || 5001;
 const server = createServer(app);
