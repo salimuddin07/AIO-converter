@@ -44,7 +44,7 @@ export default function Header({ currentTool, setCurrentTool }) {
 
       <style>{`
         .aio-convert-header {
-          background: #fff;
+          background: #ffffffff;
           border-bottom: 1px solid #ddd;
           box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }

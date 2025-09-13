@@ -3,11 +3,12 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import convertRouter from './routes/convert.js';
-import splitRouter from './routes/split.js';
+// import splitRouter from './routes/split.js'; // Temporarily disabled due to file corruption
 import videoRouter from './routes/video.js';
 import textRouter from './routes/text.js';
 import aiRouter from './routes/ai.js';
 import filesRouter from './routes/files.js';
+import webpRouter from './routes/webp.js';
 import errorHandler from './middleware/errorHandler.js';
 import { ensureRuntimeDirs } from './utils/filePaths.js';
 
@@ -31,11 +32,12 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/convert', convertRouter);
-app.use('/api/split', splitRouter);
+// app.use('/api/split', splitRouter); // Temporarily disabled
 app.use('/api/video', videoRouter);
 app.use('/api/text', textRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/files', filesRouter);
+app.use('/api/webp', webpRouter);
 
 // Serve converted files statically
 const __filename = fileURLToPath(import.meta.url);

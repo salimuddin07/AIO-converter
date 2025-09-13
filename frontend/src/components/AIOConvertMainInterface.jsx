@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import NotificationService from '../utils/NotificationService.js';
+import WebPConverter from './WebPConverter.jsx';
 
 export default function AIOConvertMainInterface({ currentTool, setCurrentTool, loading, setLoading, error, setError }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -179,6 +180,23 @@ export default function AIOConvertMainInterface({ currentTool, setCurrentTool, l
               </div>
             </div>
           ))}
+        </div>
+      );
+    }
+
+    // Render specialized WebP converter for WebP tools
+    if (currentTool === 'webp-maker' || currentTool === 'webp-to-gif' || currentTool === 'webp-to-mp4') {
+      return (
+        <div className="specialized-tool">
+          <div className="tool-header">
+            <button 
+              className="back-button"
+              onClick={() => setCurrentTool('home')}
+            >
+              ← Back to tools
+            </button>
+          </div>
+          <WebPConverter />
         </div>
       );
     }

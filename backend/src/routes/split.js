@@ -1,121 +1,239 @@
-import { Router } from 'express';const express = require('express');const express = require('express');import express from 'express';
+import { Router } from 'express';import { Router } from 'express';import { Router } from 'express';
 
 import multer from 'multer';
 
-import path from 'path';const multer = require('multer');
-
-import fs from 'fs/promises';
-
-import crypto from 'crypto';const path = require('path');const multer = require('multer');import multer from 'multer';
-
-import { tempDir, outputDir } from '../utils/filePaths.js';
-
-import VideoSplitterService from '../services/VideoSplitterService.js';const fs = require('fs').promises;
-
-import SplitService from '../services/splitService.js';
-
-const crypto = require('crypto');const path = require('path');import path from 'path';
-
-const router = Router();
+import { tempDir } from '../utils/filePaths.js';import multer from 'multer';import multer from 'multer';
 
 
 
-// Create service instances
+const router = Router();import path from 'path';import path from 'path';
 
-const videoSplitterService = new VideoSplitterService();const VideoSplitterService = require('../services/VideoSplitterService');const fs = require('fs').promises;import fs from 'fs/promises';
+const upload = multer({ dest: tempDir });
 
-const splitService = new SplitService();
+import fs from 'fs/promises';import fs from 'fs/promises';
 
-const SplitService = require('../services/splitService');
+router.post('/video', upload.single('video'), (req, res) => {
 
-// ============================================================================
-
-// MULTER CONFIGURATIONconst crypto = require('crypto');import { fileURLToPath } from 'url';
-
-// ============================================================================
-
-const router = express.Router();
-
-// Storage configuration for video files
-
-const videoStorage = multer.diskStorage({import { SplitService } from '../services/splitService.js';
-
-  destination: async (req, file, cb) => {
-
-    await fs.mkdir(tempDir, { recursive: true });// Create service instances
-
-    cb(null, tempDir);
-
-  },const videoSplitterService = new VideoSplitterService();const VideoSplitterService = require('../services/VideoSplitterService');import VideoSplitterService from '../services/VideoSplitterService.js';
-
-  filename: (req, file, cb) => {
-
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);const splitService = new SplitService();
-
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-
-  }const SplitService = require('../services/splitService');import { outputDir, tempDir } from '../utils/filePaths.js';
+  res.json({ message: 'Video splitting coming soon' });import crypto from 'crypto';import crypto from 'crypto';
 
 });
 
-// Output directory for split files
+import { tempDir, outputDir } from '../utils/filePaths.js';import { tempDir, outputDir } from '../utils/filePaths.js';
 
-// Storage configuration for animated images
+router.post('/gif', upload.single('gif'), (req, res) => {
 
-const imageStorage = multer.diskStorage({const outputDir = path.join(__dirname, '../../output');
+  res.json({ message: 'GIF splitting coming soon' });import VideoSplitterService from '../services/VideoSplitterService.js';
+
+});
+
+const router = Router();import SplitService from '../services/splitService.js';
+
+router.get('/status/:jobId', (req, res) => {
+
+  res.json({ status: 'pending', jobId: req.params.jobId });
+
+});
+
+// Simple storage configurationconst router = Router();
+
+export default router;
+const storage = multer.diskStorage({
 
   destination: async (req, file, cb) => {
 
     await fs.mkdir(tempDir, { recursive: true });
 
-    cb(null, tempDir);
+    cb(null, tempDir);// Create service instances
 
-  },// Ensure output directory existsconst router = express.Router();const __filename = fileURLToPath(import.meta.url);
+  },
 
-  filename: (req, file, cb) => {
+  filename: (req, file, cb) => {const videoSplitterService = new VideoSplitterService();const VideoSplitterService = require('../services/VideoSplitterService');const fs = require('fs').promises;import fs from 'fs/promises';
 
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);fs.mkdir(outputDir, { recursive: true }).catch(console.error);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
 
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));const splitService = new SplitService();
 
-  }const __dirname = path.dirname(__filename);
+  }
+
+});const SplitService = require('../services/splitService');
+
+
+
+const upload = multer({ // ============================================================================
+
+  storage: storage,
+
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit// MULTER CONFIGURATIONconst crypto = require('crypto');import { fileURLToPath } from 'url';
 
 });
 
 // ============================================================================
 
-// File filters
+/**
 
-const videoFileFilter = (req, file, cb) => {// MULTER CONFIGURATION// Create services instances
+ * @route POST /videoconst router = express.Router();
 
-  const allowedMimes = [
+ * @desc Split video into segments
+
+ */// Storage configuration for video files
+
+router.post('/video', upload.single('video'), async (req, res) => {
+
+  try {const videoStorage = multer.diskStorage({import { SplitService } from '../services/splitService.js';
+
+    const { file } = req;
+
+    if (!file) {  destination: async (req, file, cb) => {
+
+      return res.status(400).json({ error: 'No video file uploaded' });
+
+    }    await fs.mkdir(tempDir, { recursive: true });// Create service instances
+
+
+
+    const jobId = crypto.randomBytes(16).toString('hex');    cb(null, tempDir);
+
+
+
+    return res.json({  },const videoSplitterService = new VideoSplitterService();const VideoSplitterService = require('../services/VideoSplitterService');import VideoSplitterService from '../services/VideoSplitterService.js';
+
+      success: true,
+
+      jobId: jobId,  filename: (req, file, cb) => {
+
+      message: 'Video splitting functionality will be restored soon',
+
+      file: file.originalname    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);const splitService = new SplitService();
+
+    });
+
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+
+  } catch (error) {
+
+    console.error('Video splitting error:', error);  }const SplitService = require('../services/splitService');import { outputDir, tempDir } from '../utils/filePaths.js';
+
+    return res.status(500).json({
+
+      error: 'Video splitting failed',});
+
+      message: error.message
+
+    });// Output directory for split files
+
+  }
+
+});// Storage configuration for animated images
+
+
+
+/**const imageStorage = multer.diskStorage({const outputDir = path.join(__dirname, '../../output');
+
+ * @route POST /gif  
+
+ * @desc Split GIF into frames  destination: async (req, file, cb) => {
+
+ */
+
+router.post('/gif', upload.single('gif'), async (req, res) => {    await fs.mkdir(tempDir, { recursive: true });
+
+  try {
+
+    const { file } = req;    cb(null, tempDir);
+
+    if (!file) {
+
+      return res.status(400).json({ error: 'No GIF file uploaded' });  },// Ensure output directory existsconst router = express.Router();const __filename = fileURLToPath(import.meta.url);
+
+    }
+
+  filename: (req, file, cb) => {
+
+    const jobId = crypto.randomBytes(16).toString('hex');
+
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);fs.mkdir(outputDir, { recursive: true }).catch(console.error);
+
+    return res.json({
+
+      success: true,    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+
+      jobId: jobId,
+
+      message: 'GIF splitting functionality will be restored soon',  }const __dirname = path.dirname(__filename);
+
+      file: file.originalname
+
+    });});
+
+
+
+  } catch (error) {// ============================================================================
+
+    console.error('GIF splitting error:', error);
+
+    return res.status(500).json({// File filters
+
+      error: 'GIF splitting failed',
+
+      message: error.messageconst videoFileFilter = (req, file, cb) => {// MULTER CONFIGURATION// Create services instances
+
+    });
+
+  }  const allowedMimes = [
+
+});
 
     'video/mp4', 'video/avi', 'video/quicktime', 'video/x-msvideo',// ============================================================================
 
-    'video/webm', 'video/ogg', 'video/3gpp', 'video/x-flv'
+/**
 
-  ];const videoSplitterService = new VideoSplitterService();const router = express.Router();
+ * @route GET /status/:jobId    'video/webm', 'video/ogg', 'video/3gpp', 'video/x-flv'
 
-  
+ * @desc Get splitting job status
 
-  if (allowedMimes.includes(file.mimetype)) {// Storage configuration for video files
+ */  ];const videoSplitterService = new VideoSplitterService();const router = express.Router();
 
-    cb(null, true);
+router.get('/status/:jobId', async (req, res) => {
 
-  } else {const videoStorage = multer.diskStorage({const splitService = new SplitService();
+  try {  
 
-    cb(new Error('Invalid file type. Only video files are allowed.'), false);
+    const { jobId } = req.params;
 
-  }  destination: async (req, file, cb) => {
+      if (allowedMimes.includes(file.mimetype)) {// Storage configuration for video files
 
-};
+    return res.json({
 
-    const tempDir = path.join(__dirname, '../../temp');// Initialize services
+      success: true,    cb(null, true);
 
-const imageFileFilter = (req, file, cb) => {
+      jobId: jobId,
+
+      status: 'pending',  } else {const videoStorage = multer.diskStorage({const splitService = new SplitService();
+
+      message: 'Splitting services are being restored'
+
+    });    cb(new Error('Invalid file type. Only video files are allowed.'), false);
+
+
+
+  } catch (error) {  }  destination: async (req, file, cb) => {
+
+    console.error('Status check error:', error);
+
+    return res.status(500).json({};
+
+      error: 'Status check failed',
+
+      message: error.message    const tempDir = path.join(__dirname, '../../temp');// Initialize services
+
+    });
+
+  }const imageFileFilter = (req, file, cb) => {
+
+});
 
   const allowedMimes = ['image/gif', 'image/webp'];    await fs.mkdir(tempDir, { recursive: true });
 
+export default router;
   
 
   if (allowedMimes.includes(file.mimetype)) {    cb(null, tempDir);// Output directory for split filesconst splitService = new SplitService();

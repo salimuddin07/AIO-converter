@@ -17,6 +17,7 @@
     "polished": "^4.3.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-dropzone": "^14.3.8",
     "react-konva": "^19.0.10",
     "sortablejs": "^1.15.6",
     "sweetalert2": "^11.23.0"
