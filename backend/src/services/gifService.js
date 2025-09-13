@@ -480,6 +480,15 @@ class GifService {
    */
   async createAdvancedGif(frames, outputPath, options = {}) {
     try {
+      // Validate input parameters
+      if (!frames || !Array.isArray(frames)) {
+        throw new Error('Invalid frames parameter - must be a non-empty array');
+      }
+      
+      if (frames.length === 0) {
+        throw new Error('No frames provided for GIF creation');
+      }
+
       console.log('Creating advanced GIF with', frames.length, 'frames');
       console.log('Options:', JSON.stringify(options, null, 2));
 

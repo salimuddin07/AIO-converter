@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import AdmZip from 'adm-zip';
 import mime from 'mime-types';
 import { config } from '../config/index.js';
@@ -695,6 +696,13 @@ async function processImagesToGif(files, options = {}) {
   const outputPath = path.join(outputDir, outputName);
   
   try {
+    // Validate input files
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      throw new Error('No valid image files provided for GIF creation');
+    }
+
+    console.log(`Processing ${files.length} files to GIF`);
+    
     // Advanced GIF maker with frame management from ezgif
     const frames = [];
     const frameDelays = options.delays ? options.delays.split(',').map(d => parseInt(d.trim()) || 100) : [];
@@ -706,10 +714,18 @@ async function processImagesToGif(files, options = {}) {
       const orderIndices = options.frameOrder.split(',').map(i => parseInt(i.trim()));
       fileOrder = orderIndices.map(index => files[index]).filter(Boolean);
     }
+
+    // Validate files have paths
+    const validFiles = fileOrder.filter(file => file && file.path && fsSync.existsSync(file.path));
+    if (validFiles.length === 0) {
+      throw new Error('No valid image files with accessible paths found');
+    }
+
+    console.log(`Found ${validFiles.length} valid files for GIF processing`);
     
     // Process each frame with individual settings
-    for (let i = 0; i < fileOrder.length; i++) {
-      const file = fileOrder[i];
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
       const delay = frameDelays[i] || globalDelay;
       
       frames.push({
@@ -719,6 +735,13 @@ async function processImagesToGif(files, options = {}) {
         blend: options.blend || 'over'      // over, source, clear
       });
     }
+
+    // Validate frames array
+    if (!frames || frames.length === 0) {
+      throw new Error('No frames were processed for GIF creation');
+    }
+
+    console.log(`Created ${frames.length} frames for GIF processing`);
     
     const gifOptions = {
       frames: frames,
