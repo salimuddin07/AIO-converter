@@ -97,16 +97,8 @@ router.post('/', upload.array('files'), async (req, res, next) => {
     
     // Handle URL input
     if (url && !files.length) {
-      try {
-        const downloadedFile = await convertFromUrl(url);
-        files.push({
-          path: downloadedFile,
-          originalname: path.basename(url),
-          mimetype: 'application/octet-stream'
-        });
-      } catch (err) {
-        return next(createError(`URL processing failed: ${err.message}`, 400));
-      }
+      console.log('URL processing requested but disabled for debugging');
+      // Temporarily disabled URL processing for debugging
     }
 
     if (!files.length) {
@@ -118,6 +110,19 @@ router.post('/', upload.array('files'), async (req, res, next) => {
         } 
       });
     }
+
+    // TEMPORARY: Return success without processing for debugging
+    console.log('DEBUGGING: Returning mock success response');
+    return res.json({ 
+      files: [{ 
+        success: true, 
+        message: 'Debug mode - processing disabled',
+        tool: tool,
+        fileCount: files.length 
+      }],
+      tool: tool,
+      success: true 
+    });
 
     const results = [];
 
