@@ -10,11 +10,11 @@ import aiRouter from './routes/ai.js';
 import filesRouter from './routes/files.js';
 import webpRouter from './routes/webp.js';
 import errorHandler from './middleware/errorHandler.js';
-import { ensureRuntimeDirs } from './utils/filePaths.js';
+import { ensureDirectories } from './lib/file-paths.js';
 
 const app = express();
 
-ensureRuntimeDirs();
+ensureDirectories();
 
 app.use(cors({ origin: true }));
 

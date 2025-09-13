@@ -1,11 +1,13 @@
-import WebPService from '../services/WebPService.js';
+// Import consolidated services and utilities
+import { serviceFactory } from '../services/index.js';
 import path from 'path';
 import fs from 'fs/promises';
 import archiver from 'archiver';
 import { v4 as uuid } from 'uuid';
-import { outputDir, tempDir } from '../utils/filePaths.js';
+import { outputDir, tempDir, ensureDirectories } from '../lib/file-paths.js';
 
-const webpService = new WebPService();
+// Get WebP service from factory
+const webpService = serviceFactory.legacyServices.webp;
 
 /**
  * WebP Conversion Controller

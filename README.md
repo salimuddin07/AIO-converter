@@ -1,8 +1,8 @@
-# AIO Convert - Professional Media Converter
+# AIO Convert - All-in-One Media Converter
 
 > **Founded by [Salimuddin](https://github.com/salimuddin93)** - Full-Stack Developer & Media Processing Expert
 
-A comprehensive, professional-grade media conversion platform supporting images, videos, GIFs, and advanced media processing operations. Built with modern web technologies to provide fast, reliable, and user-friendly media conversion services.
+A comprehensive, modern media conversion platform built with Node.js and React. This application provides a unified interface for converting, processing, and manipulating various media formats including images, videos, and GIFs.
 
 [![GitHub](https://img.shields.io/badge/GitHub-salimuddin93-181717?style=for-the-badge&logo=github)](https://github.com/salimuddin93)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-salimuddin--shaikh-0077B5?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/salimuddin-shaikh-330a7b2a5)
@@ -10,24 +10,296 @@ A comprehensive, professional-grade media conversion platform supporting images,
 
 ## 🚀 Features
 
-### 📸 **Image Processing**
-- **Multi-format Support**: Convert between PNG, JPG/JPEG, GIF, WebP, BMP, TIFF, SVG, ICO
-- **Batch Processing**: Upload and convert multiple files simultaneously
-- **Quality Control**: Adjustable compression and quality settings
-- **Animated GIF Creation**: Create GIFs from multiple images with custom timing
-- **Image Optimization**: Smart compression while maintaining visual quality
+### Image Processing
+- **Format Conversion**: JPEG, PNG, WebP, AVIF, GIF, BMP, TIFF, SVG
+- **Image Manipulation**: Resize, crop, rotate, optimize, apply effects
+- **Intelligent Service Selection**: Automatically chooses optimal processing library (Sharp, Jimp, ImageMagick)
+- **Batch Processing**: Convert multiple files simultaneously
+- **Advanced Effects**: Filters, overlays, watermarks, text addition
 
-### 🎬 **Video Processing**
-- **Video to GIF Conversion**: Convert video segments to high-quality GIFs
-- **Advanced Video Splitting**: Split videos manually or automatically using scene detection
-- **Multiple Output Formats**: Support for MP4, AVI, WebM, MOV
-- **Quality Options**: Low, Medium, High, and Custom quality presets
-- **Resolution Control**: Resize videos during conversion
-- **Frame Rate Adjustment**: Customize output frame rates
+### Video Processing  
+- **Format Conversion**: MP4, AVI, MOV, WebM, MKV, M4V, 3GP, FLV
+- **Video Manipulation**: Split, merge, resize, quality adjustment
+- **Scene Detection**: Intelligent video segmentation
+- **Frame Extraction**: Extract specific frames or sequences
+- **Web Optimization**: Multiple quality presets for web delivery
 
-### ✂️ **Splitting Capabilities**
-- **Video Splitting**:
-  - Manual splitting by time segments
+### GIF Processing
+- **GIF Creation**: Convert videos/images to animated GIFs  
+- **Frame Manipulation**: Extract, edit, and reassemble GIF frames
+- **Optimization**: Size and quality optimization for web
+- **Scene Filtering**: Smart frame selection based on content analysis
+- **Text Overlay**: Add animated text to GIFs
+
+### Modern Architecture
+- **Consolidated Services**: Replaced 20+ duplicate services with 3 unified processors
+- **Intelligent Service Selection**: Automatic optimal library selection based on operation and file characteristics
+- **Event-Driven Processing**: Real-time progress tracking and status updates
+- **Clean API Design**: RESTful endpoints with comprehensive error handling
+- **Factory Pattern**: Centralized service management and configuration
+
+## 📁 Project Structure
+
+```
+📦 GIF converter/
+├── 📂 backend/                 # Node.js Express API
+│   ├── 📂 src/
+│   │   ├── 📂 controllers/     # Request handlers
+│   │   ├── 📂 routes/          # API route definitions
+│   │   ├── 📂 services/        # Core processing services
+│   │   │   ├── 📄 image-processor.js    # Unified image processing
+│   │   │   ├── 📄 video-processor.js    # Unified video processing
+│   │   │   ├── 📄 gif-processor.js      # Unified GIF processing
+│   │   │   └── 📄 index.js              # ServiceFactory & orchestration
+│   │   ├── 📂 lib/             # Utility libraries
+│   │   │   └── 📄 file-paths.js         # Centralized file management
+│   │   ├── 📂 middleware/      # Express middleware
+│   │   ├── 📂 config/          # Configuration files
+│   │   ├── 📄 app.js           # Express application setup
+│   │   └── 📄 server.js        # Server entry point
+│   ├── 📄 package.json
+│   └── 📄 eslint.config.js
+├── 📂 frontend/                # React SPA
+│   ├── 📂 src/
+│   │   ├── 📂 components/      # React components
+│   │   ├── 📂 utils/           # Frontend utilities
+│   │   ├── 📄 App.jsx          # Main application component
+│   │   └── 📄 main.jsx         # React entry point
+│   ├── 📄 package.json
+│   ├── 📄 vite.config.js
+│   └── 📄 index.html
+├── 📄 README.md                # This file
+└── 📄 ARCHITECTURE.md          # Detailed architecture documentation
+```
+
+## 🛠️ Installation & Setup
+
+### Prerequisites
+- Node.js 18+ and npm
+- FFmpeg (for video processing)
+- ImageMagick (for advanced image operations)
+
+### Backend Setup
+```bash
+cd backend
+npm install
+npm run dev    # Development server with hot reload
+npm start      # Production server
+```
+
+### Frontend Setup  
+```bash
+cd frontend
+npm install
+npm run dev    # Development server with hot reload
+npm run build  # Production build
+```
+
+### Environment Configuration
+Create `.env` files in both backend and frontend directories:
+
+**Backend `.env`:**
+```env
+NODE_ENV=development
+PORT=3001
+OPENAI_API_KEY=your_openai_key_here
+MAX_FILE_SIZE_MB=500
+MAX_BATCH_COUNT=20
+```
+
+**Frontend `.env`:**
+```env
+VITE_API_BASE_URL=http://localhost:3001
+VITE_MAX_FILE_SIZE=500
+```
+
+## 🔧 Core Services Architecture
+
+### ImageProcessor
+The consolidated image processing service that intelligently selects the optimal library:
+
+```javascript
+import { imageProcessor } from './services/index.js';
+
+// Automatic optimal library selection
+const result = await imageProcessor.convertImage('input.jpg', {
+  format: 'webp',
+  quality: 85,
+  width: 1200
+});
+
+// Batch processing with concurrency control  
+const results = await imageProcessor.batchConvert(files, {
+  format: 'webp',
+  concurrent: 4
+});
+```
+
+### VideoProcessor  
+Event-driven video processing with progress tracking:
+
+```javascript  
+import { videoProcessor } from './services/index.js';
+
+// Set up event listeners
+videoProcessor.on('progress', (progress) => {
+  console.log(`Processing: ${progress.percent}%`);
+});
+
+// Convert with quality presets
+const result = await videoProcessor.convertVideo('input.mp4', {
+  format: 'webm',
+  quality: 'high',
+  width: 1920,
+  height: 1080
+});
+```
+
+### GifProcessor
+Advanced GIF creation with scene detection:
+
+```javascript
+import { gifProcessor } from './services/index.js';
+
+// Create optimized GIF from video  
+const result = await gifProcessor.createFromVideo('input.mp4', {
+  fps: 15,
+  width: 500,
+  duration: 10,
+  sceneDetection: true
+});
+
+// Extract frames with filtering
+const frames = await gifProcessor.extractFrames('input.gif', {
+  sceneThreshold: 0.3,
+  maxFrames: 50
+});
+```
+
+## 🎯 API Endpoints
+
+### Image Operations
+- `POST /api/convert/image` - Convert image formats
+- `POST /api/convert/batch` - Batch image conversion
+- `POST /api/image/resize` - Resize images  
+- `POST /api/image/effects` - Apply effects and filters
+
+### Video Operations
+- `POST /api/convert/video` - Convert video formats
+- `POST /api/video/split` - Split videos into segments
+- `POST /api/video/extract` - Extract frames from video
+- `GET /api/video/status/:jobId` - Get conversion status
+
+### GIF Operations  
+- `POST /api/gif/create` - Create GIF from video/images
+- `POST /api/gif/split` - Extract frames from GIF
+- `POST /api/gif/optimize` - Optimize GIF size and quality
+- `POST /api/gif/text` - Add text overlay to GIF
+
+### Utility Endpoints
+- `GET /api/files/list` - List processed files
+- `GET /api/files/download/:id` - Download processed files
+- `DELETE /api/files/cleanup` - Clean up temporary files
+
+## 🧪 Development
+
+### Code Quality
+```bash
+# Backend linting
+cd backend
+npm run lint        # Check code style
+npm run lint:fix    # Auto-fix style issues
+
+# Frontend linting  
+cd frontend
+npm run lint        # Check code style
+npm run lint:fix    # Auto-fix style issues
+```
+
+### Project Standards
+- **ES Modules**: All code uses modern ES module syntax
+- **Async/Await**: Promise-based asynchronous operations
+- **Error Handling**: Comprehensive error catching and user-friendly messages
+- **Documentation**: JSDoc comments for all public functions
+- **Type Safety**: Runtime type checking and validation
+- **Security**: Input validation, file type restrictions, path traversal protection
+
+### Service Factory Pattern
+The project uses a centralized ServiceFactory for intelligent service selection:
+
+```javascript
+import { serviceFactory } from './services/index.js';
+
+// Get optimal service for file type and operation
+const service = serviceFactory.getServiceFor('.mp4', 'convert');
+const result = await service.convertVideo(inputPath, options);
+
+// Get services by capability
+const videoServices = serviceFactory.getServicesByCategory('video');
+```
+
+## 🚀 Deployment
+
+### Production Build
+```bash
+# Backend (API server)
+cd backend  
+npm start
+
+# Frontend (Static files)
+cd frontend
+npm run build
+# Deploy dist/ folder to CDN/web server
+```
+
+### Environment Variables
+Ensure all production environment variables are configured:
+- API endpoints
+- File size limits  
+- Storage paths
+- External service API keys
+
+## 🤝 Contributing
+
+1. **Code Style**: Follow the ESLint configuration
+2. **Documentation**: Add JSDoc comments for new functions
+3. **Testing**: Test all new features thoroughly
+4. **Service Integration**: Use the ServiceFactory pattern for new services
+5. **Error Handling**: Implement comprehensive error handling
+
+## 📋 Recent Refactoring
+
+This project underwent a major refactoring to improve code quality and maintainability:
+
+### ✅ Completed Improvements
+- **Service Consolidation**: Replaced 20+ duplicate services with 3 unified processors
+- **Architecture Modernization**: Implemented ServiceFactory pattern and WorkflowOrchestrator  
+- **Code Cleanup**: Removed corrupted files and duplicate components
+- **Import Path Updates**: Centralized utilities and updated all import statements
+- **Component Consolidation**: Removed duplicate Header/Footer/WebP components
+- **Documentation**: Added comprehensive inline documentation
+- **Configuration**: Added ESLint configuration and improved npm scripts
+
+### 🔧 Technical Debt Resolved
+- Fixed severely corrupted `split.js` route file (2638+ lines of duplicate imports)
+- Eliminated service overlap and confusion
+- Standardized file path utilities
+- Improved error handling consistency
+- Enhanced code organization and modularity
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🔗 Related Documentation
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - Detailed technical architecture
+- [API Documentation](./docs/api.md) - Complete API reference
+- [Development Guide](./docs/development.md) - Development workflow and guidelines
+
+---
+
+**Built with ❤️ for modern media processing needs**
   - Automatic scene-based splitting using AI detection
   - Progress tracking for long operations
   - Batch download of all segments as ZIP

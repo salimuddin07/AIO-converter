@@ -1,20 +1,24 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
-import { tempDir } from '../utils/filePaths.js';
 import WebPController from '../controllers/webpController.js';
 import validateFiles from '../middleware/validateFiles.js';
+
+// Import consolidated file utilities
+import { tempDir, getSafeFilename, ensureDirectories } from '../lib/file-paths.js';
 
 const router = express.Router();
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: async (req, file, cb) => {
+    await ensureDirectories(tempDir);
     cb(null, tempDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, `upload-${uniqueSuffix}${path.extname(file.originalname)}`);
+    const safeFilename = getSafeFilename(`upload-${uniqueSuffix}${path.extname(file.originalname)}`);
+    cb(null, safeFilename);
   }
 });
 

@@ -1,11 +1,16 @@
-// ============================================================================
-// UNIFIED SERVICE REGISTRY - Strategic Library Integration
-// ============================================================================
-// This module provides centralized access to all specialized services,
-// each optimized for specific use cases based on their core strengths
-// ============================================================================
+/**
+ * Services Registry & Factory
+ * Centralized access to all processing services with intelligent selection
+ * 
+ * @author Media Converter Team
+ */
 
-// Core existing services
+// New consolidated processors (primary services)
+import ImageProcessor, { imageProcessor } from './image-processor.js';
+import VideoProcessor, { videoProcessor } from './video-processor.js';
+import GifProcessor, { gifProcessor } from './gif-processor.js';
+
+// Legacy services (for backward compatibility and specialized use cases)
 import FFmpegService from './ffmpegService.js';
 import SharpService from './SharpService.js';
 import JimpService from './JimpService.js';
@@ -13,24 +18,36 @@ import GifService, { gifService } from './gifService.js';
 import ImageMagickService from './ImageMagickService.js';
 import EnhancedConversionService, { enhancedConversionService } from './EnhancedConversionService.js';
 
-// New specialized services
+// Specialized services
 import EnhancedJimpService from './EnhancedJimpService.js';
 import WebPService from './WebPService.js';
 import MediaAnalysisService from './MediaAnalysisService.js';
 import CanvasGraphicsService from './CanvasGraphicsService.js';
 import VideoJSService from './VideoJSService.js';
 
+// Utility services
+import { textService } from './textService.js';
+import { cleanupService } from './cleanupService.js';
+import { aiService } from './aiService.js';
+
 // ============================================================================
-// SERVICE INSTANCES - Ready-to-use singleton instances
+// SERVICE INSTANCES - Ready-to-use instances
 // ============================================================================
 
-// Core services
+// Primary consolidated services (recommended for new code)
+const primaryServices = {
+  image: imageProcessor,
+  video: videoProcessor,
+  gif: gifProcessor
+};
+
+// Legacy services (for backward compatibility)
 const ffmpegService = new FFmpegService();
 const sharpService = new SharpService();
 const jimpService = new JimpService();
 const imageMagickService = new ImageMagickService();
 
-// Specialized services for strategic library integration
+// Specialized services for specific use cases
 const enhancedJimpService = new EnhancedJimpService();
 const webPService = new WebPService();
 const mediaAnalysisService = new MediaAnalysisService();
@@ -38,111 +55,185 @@ const canvasGraphicsService = new CanvasGraphicsService();
 const videoJSService = new VideoJSService();
 
 // ============================================================================
-// SERVICE RECOMMENDATIONS - When to use which service
+// SERVICE RECOMMENDATIONS & SELECTION LOGIC
 // ============================================================================
 
 /**
- * SERVICE USAGE GUIDE:
+ * RECOMMENDED SERVICE USAGE:
  * 
- * JIMP SERVICES (Pure JavaScript - No Native Dependencies)
- * - JimpService: Basic image operations, cross-platform compatibility
- * - EnhancedJimpService: Advanced compositions, crossfades, styled text
+ * PRIMARY SERVICES (Use these for new development):
+ * - ImageProcessor: All image operations (replaces Sharp/Jimp/ImageMagick services)
+ *   • Intelligent service selection based on operation and file characteristics
+ *   • Unified API for resize, convert, effects, optimization
+ *   • Built-in error handling and fallback mechanisms
  * 
- * SHARP SERVICE (High Performance Native)
- * - SharpService: Fast conversions, memory efficient, production workloads
+ * - VideoProcessor: All video operations (replaces FFmpeg/VideoJS services)  
+ *   • Event-driven architecture with progress tracking
+ *   • Scene detection and smart splitting
+ *   • Quality presets and optimization
  * 
- * WEBP SERVICES (Modern Web Optimization)
- * - WebPService: WebP conversion, animated WebP, modern compression
+ * - GifProcessor: GIF creation and manipulation
+ *   • Frame extraction with scene filtering
+ *   • Animated GIF creation with optimization
+ *   • Text overlay and effects
  * 
- * VIDEO SERVICES (Multimedia Processing)
- * - FFmpegService: Video conversion, frame extraction, multimedia
- * - VideoJSService: Web player integration, streaming optimization
- * - MediaAnalysisService: Video metadata, quality assessment, compatibility
+ * LEGACY SERVICES (Backward compatibility only):
+ * - JimpService: Pure JavaScript image operations
+ * - SharpService: High-performance native image operations
+ * - FFmpegService: Direct FFmpeg operations
+ * - WebPService: Specialized WebP operations
  * 
- * GRAPHICS SERVICES (Custom Graphics Creation)
- * - CanvasGraphicsService: Complex compositions, watermarks, custom graphics
- * - ImageMagickService: Legacy format support, advanced effects
- * 
- * GIF SERVICES (Animation Creation)
- * - GifService: GIF creation and optimization
- * 
- * CONVERSION ORCHESTRATION
- * - EnhancedConversionService: Multi-format batch processing
+ * UTILITY SERVICES:
+ * - textService: Text processing and overlays
+ * - cleanupService: File cleanup and management
+ * - aiService: AI-powered enhancements
  */
 
 // ============================================================================
-// SMART SERVICE SELECTOR - Automatic best service selection
+// SERVICE FACTORY - Intelligent service selection
 // ============================================================================
 
-class ServiceSelector {
-  /**
-   * Get the best service for a specific task
-   */
-  static getBestServiceFor(task, inputFormat = null, outputFormat = null) {
-    const recommendations = {
-      // Image conversion tasks
-      'fast-conversion': sharpService,
-      'cross-platform-conversion': enhancedJimpService,
-      'webp-conversion': webPService,
-      'batch-conversion': enhancedConversionService,
-      
-      // Image manipulation tasks
-      'basic-resize': sharpService,
-      'advanced-composition': canvasGraphicsService,
-      'crossfade-effects': enhancedJimpService,
-      'watermarking': canvasGraphicsService,
-      'text-overlay': enhancedJimpService,
-      
-      // Video tasks
-      'video-conversion': ffmpegService,
-      'video-analysis': mediaAnalysisService,
-      'web-video-optimization': videoJSService,
-      'frame-extraction': ffmpegService,
-      
-      // Animation tasks
-      'gif-creation': gifService,
-      'animated-webp': webPService,
-      
-      // Web optimization
-      'web-optimization': webPService,
-      'responsive-images': sharpService,
-      'streaming-setup': videoJSService
+/**
+ * Service Factory for intelligent service selection and management
+ */
+class ServiceFactory {
+  constructor() {
+    this.primaryServices = primaryServices;
+    this.legacyServices = {
+      ffmpeg: ffmpegService,
+      sharp: sharpService,
+      jimp: jimpService,
+      gifService: gifService,
+      imageMagick: imageMagickService,
+      enhancedJimp: enhancedJimpService,
+      webp: webPService,
+      mediaAnalysis: mediaAnalysisService,
+      canvas: canvasGraphicsService,
+      videoJS: videoJSService,
+      enhancedConversion: enhancedConversionService
     };
-    
-    return recommendations[task] || enhancedConversionService;
+    this.utilityServices = {
+      text: textService,
+      cleanup: cleanupService,
+      ai: aiService
+    };
   }
 
   /**
-   * Get services by capability
+   * Get the recommended service for a file type and operation
+   * @param {string} fileExtension - File extension (.jpg, .mp4, etc.)
+   * @param {string} operation - Operation type (convert, resize, split, etc.)
+   * @param {Object} options - Additional options for service selection
+   * @returns {Object} Service instance
    */
-  static getServicesByCapability(capability) {
-    const capabilities = {
-      'image-conversion': [sharpService, enhancedJimpService, imageMagickService],
-      'video-processing': [ffmpegService, videoJSService, mediaAnalysisService],
-      'web-optimization': [webPService, sharpService, videoJSService],
-      'graphics-creation': [canvasGraphicsService, enhancedJimpService],
-      'animation': [gifService, webPService],
-      'analysis': [mediaAnalysisService],
-      'batch-processing': [enhancedConversionService, webPService, enhancedJimpService]
-    };
+  getServiceFor(fileExtension, operation = 'convert', options = {}) {
+    const ext = fileExtension.toLowerCase().replace('.', '');
     
-    return capabilities[capability] || [];
+    // Image formats - use ImageProcessor
+    const imageFormats = ['jpg', 'jpeg', 'png', 'bmp', 'tiff', 'avif', 'svg'];
+    if (imageFormats.includes(ext)) {
+      return this.primaryServices.image;
+    }
+
+    // Video formats - use VideoProcessor
+    const videoFormats = ['mp4', 'avi', 'mov', 'webm', 'mkv', 'm4v', '3gp', 'flv'];
+    if (videoFormats.includes(ext)) {
+      return this.primaryServices.video;
+    }
+
+    // GIF handling
+    if (ext === 'gif') {
+      return operation === 'split' || operation === 'extract' || operation === 'create'
+        ? this.primaryServices.gif 
+        : this.primaryServices.image;
+    }
+
+    // WebP special handling
+    if (ext === 'webp') {
+      return operation === 'decode' || operation === 'animate'
+        ? this.legacyServices.webp
+        : this.primaryServices.image;
+    }
+
+    // Default to image processor for unknown formats
+    return this.primaryServices.image;
   }
 
   /**
-   * Get format-specific services
+   * Get service by capability/task type
+   * @param {string} task - Task identifier
+   * @returns {Object|Array} Service(s) for the task
    */
-  static getServicesForFormat(format) {
-    const formatServices = {
-      'webp': [webPService, sharpService],
-      'gif': [gifService, enhancedJimpService],
-      'mp4': [ffmpegService, videoJSService, mediaAnalysisService],
-      'jpeg': [sharpService, enhancedJimpService, canvasGraphicsService],
-      'png': [sharpService, enhancedJimpService, canvasGraphicsService],
-      'svg': [canvasGraphicsService, imageMagickService]
+  getBestServiceFor(task, inputFormat = null, outputFormat = null) {
+    const taskMap = {
+      // Primary tasks - use consolidated services
+      'image-conversion': this.primaryServices.image,
+      'image-resize': this.primaryServices.image,
+      'image-effects': this.primaryServices.image,
+      'video-conversion': this.primaryServices.video,
+      'video-split': this.primaryServices.video,
+      'gif-creation': this.primaryServices.gif,
+      'gif-split': this.primaryServices.gif,
+      
+      // Specialized tasks - use specific services
+      'webp-optimization': this.legacyServices.webp,
+      'canvas-graphics': this.legacyServices.canvas,
+      'media-analysis': this.legacyServices.mediaAnalysis,
+      'batch-conversion': this.legacyServices.enhancedConversion,
+      
+      // Utility tasks
+      'text-processing': this.utilityServices.text,
+      'cleanup': this.utilityServices.cleanup,
+      'ai-enhancement': this.utilityServices.ai
     };
     
-    return formatServices[format.toLowerCase()] || [enhancedConversionService];
+    return taskMap[task] || this.primaryServices.image;
+  }
+
+  /**
+   * Get all services by category
+   * @param {string} category - Category name
+   * @returns {Array} Services in category
+   */
+  getServicesByCategory(category) {
+    const categories = {
+      'primary': Object.values(this.primaryServices),
+      'legacy': Object.values(this.legacyServices),
+      'utility': Object.values(this.utilityServices),
+      'image': [
+        this.primaryServices.image,
+        this.legacyServices.sharp,
+        this.legacyServices.jimp,
+        this.legacyServices.imageMagick,
+        this.legacyServices.enhancedJimp,
+        this.legacyServices.canvas
+      ],
+      'video': [
+        this.primaryServices.video,
+        this.legacyServices.ffmpeg,
+        this.legacyServices.videoJS,
+        this.legacyServices.mediaAnalysis
+      ],
+      'animation': [
+        this.primaryServices.gif,
+        this.legacyServices.gifService,
+        this.legacyServices.webp
+      ]
+    };
+    
+    return categories[category] || [];
+  }
+
+  /**
+   * Get all available services
+   * @returns {Object} All service instances
+   */
+  getAllServices() {
+    return {
+      ...this.primaryServices,
+      ...this.legacyServices,
+      ...this.utilityServices
+    };
   }
 }
 
@@ -150,101 +241,162 @@ class ServiceSelector {
 // WORKFLOW ORCHESTRATOR - Complex multi-service workflows
 // ============================================================================
 
+/**
+ * Workflow Orchestrator for complex multi-service operations
+ */
 class WorkflowOrchestrator {
+  constructor(serviceFactory) {
+    this.serviceFactory = serviceFactory || new ServiceFactory();
+    this.activeWorkflows = new Map();
+  }
+
   /**
-   * Execute a complete web optimization workflow
+   * Complete web optimization workflow
+   * @param {string} inputPath - Input file path
+   * @param {Object} options - Optimization options
+   * @returns {Promise<Object>} Optimization results
    */
-  static async optimizeForWeb(inputPath, options = {}) {
-    const results = {
-      original: inputPath,
-      optimized: [],
-      analysis: null,
-      recommendations: []
+  async optimizeForWeb(inputPath, options = {}) {
+    const workflowId = `optimize_${Date.now()}`;
+    const workflow = {
+      id: workflowId,
+      status: 'running',
+      steps: [],
+      results: []
     };
+    
+    this.activeWorkflows.set(workflowId, workflow);
 
     try {
-      // Step 1: Analyze the input
-      results.analysis = await mediaAnalysisService.analyzeMedia(inputPath);
+      // Step 1: Analyze input file
+      const analysisService = this.serviceFactory.legacyServices.mediaAnalysis;
+      const analysis = await analysisService.analyzeMedia?.(inputPath) || { type: 'unknown' };
       
-      // Step 2: Generate optimized versions based on analysis
-      if (results.analysis.type === 'image') {
-        // WebP optimization
-        const webpResult = await webPService.convertToWebP(inputPath, {
-          quality: 85,
-          effort: 6
-        });
-        results.optimized.push(webpResult);
+      workflow.steps.push('analysis');
+      workflow.results.push({ step: 'analysis', data: analysis });
+
+      // Step 2: Apply appropriate optimization based on file type
+      if (analysis.type === 'image' || inputPath.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
+        const imageService = this.serviceFactory.getServiceFor(inputPath, 'optimize');
         
-        // Responsive versions with Sharp
-        const responsiveResults = await sharpService.createResponsiveVersions(inputPath, {
-          sizes: [400, 800, 1200],
-          formats: ['jpeg', 'webp']
+        // Create web-optimized version
+        const optimizedResult = await imageService.convertImage(inputPath, {
+          format: options.format || 'webp',
+          quality: options.quality || 85,
+          progressive: true,
+          optimizeForWeb: true
         });
-        results.optimized.push(...responsiveResults);
         
-      } else if (results.analysis.type === 'video') {
-        // Video optimization for web
-        const webOptimized = await videoJSService.createWebOptimizedVersions(inputPath, {
-          qualities: [
-            { height: 480, bitrate: '1000k' },
-            { height: 720, bitrate: '2500k' }
-          ],
-          formats: ['mp4', 'webm']
-        });
-        results.optimized.push(webOptimized);
+        workflow.steps.push('image-optimization');
+        workflow.results.push({ step: 'image-optimization', data: optimizedResult });
+
+        // Generate responsive sizes if requested
+        if (options.responsive) {
+          const sizes = options.sizes || [400, 800, 1200];
+          for (const size of sizes) {
+            const resized = await imageService.resizeImage(optimizedResult.outputPath, {
+              width: size,
+              maintainAspectRatio: true
+            });
+            workflow.results.push({ step: `responsive-${size}`, data: resized });
+          }
+        }
+
+      } else if (analysis.type === 'video' || inputPath.match(/\.(mp4|avi|mov|webm)$/i)) {
+        const videoService = this.serviceFactory.getServiceFor(inputPath, 'optimize');
+        
+        // Create web-optimized video versions
+        const qualities = options.qualities || [
+          { height: 480, bitrate: '1000k' },
+          { height: 720, bitrate: '2500k' }
+        ];
+        
+        for (const quality of qualities) {
+          const optimized = await videoService.convertVideo(inputPath, {
+            format: 'mp4',
+            codec: 'h264',
+            ...quality
+          });
+          workflow.results.push({ step: `video-${quality.height}p`, data: optimized });
+        }
       }
+
+      workflow.status = 'completed';
+      workflow.finalOutput = workflow.results[workflow.results.length - 1]?.data?.outputPath || inputPath;
       
-      // Step 3: Generate recommendations
-      results.recommendations = results.analysis.optimizations || [];
-      
-      return results;
-      
+      return {
+        workflowId,
+        status: 'completed',
+        results: workflow.results,
+        finalOutput: workflow.finalOutput
+      };
+
     } catch (error) {
-      console.error('Web optimization workflow failed:', error);
+      workflow.status = 'failed';
+      workflow.error = error.message;
       throw new Error(`Web optimization workflow failed: ${error.message}`);
     }
   }
 
   /**
-   * Execute a complete image enhancement workflow
+   * Image enhancement workflow with multiple processing steps
+   * @param {string} inputPath - Input image path
+   * @param {Object} enhancements - Enhancement options
+   * @returns {Promise<Array>} Enhancement results
    */
-  static async enhanceImage(inputPath, enhancements = {}) {
+  async enhanceImage(inputPath, enhancements = {}) {
     const {
       addWatermark = false,
-      createVariations = false,
+      addText = null,
+      applyEffects = null,
       optimizeForWeb = false,
-      addText = null
+      createVariations = false
     } = enhancements;
 
     const results = [];
+    let currentPath = inputPath;
 
     try {
-      let currentPath = inputPath;
+      const imageService = this.serviceFactory.getServiceFor(inputPath, 'enhance');
 
-      // Add watermark if requested
-      if (addWatermark) {
-        const watermarked = await canvasGraphicsService.createWatermark(currentPath, addWatermark);
-        results.push(watermarked);
-        currentPath = watermarked.path;
+      // Apply effects if requested
+      if (applyEffects) {
+        const effectResult = await imageService.applyEffects(currentPath, applyEffects);
+        results.push({ step: 'effects', ...effectResult });
+        currentPath = effectResult.outputPath;
       }
 
       // Add text overlay if requested
       if (addText) {
-        const textOverlay = await enhancedJimpService.addAdvancedText(currentPath, addText);
-        results.push(textOverlay);
-        currentPath = textOverlay.path;
+        const textResult = await imageService.addTextOverlay?.(currentPath, addText) ||
+                          await this.serviceFactory.utilityServices.text.addTextToImage?.(currentPath, addText);
+        if (textResult) {
+          results.push({ step: 'text-overlay', ...textResult });
+          currentPath = textResult.outputPath;
+        }
+      }
+
+      // Add watermark if requested  
+      if (addWatermark) {
+        const watermarkResult = await this.serviceFactory.legacyServices.canvas.createWatermark?.(currentPath, addWatermark);
+        if (watermarkResult) {
+          results.push({ step: 'watermark', ...watermarkResult });
+          currentPath = watermarkResult.outputPath;
+        }
       }
 
       // Create variations if requested
       if (createVariations) {
-        const variations = await sharpService.createStyleVariations(currentPath, createVariations);
-        results.push(...variations);
+        const variations = await imageService.createVariations?.(currentPath, createVariations);
+        if (variations) {
+          results.push({ step: 'variations', variations });
+        }
       }
 
       // Web optimization if requested
       if (optimizeForWeb) {
         const webOptimized = await this.optimizeForWeb(currentPath);
-        results.push(webOptimized);
+        results.push({ step: 'web-optimization', ...webOptimized });
       }
 
       return results;
@@ -254,45 +406,77 @@ class WorkflowOrchestrator {
       throw new Error(`Image enhancement workflow failed: ${error.message}`);
     }
   }
+
+  /**
+   * Get workflow status
+   * @param {string} workflowId - Workflow ID
+   * @returns {Object} Workflow status
+   */
+  getWorkflowStatus(workflowId) {
+    return this.activeWorkflows.get(workflowId) || null;
+  }
+
+  /**
+   * Cancel a running workflow
+   * @param {string} workflowId - Workflow ID
+   */
+  cancelWorkflow(workflowId) {
+    const workflow = this.activeWorkflows.get(workflowId);
+    if (workflow) {
+      workflow.status = 'cancelled';
+      // Additional cleanup logic here
+    }
+  }
 }
 
 // ============================================================================
 // EXPORTS - All services and utilities
 // ============================================================================
 
-// Export service classes
+// Create singleton instances
+const serviceFactory = new ServiceFactory();
+const workflowOrchestrator = new WorkflowOrchestrator(serviceFactory);
+
+// Export consolidated service classes
 export {
-  // Core services
+  // New consolidated processors (recommended for new development)
+  ImageProcessor,
+  VideoProcessor,
+  GifProcessor,
+  
+  // Legacy service classes (backward compatibility)
   FFmpegService,
   SharpService,
   JimpService,
   GifService,
   ImageMagickService,
   EnhancedConversionService,
-  
-  // Specialized services
   EnhancedJimpService,
   WebPService,
   MediaAnalysisService,
   CanvasGraphicsService,
   VideoJSService,
   
-  // Utilities
-  ServiceSelector,
+  // Utility classes
+  ServiceFactory,
   WorkflowOrchestrator
 };
 
-// Export service instances (ready to use)
+// Export consolidated service instances (primary - use these in new code)
 export {
-  // Core instances
+  imageProcessor,
+  videoProcessor,
+  gifProcessor
+};
+
+// Export legacy service instances (backward compatibility)
+export {
   ffmpegService,
   sharpService,
   jimpService,
   gifService,
   imageMagickService,
   enhancedConversionService,
-  
-  // Specialized instances
   enhancedJimpService,
   webPService,
   mediaAnalysisService,
@@ -300,5 +484,18 @@ export {
   videoJSService
 };
 
-// Default export: ServiceSelector for easy imports
-export default ServiceSelector;
+// Export utility service instances
+export {
+  textService,
+  cleanupService,
+  aiService
+};
+
+// Export factory and orchestrator instances
+export {
+  serviceFactory,
+  workflowOrchestrator
+};
+
+// Default export - ServiceFactory for easy access
+export default serviceFactory;

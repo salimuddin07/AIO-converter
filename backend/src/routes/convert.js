@@ -5,11 +5,17 @@ import { v4 as uuid } from 'uuid';
 import fs from 'fs/promises';
 import AdmZip from 'adm-zip';
 import mime from 'mime-types';
-import { tempDir, outputDir } from '../utils/filePaths.js';
 import { config } from '../config/index.js';
 import { createError } from '../middleware/errorHandler.js';
-import { enhancedConversionService, gifService, ffmpegService } from '../services/index.js';
-import { convertFromUrl } from '../services/conversionService.js';
+
+// Import consolidated services and utilities
+import { 
+  imageProcessor, 
+  videoProcessor, 
+  gifProcessor, 
+  serviceFactory 
+} from '../services/index.js';
+import { tempDir, outputDir, getSafeFilename, ensureDirectories } from '../lib/file-paths.js';
 
 const router = Router();
 

@@ -2,19 +2,22 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import videoService from '../services/videoService.js';
-import { tempDir } from '../utils/filePaths.js';
+
+// Import consolidated services and utilities
+import { videoProcessor } from '../services/index.js';
+import { tempDir, getSafeFilename, ensureDirectories } from '../lib/file-paths.js';
 
 const router = express.Router();
 
 // Configure multer for video uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: async (req, file, cb) => {
+    await ensureDirectories(tempDir);
     cb(null, tempDir);
   },
   filename: (req, file, cb) => {
-    const uniqueName = `upload_${Date.now()}_${file.originalname}`;
-    cb(null, uniqueName);
+    const safeFilename = getSafeFilename(`upload_${Date.now()}_${file.originalname}`);
+    cb(null, safeFilename);
   }
 });
 
