@@ -4,7 +4,11 @@ import Results from './Results';
 import '../aio-convert-style.css';
 
 const AddText = () => {
-    const base = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+    // === Old Railway backend (commented out) ===
+    // const base = 'https://gif-backend-production.up.railway.app';
+    
+    // === New Local backend (active) ===
+    const base = 'http://localhost:5000'; // Local backend
     
     const [file, setFile] = useState(null);
     const [imageInfo, setImageInfo] = useState(null);
