@@ -8,51 +8,62 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
   const [urlInput, setUrlInput] = useState('');
-  
-  // Tool categories exactly matching ezgif.com
+
   const toolCategories = {
-    'GIF maker': [
-      { id: 'video-to-gif', name: 'Video to GIF', icon: '🎬', description: 'Convert video files to animated GIF' },
-      { id: 'images-to-gif', name: 'Images to GIF', icon: '🖼️', description: 'Create animated GIF from images' },
-      { id: 'gif-maker', name: 'GIF maker', icon: '✨', description: 'Professional GIF creation tools' }
+    'Basic Tools': [
+      { 
+        id: 'convert', 
+        title: 'Convert Images', 
+        description: 'Convert between different image formats',
+        icon: '🔄',
+        formats: ['JPG', 'PNG', 'GIF', 'WEBP', 'BMP'] 
+      },
+      { 
+        id: 'resize', 
+        title: 'Resize Images', 
+        description: 'Change image dimensions and optimize size',
+        icon: '📏',
+        formats: ['JPG', 'PNG', 'GIF', 'WEBP'] 
+      },
+      { 
+        id: 'compress', 
+        title: 'Compress Images', 
+        description: 'Reduce file size while maintaining quality',
+        icon: '🗜️',
+        formats: ['JPG', 'PNG', 'WEBP'] 
+      }
     ],
-    'GIF tools': [
-      { id: 'resize', name: 'Resize', icon: '📏', description: 'Resize animated GIFs' },
-      { id: 'crop', name: 'Crop', icon: '✂️', description: 'Crop animated GIFs' },
-      { id: 'rotate', name: 'Rotate', icon: '🔄', description: 'Rotate/flip animated GIFs' },
-      { id: 'optimize', name: 'Optimize', icon: '⚡', description: 'Compress and optimize GIFs' },
-      { id: 'effects', name: 'Effects', icon: '🎨', description: 'Add effects to GIFs' },
-      { id: 'split', name: 'Split', icon: '✂️', description: 'Extract frames from GIF' },
-      { id: 'add-text', name: 'Add Text', icon: '📝', description: 'Add text to GIF' },
-      { id: 'overlay', name: 'Overlay', icon: '🎭', description: 'Add image overlay to GIF' }
-    ],
-    'WebP tools': [
-      { id: 'webp-maker', name: 'WebP maker', icon: '🌐', description: 'Convert to WebP format' },
-      { id: 'webp-to-gif', name: 'WebP to GIF', icon: '🔄', description: 'Convert WebP to GIF' },
-      { id: 'webp-to-mp4', name: 'WebP to MP4', icon: '🎥', description: 'Convert WebP to MP4' }
-    ],
-    'Other formats': [
-      { id: 'apng-maker', name: 'APNG maker', icon: '🖼️', description: 'Create APNG animations' },
-      { id: 'avif-converter', name: 'AVIF converter', icon: '🔄', description: 'Convert to AVIF format' },
-      { id: 'jxl-converter', name: 'JXL converter', icon: '💎', description: 'Convert to JPEG XL format' },
-      { id: 'png-to-gif', name: 'PNG to GIF', icon: '🔄', description: 'Convert PNG sequence to GIF' }
+    'GIF Tools': [
+      { 
+        id: 'gif-maker', 
+        title: 'Create GIF', 
+        description: 'Convert videos or images to animated GIF',
+        icon: '🎞️',
+        formats: ['MP4', 'AVI', 'MOV', 'JPG', 'PNG'] 
+      },
+      { 
+        id: 'gif-optimizer', 
+        title: 'Optimize GIF', 
+        description: 'Reduce GIF file size and improve performance',
+        icon: '⚡',
+        formats: ['GIF'] 
+      }
     ]
   };
 
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files);
     setSelectedFiles(files);
-    NotificationService.toast(`Selected ${files.length} file(s)`, 'info');
+    setResults([]);
   };
 
   const handleUrlInput = () => {
-    if (!urlInput.trim()) {
-      NotificationService.error('URL Required', 'Please enter a valid URL');
-      return;
+    if (urlInput.trim()) {
+      // Create a virtual file object for URL input
+      const urlFile = { name: urlInput.split('/').pop(), url: urlInput };
+      setSelectedFiles([urlFile]);
+      setResults([]);
     }
-    
-    NotificationService.toast('Fetching from URL...', 'info');
-    // Here you would implement URL fetching logic
   };
 
   const handleDragOver = (e) => {
@@ -63,51 +74,72 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   const handleDrop = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
     const files = Array.from(e.dataTransfer.files);
     setSelectedFiles(files);
-    NotificationService.toast(`Dropped ${files.length} file(s)`, 'success');
+    setResults([]);
   };
 
   const processFiles = async () => {
     if (selectedFiles.length === 0 && !urlInput.trim()) {
-      NotificationService.error('No Input', 'Please select files or enter a URL');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    
-    const progressNotification = NotificationService.progressToast(
-      `Processing with ${currentTool}`,
-      'Converting your files...',
-      0
-    );
-
-  // === Old Railway backend (commented out) ===
-  /*
-  const handleConvert_Railway = async () => {
-    if (selectedFiles.length === 0 && !urlInput.trim()) {
-      NotificationService.error('No Input', 'Please select files or enter a URL');
+      NotificationService.toast('Please select files or enter a URL first', 'warning');
       return;
     }
 
     setLoading(true);
     setError('');
-    setResults([]);
+    setUploadProgress(0);
+    
+    const progressNotification = NotificationService.progressToast(
+      'Processing files...', 
+      'Your files are being processed'
+    );
 
+    try {
+      await handleConvert();
+      progressNotification.complete('Files processed successfully!');
+    } catch (err) {
+      console.error('Processing error:', err);
+      progressNotification.error(`Processing failed: ${err.message}`);
+      setError(err.message);
+      
+      NotificationService.error(
+        'Processing Failed', 
+        err.message.includes('fetch') ? 'Unable to connect to server' : err.message
+      );
+    } finally {
+      setLoading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // === Old Railway backend (commented out) ===
+  /*
+  const handleConvert_Railway = async () => {
+    if (selectedFiles.length === 0 && !urlInput.trim()) {
+      NotificationService.toast('Please select files or enter a URL first', 'warning');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    setUploadProgress(0);
+    
     const progressNotification = NotificationService.progress(
-      'Processing Files',
-      'Converting your media files...'
+      'Processing files...', 
+      'Your files are being processed'
     );
 
     try {
       const form = new FormData();
-      selectedFiles.forEach(file => form.append('files', file));
-      if (urlInput.trim()) form.append('url', urlInput.trim());
+      selectedFiles.forEach(file => {
+        form.append('files', file);
+      });
       form.append('tool', currentTool);
-
       const base = 'https://gif-backend-production.up.railway.app'; // Railway backend
+      
+      if (urlInput.trim()) {
+        form.append('url', urlInput.trim());
+      }
       
       // Log API configuration for debugging
       console.log('🔧 API Configuration (Railway):', {
@@ -159,7 +191,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       
       NotificationService.error(
         'Conversion Failed', 
-        err.message.includes('fetch') ? 'Unable to connect to server' : err.message
+        err.message.includes('fetch') ? 'Unable to connect to Railway server' : err.message
       );
     } finally {
       setLoading(false);
@@ -171,27 +203,30 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   // === New Local backend (active) ===
   const handleConvert = async () => {
     if (selectedFiles.length === 0 && !urlInput.trim()) {
-      NotificationService.error('No Input', 'Please select files or enter a URL');
+      NotificationService.toast('Please select files or enter a URL first', 'warning');
       return;
     }
-
+    
     setLoading(true);
     setError('');
-    setResults([]);
-
-    const progressNotification = NotificationService.progress(
-      'Processing Files',
-      'Converting your media files...'
+    setUploadProgress(0);
+    
+    const progressNotification = NotificationService.progressToast(
+      'Processing files...', 
+      'Your files are being processed'
     );
 
     try {
       const form = new FormData();
-      selectedFiles.forEach(file => form.append('files', file));
-      if (urlInput.trim()) form.append('url', urlInput.trim());
+      selectedFiles.forEach(file => {
+        form.append('files', file);
+      });
       form.append('tool', currentTool);
-
-      // Use local backend instead of Railway
       const base = 'http://localhost:5000'; // Local backend
+      
+      if (urlInput.trim()) {
+        form.append('url', urlInput.trim());
+      }
       
       // Log API configuration for debugging
       console.log('🔧 API Configuration (Local):', {
@@ -250,37 +285,6 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       setUploadProgress(0);
     }
   };
-      progressNotification.updateProgress(100);
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setResults(data.files || []);
-      
-      NotificationService.success(
-        'Processing Complete!',
-        `Successfully processed ${selectedFiles.length} file(s)`,
-        { timer: 5000 }
-      );
-
-      progressNotification.close();
-
-    } catch (err) {
-      console.error('Processing error:', err);
-      setError(err.message);
-      NotificationService.error(
-        'Processing Failed',
-        err.message || 'An unexpected error occurred',
-        { timer: 8000 }
-      );
-      progressNotification.close();
-    } finally {
-      setLoading(false);
-      setUploadProgress(0);
-    }
-  };
 
   // === Old Railway backend download (commented out) ===
   /*
@@ -328,14 +332,16 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
                   <div 
                     key={tool.id}
                     className="tool-card"
-                    onClick={() => {
-                      setCurrentTool(tool.id);
-                      NotificationService.toast(`Switched to ${tool.name}`, 'info');
-                    }}
+                    onClick={() => setCurrentTool(tool.id)}
                   >
                     <div className="tool-icon">{tool.icon}</div>
-                    <h4 className="tool-name">{tool.name}</h4>
+                    <h4 className="tool-title">{tool.title}</h4>
                     <p className="tool-description">{tool.description}</p>
+                    <div className="tool-formats">
+                      {tool.formats.map(format => (
+                        <span key={format} className="format-tag">{format}</span>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -345,17 +351,17 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       );
     }
 
-    // Render specialized WebP converter for WebP tools
-    if (currentTool === 'webp-maker' || currentTool === 'webp-to-gif' || currentTool === 'webp-to-mp4') {
+    if (currentTool === 'webp') {
       return (
         <div className="specialized-tool">
           <div className="tool-header">
             <button 
-              className="back-button"
+              className="back-button" 
               onClick={() => setCurrentTool('home')}
             >
-              ← Back to tools
+              ← Back to Tools
             </button>
+            <h2>WebP Converter</h2>
           </div>
           <WebPConverter />
         </div>
@@ -366,24 +372,22 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       <div className="tool-interface">
         <div className="tool-header">
           <button 
-            className="back-button"
+            className="back-button" 
             onClick={() => setCurrentTool('home')}
           >
-            ← Back to tools
+            ← Back to Tools
           </button>
-          <h2 className="tool-title">
-            {Object.values(toolCategories).flat().find(t => t.id === currentTool)?.name || currentTool}
-          </h2>
+          <h2>{currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} Tool</h2>
         </div>
 
         <div className="upload-area"
-             onDragOver={handleDragOver}
-             onDrop={handleDrop}>
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
           <div className="upload-content">
             <div className="upload-icon">📁</div>
-            <h3>Choose files or drag & drop</h3>
-            <p>Supported formats: GIF, MP4, MOV, AVI, WEBM, WebP, PNG, JPG</p>
-            
+            <h3>Upload Your Files</h3>
+            <p>Drag and drop files here, or click to browse</p>
             <input
               type="file"
               ref={fileInputRef}
@@ -392,20 +396,23 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
               accept="image/*,video/*"
               style={{ display: 'none' }}
             />
-            
             <button 
-              className="upload-button"
+              className="browse-button"
               onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
             >
-              Choose Files
+              Browse Files
             </button>
-            
+
             {selectedFiles.length > 0 && (
               <div className="selected-files">
-                <h4>Selected Files ({selectedFiles.length}):</h4>
+                <h4>Selected Files:</h4>
                 {selectedFiles.map((file, index) => (
                   <div key={index} className="file-item">
-                    {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                    <span>{file.name}</span>
+                    <span className="file-size">
+                      {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'URL'}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -414,20 +421,17 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         </div>
 
         <div className="url-input-section">
-          <h4>Or paste URL:</h4>
+          <h4>Or enter a URL:</h4>
           <div className="url-input-group">
             <input
               type="url"
+              placeholder="https://example.com/image.jpg"
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="https://example.com/video.mp4"
-              className="url-input"
+              disabled={loading}
             />
-            <button 
-              className="url-button"
-              onClick={handleUrlInput}
-            >
-              Load from URL
+            <button onClick={handleUrlInput} disabled={loading}>
+              Add URL
             </button>
           </div>
         </div>
@@ -444,25 +448,33 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
 
         {results.length > 0 && (
           <div className="results-section">
-            <h3>Results</h3>
+            <h3>Results:</h3>
             <div className="results-grid">
               {results.map((result, index) => (
                 <div key={index} className="result-item">
                   <div className="result-preview">
-                    {result.type === 'image' ? (
-                      <img src={result.url} alt="Result" />
-                    ) : result.type === 'video' ? (
-                      <video src={result.url} controls />
+                    {result.url ? (
+                      <img 
+                        src={result.url} 
+                        alt={result.name}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'block';
+                        }}
+                      />
                     ) : (
                       <div className="file-icon">📄</div>
                     )}
+                    <div style={{display: 'none'}}>
+                      <div className="file-icon">📄</div>
+                    </div>
                   </div>
                   <div className="result-info">
-                    <h4>{result.filename}</h4>
-                    <p>Size: {result.size}</p>
+                    <h4>{result.name || 'Processed File'}</h4>
+                    <p>{result.size ? `${(result.size / 1024 / 1024).toFixed(2)} MB` : ''}</p>
                     <button 
                       className="download-button"
-                      onClick={() => downloadFile(result.filename)}
+                      onClick={() => downloadFile(result.name)}
                     >
                       Download
                     </button>
@@ -470,118 +482,6 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
                 </div>
               ))}
             </div>
-            
-            {/* Editing Options */}
-            <div className="editing-options">
-              <h3>Edit Options</h3>
-              <div className="options-grid">
-                <div className="option-group">
-                  <label>Frame Delay (ms)</label>
-                  <input 
-                    type="number" 
-                    min="10" 
-                    max="5000" 
-                    defaultValue="100" 
-                    className="option-input"
-                    placeholder="100"
-                  />
-                  <small>Time between frames (milliseconds)</small>
-                </div>
-                
-                <div className="option-group">
-                  <label>Left Position</label>
-                  <input 
-                    type="number" 
-                    min="0" 
-                    max="1000" 
-                    defaultValue="0" 
-                    className="option-input"
-                    placeholder="0"
-                  />
-                  <small>Horizontal offset (pixels)</small>
-                </div>
-                
-                <div className="option-group">
-                  <label>Top Position</label>
-                  <input 
-                    type="number" 
-                    min="0" 
-                    max="1000" 
-                    defaultValue="0" 
-                    className="option-input"
-                    placeholder="0"
-                  />
-                  <small>Vertical offset (pixels)</small>
-                </div>
-                
-                <div className="option-group">
-                  <label>Width</label>
-                  <input 
-                    type="number" 
-                    min="10" 
-                    max="2000" 
-                    defaultValue="400" 
-                    className="option-input"
-                    placeholder="400"
-                  />
-                  <small>Output width (pixels)</small>
-                </div>
-                
-                <div className="option-group">
-                  <label>Height</label>
-                  <input 
-                    type="number" 
-                    min="10" 
-                    max="2000" 
-                    defaultValue="300" 
-                    className="option-input"
-                    placeholder="300"
-                  />
-                  <small>Output height (pixels)</small>
-                </div>
-                
-                <div className="option-group">
-                  <label>Quality</label>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="100" 
-                    defaultValue="80" 
-                    className="option-slider"
-                  />
-                  <small>Compression quality (1-100)</small>
-                </div>
-                
-                <div className="option-group checkbox-group">
-                  <label>
-                    <input type="checkbox" /> Loop Animation
-                  </label>
-                  <small>Repeat animation continuously</small>
-                </div>
-                
-                <div className="option-group checkbox-group">
-                  <label>
-                    <input type="checkbox" /> Auto Crop
-                  </label>
-                  <small>Remove transparent borders</small>
-                </div>
-              </div>
-              
-              <div className="editing-actions">
-                <button className="apply-button" disabled={loading}>
-                  {loading ? 'Applying...' : 'Apply Changes'}
-                </button>
-                <button className="reset-button">
-                  Reset to Default
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="error-message">
-            <strong>Error:</strong> {error}
           </div>
         )}
       </div>
@@ -616,27 +516,25 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
           background: white;
           border-radius: 12px;
           padding: 25px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .category-title {
+          color: #2d3748;
+          margin-bottom: 20px;
           font-size: 1.5rem;
           font-weight: 600;
-          color: #2c3e50;
-          margin: 0 0 20px 0;
-          border-bottom: 2px solid #3498db;
-          padding-bottom: 10px;
         }
 
         .tools-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 15px;
+          gap: 20px;
         }
 
         .tool-card {
-          background: #f8f9fa;
-          border: 1px solid #dee2e6;
+          background: #f7fafc;
+          border: 2px solid #e2e8f0;
           border-radius: 8px;
           padding: 20px;
           cursor: pointer;
@@ -645,78 +543,91 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         }
 
         .tool-card:hover {
-          background: #3498db;
-          color: white;
+          border-color: #4299e1;
           transform: translateY(-2px);
-          box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+          box-shadow: 0 4px 12px rgba(66, 153, 225, 0.15);
         }
 
         .tool-icon {
-          font-size: 2rem;
-          margin-bottom: 10px;
+          font-size: 3rem;
+          margin-bottom: 15px;
         }
 
-        .tool-name {
-          font-size: 1.1rem;
+        .tool-title {
+          color: #2d3748;
+          margin-bottom: 8px;
+          font-size: 1.2rem;
           font-weight: 600;
-          margin: 0 0 8px 0;
         }
 
         .tool-description {
-          font-size: 0.9rem;
-          opacity: 0.8;
-          margin: 0;
+          color: #4a5568;
+          margin-bottom: 15px;
+          line-height: 1.5;
         }
 
-        .tool-interface {
+        .tool-formats {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          justify-content: center;
+        }
+
+        .format-tag {
+          background: #e2e8f0;
+          color: #4a5568;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 0.8rem;
+          font-weight: 500;
+        }
+
+        .specialized-tool, .tool-interface {
           background: white;
           border-radius: 12px;
-          padding: 30px;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          padding: 25px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .tool-header {
           display: flex;
           align-items: center;
+          margin-bottom: 25px;
           gap: 15px;
-          margin-bottom: 30px;
-          padding-bottom: 15px;
-          border-bottom: 1px solid #dee2e6;
         }
 
         .back-button {
-          background: #6c757d;
-          color: white;
+          background: #e2e8f0;
           border: none;
-          padding: 8px 16px;
           border-radius: 6px;
+          padding: 8px 16px;
           cursor: pointer;
-          font-size: 0.9rem;
+          transition: background-color 0.2s;
+          font-weight: 500;
+          color: #2d3748;
         }
 
         .back-button:hover {
-          background: #5a6268;
+          background: #cbd5e0;
         }
 
-        .tool-title {
-          font-size: 1.8rem;
-          font-weight: 600;
-          color: #2c3e50;
+        .tool-header h2 {
+          color: #2d3748;
           margin: 0;
+          font-size: 1.8rem;
         }
 
         .upload-area {
-          border: 2px dashed #3498db;
-          border-radius: 12px;
+          border: 2px dashed #cbd5e0;
+          border-radius: 8px;
           padding: 40px;
           text-align: center;
-          margin-bottom: 30px;
-          transition: all 0.3s ease;
+          margin-bottom: 25px;
+          transition: border-color 0.3s ease;
         }
 
         .upload-area:hover {
-          border-color: #2980b9;
-          background: #f8f9fa;
+          border-color: #4299e1;
         }
 
         .upload-content {
@@ -728,305 +639,223 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
 
         .upload-icon {
           font-size: 3rem;
-          opacity: 0.7;
+          opacity: 0.6;
         }
 
-        .upload-button {
-          background: #3498db;
+        .upload-content h3 {
+          color: #2d3748;
+          margin: 0;
+        }
+
+        .upload-content p {
+          color: #718096;
+          margin: 0;
+        }
+
+        .browse-button {
+          background: #4299e1;
           color: white;
           border: none;
+          border-radius: 6px;
           padding: 12px 24px;
-          border-radius: 8px;
-          font-size: 1rem;
-          font-weight: 600;
           cursor: pointer;
-          transition: all 0.3s ease;
+          font-weight: 500;
+          transition: background-color 0.2s;
         }
 
-        .upload-button:hover {
-          background: #2980b9;
-          transform: translateY(-1px);
+        .browse-button:hover:not(:disabled) {
+          background: #3182ce;
+        }
+
+        .browse-button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .selected-files {
           margin-top: 20px;
           text-align: left;
           width: 100%;
+          max-width: 400px;
+        }
+
+        .selected-files h4 {
+          color: #2d3748;
+          margin-bottom: 10px;
         }
 
         .file-item {
-          background: #f8f9fa;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
           padding: 8px 12px;
-          border-radius: 6px;
-          margin: 5px 0;
-          border-left: 3px solid #3498db;
+          background: #f7fafc;
+          border-radius: 4px;
+          margin-bottom: 8px;
+        }
+
+        .file-size {
+          color: #718096;
+          font-size: 0.9rem;
         }
 
         .url-input-section {
-          margin-bottom: 30px;
+          margin-bottom: 25px;
+        }
+
+        .url-input-section h4 {
+          color: #2d3748;
+          margin-bottom: 10px;
         }
 
         .url-input-group {
           display: flex;
           gap: 10px;
-          margin-top: 10px;
+          max-width: 500px;
         }
 
-        .url-input {
+        .url-input-group input {
           flex: 1;
-          padding: 12px;
-          border: 1px solid #dee2e6;
+          padding: 10px 12px;
+          border: 1px solid #e2e8f0;
           border-radius: 6px;
           font-size: 1rem;
         }
 
-        .url-button {
-          background: #28a745;
-          color: white;
-          border: none;
-          padding: 12px 20px;
-          border-radius: 6px;
-          cursor: pointer;
-          font-weight: 600;
+        .url-input-group input:focus {
+          outline: none;
+          border-color: #4299e1;
         }
 
-        .url-button:hover {
-          background: #218838;
+        .url-input-group button {
+          background: #4299e1;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          padding: 10px 20px;
+          cursor: pointer;
+          font-weight: 500;
+        }
+
+        .url-input-group button:hover:not(:disabled) {
+          background: #3182ce;
         }
 
         .process-section {
-          text-align: center;
-          margin-bottom: 30px;
+          margin-bottom: 25px;
         }
 
         .process-button {
-          background: #e74c3c;
+          background: #48bb78;
           color: white;
           border: none;
-          padding: 15px 30px;
           border-radius: 8px;
+          padding: 15px 30px;
           font-size: 1.1rem;
           font-weight: 600;
           cursor: pointer;
-          transition: all 0.3s ease;
+          transition: background-color 0.2s;
         }
 
         .process-button:hover:not(:disabled) {
-          background: #c0392b;
-          transform: translateY(-1px);
+          background: #38a169;
         }
 
         .process-button:disabled {
-          background: #bdc3c7;
+          background: #a0aec0;
           cursor: not-allowed;
         }
 
         .results-section {
-          margin-top: 30px;
-          padding-top: 30px;
-          border-top: 1px solid #dee2e6;
+          border-top: 1px solid #e2e8f0;
+          padding-top: 25px;
+        }
+
+        .results-section h3 {
+          color: #2d3748;
+          margin-bottom: 20px;
         }
 
         .results-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
           gap: 20px;
-          margin-top: 20px;
         }
 
         .result-item {
-          background: #f8f9fa;
+          border: 1px solid #e2e8f0;
           border-radius: 8px;
-          padding: 20px;
-          text-align: center;
+          overflow: hidden;
+          transition: transform 0.2s;
         }
 
-        .result-preview img,
-        .result-preview video {
+        .result-item:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-preview {
+          height: 150px;
+          background: #f7fafc;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+
+        .result-preview img {
           max-width: 100%;
-          max-height: 200px;
-          border-radius: 6px;
+          max-height: 100%;
+          object-fit: cover;
         }
 
         .file-icon {
           font-size: 3rem;
-          opacity: 0.7;
+          opacity: 0.6;
         }
 
         .result-info {
-          margin-top: 15px;
-        }
-
-        .download-button {
-          background: #17a2b8;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 6px;
-          cursor: pointer;
-          font-weight: 600;
-          margin-top: 10px;
-        }
-
-        .download-button:hover {
-          background: #138496;
-        }
-
-        .error-message {
-          background: #f8d7da;
-          color: #721c24;
-          border: 1px solid #f5c6cb;
-          border-radius: 6px;
           padding: 15px;
-          margin-top: 20px;
         }
 
-        /* Editing Options Styles */
-        .editing-options {
-          margin-top: 30px;
-          padding: 25px;
-          background: white;
-          border-radius: 10px;
-          border: 1px solid #e1e5e9;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        .result-info h4 {
+          color: #2d3748;
+          margin-bottom: 5px;
+          font-size: 1rem;
         }
 
-        .editing-options h3 {
-          color: #2c3e50;
-          margin-bottom: 20px;
-          font-size: 1.3rem;
-          font-weight: 600;
-          border-bottom: 2px solid #e9ecef;
-          padding-bottom: 10px;
-        }
-
-        .options-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 20px;
-          margin-bottom: 25px;
-        }
-
-        .option-group {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .option-group label {
-          font-weight: 600;
-          color: #495057;
+        .result-info p {
+          color: #718096;
+          margin-bottom: 10px;
           font-size: 0.9rem;
         }
 
-        .option-input, .option-slider {
-          padding: 10px;
-          border: 1px solid #ced4da;
-          border-radius: 6px;
-          font-size: 0.95rem;
-          transition: border-color 0.2s ease;
-        }
-
-        .option-input:focus, .option-slider:focus {
-          outline: none;
-          border-color: #3498db;
-          box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-        }
-
-        .option-slider {
-          padding: 5px 0;
-        }
-
-        .option-group small {
-          color: #6c757d;
-          font-size: 0.8rem;
-          font-style: italic;
-        }
-
-        .checkbox-group {
-          flex-direction: row;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .checkbox-group label {
-          display: flex;
-          align-items: center;
-          gap: 8px;
+        .download-button {
+          background: #4299e1;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 0.9rem;
           font-weight: 500;
-          margin: 0;
+          width: 100%;
         }
 
-        .checkbox-group input[type="checkbox"] {
-          width: 18px;
-          height: 18px;
-          accent-color: #3498db;
-        }
-
-        .editing-actions {
-          display: flex;
-          gap: 15px;
-          justify-content: flex-start;
-          padding-top: 20px;
-          border-top: 1px solid #e9ecef;
-        }
-
-        .apply-button {
-          background: #28a745;
-          color: white;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 6px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background-color 0.2s ease;
-          font-size: 0.95rem;
-        }
-
-        .apply-button:hover:not(:disabled) {
-          background: #218838;
-        }
-
-        .apply-button:disabled {
-          background: #6c757d;
-          cursor: not-allowed;
-        }
-
-        .reset-button {
-          background: #6c757d;
-          color: white;
-          border: none;
-          padding: 12px 24px;
-          border-radius: 6px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background-color 0.2s ease;
-          font-size: 0.95rem;
-        }
-
-        .reset-button:hover {
-          background: #5a6268;
+        .download-button:hover {
+          background: #3182ce;
         }
 
         @media (max-width: 768px) {
+          .container {
+            padding: 0 15px;
+          }
+          
           .tools-grid {
             grid-template-columns: 1fr;
           }
           
           .url-input-group {
-            flex-direction: column;
-          }
-          
-          .results-grid {
-            grid-template-columns: 1fr;
-          }
-          
-          .options-grid {
-            grid-template-columns: 1fr;
-            gap: 15px;
-          }
-          
-          .editing-actions {
             flex-direction: column;
             gap: 10px;
           }
