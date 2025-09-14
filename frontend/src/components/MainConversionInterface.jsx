@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import NotificationService from '../utils/NotificationService.js';
 import WebPConverter from './WebPConverter.jsx';
+
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 export default function MainConversionInterface({ currentTool, setCurrentTool, loading, setLoading, error, setError }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -200,7 +202,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   };
   */
 
-  // === New Local backend (active) ===
+  // === Backend API handler ===
   const handleConvert = async () => {
     if (selectedFiles.length === 0 && !urlInput.trim()) {
       NotificationService.toast('Please select files or enter a URL first', 'warning');
@@ -222,15 +224,15 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         form.append('files', file);
       });
       form.append('tool', currentTool);
-      const base = 'http://localhost:5000'; // Local backend
+      const base = API_BASE_URL; // Use environment variable
       
       if (urlInput.trim()) {
         form.append('url', urlInput.trim());
       }
       
       // Log API configuration for debugging
-      console.log('🔧 API Configuration (Local):', {
-        localBase: base,
+      console.log('🔧 API Configuration:', {
+        backendUrl: base,
         tool: currentTool,
         filesCount: selectedFiles.length,
         hasUrl: !!urlInput.trim()
@@ -245,7 +247,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         });
       }, 300);
 
-      console.log(`🚀 Making API call to Local Backend: ${base}/api/convert`);
+      console.log(`🚀 Making API call to Backend: ${base}/api/convert`);
       const response = await fetch(`${base}/api/convert`, {
         method: 'POST',
         body: form
@@ -259,7 +261,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       }
 
       const result = await response.json();
-      console.log('✅ Local Backend API Response:', result);
+      console.log('✅ Backend API Response:', result);
 
       progressNotification.complete('Conversion completed successfully!');
       
@@ -272,13 +274,13 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       }
 
     } catch (err) {
-      console.error('❌ Local Backend API Error:', err);
+      console.error('❌ Backend API Error:', err);
       progressNotification.error(`Conversion failed: ${err.message}`);
       setError(err.message);
       
       NotificationService.error(
         'Conversion Failed', 
-        err.message.includes('fetch') ? 'Unable to connect to local server' : err.message
+        err.message.includes('fetch') ? 'Unable to connect to server' : err.message
       );
     } finally {
       setLoading(false);
@@ -304,10 +306,10 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   };
   */
 
-  // === New Local backend download (active) ===
+  // === Backend download function ===
   const downloadFile = async (filename) => {
     try {
-      const base = 'http://localhost:5000'; // Local backend
+      const base = API_BASE_URL; // Use environment variable
       const link = document.createElement('a');
       link.href = `${base}/api/files/${filename}`;
       link.download = filename;
@@ -316,7 +318,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       document.body.removeChild(link);
       NotificationService.toast(`Downloaded: ${filename}`, 'success');
     } catch (err) {
-      NotificationService.error('Download Failed', 'Unable to download the file from local server');
+      NotificationService.error('Download Failed', 'Unable to download the file from server');
     }
   };
 
