@@ -84,13 +84,38 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       0
     );
 
+  // === Old Railway backend (commented out) ===
+  /*
+  const handleConvert_Railway = async () => {
+    if (selectedFiles.length === 0 && !urlInput.trim()) {
+      NotificationService.error('No Input', 'Please select files or enter a URL');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setResults([]);
+
+    const progressNotification = NotificationService.progress(
+      'Processing Files',
+      'Converting your media files...'
+    );
+
     try {
       const form = new FormData();
       selectedFiles.forEach(file => form.append('files', file));
       if (urlInput.trim()) form.append('url', urlInput.trim());
       form.append('tool', currentTool);
 
-      const base = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const base = 'https://gif-backend-production.up.railway.app'; // Railway backend
+      
+      // Log API configuration for debugging
+      console.log('🔧 API Configuration (Railway):', {
+        railwayBase: base,
+        tool: currentTool,
+        filesCount: selectedFiles.length,
+        hasUrl: !!urlInput.trim()
+      });
       
       // Simulate progress
       const progressInterval = setInterval(() => {
@@ -101,6 +126,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         });
       }, 300);
 
+      console.log(`🚀 Making API call to Railway: ${base}/api/convert`);
       const response = await fetch(`${base}/api/convert`, {
         method: 'POST',
         body: form
@@ -108,6 +134,122 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
 
       clearInterval(progressInterval);
       setUploadProgress(100);
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Railway API Response:', result);
+
+      progressNotification.complete('Conversion completed successfully!');
+      
+      if (result.files && Array.isArray(result.files)) {
+        setResults(result.files);
+      } else if (result.success) {
+        setResults([{ success: true, message: result.message || 'Processing completed', tool: currentTool }]);
+      } else {
+        throw new Error(result.message || 'Processing failed');
+      }
+
+    } catch (err) {
+      console.error('❌ Railway API Error:', err);
+      progressNotification.error(`Conversion failed: ${err.message}`);
+      setError(err.message);
+      
+      NotificationService.error(
+        'Conversion Failed', 
+        err.message.includes('fetch') ? 'Unable to connect to server' : err.message
+      );
+    } finally {
+      setLoading(false);
+      setUploadProgress(0);
+    }
+  };
+  */
+
+  // === New Local backend (active) ===
+  const handleConvert = async () => {
+    if (selectedFiles.length === 0 && !urlInput.trim()) {
+      NotificationService.error('No Input', 'Please select files or enter a URL');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setResults([]);
+
+    const progressNotification = NotificationService.progress(
+      'Processing Files',
+      'Converting your media files...'
+    );
+
+    try {
+      const form = new FormData();
+      selectedFiles.forEach(file => form.append('files', file));
+      if (urlInput.trim()) form.append('url', urlInput.trim());
+      form.append('tool', currentTool);
+
+      // Use local backend instead of Railway
+      const base = 'http://localhost:5000'; // Local backend
+      
+      // Log API configuration for debugging
+      console.log('🔧 API Configuration (Local):', {
+        localBase: base,
+        tool: currentTool,
+        filesCount: selectedFiles.length,
+        hasUrl: !!urlInput.trim()
+      });
+      
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          const newProgress = Math.min(prev + Math.random() * 15, 90);
+          progressNotification.updateProgress(newProgress);
+          return newProgress;
+        });
+      }, 300);
+
+      console.log(`🚀 Making API call to Local Backend: ${base}/api/convert`);
+      const response = await fetch(`${base}/api/convert`, {
+        method: 'POST',
+        body: form
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Local Backend API Response:', result);
+
+      progressNotification.complete('Conversion completed successfully!');
+      
+      if (result.files && Array.isArray(result.files)) {
+        setResults(result.files);
+      } else if (result.success) {
+        setResults([{ success: true, message: result.message || 'Processing completed', tool: currentTool }]);
+      } else {
+        throw new Error(result.message || 'Processing failed');
+      }
+
+    } catch (err) {
+      console.error('❌ Local Backend API Error:', err);
+      progressNotification.error(`Conversion failed: ${err.message}`);
+      setError(err.message);
+      
+      NotificationService.error(
+        'Conversion Failed', 
+        err.message.includes('fetch') ? 'Unable to connect to local server' : err.message
+      );
+    } finally {
+      setLoading(false);
+      setUploadProgress(0);
+    }
+  };
       progressNotification.updateProgress(100);
 
       if (!response.ok) {
@@ -140,9 +282,11 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
     }
   };
 
-  const downloadFile = async (filename) => {
+  // === Old Railway backend download (commented out) ===
+  /*
+  const downloadFile_Railway = async (filename) => {
     try {
-      const base = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+      const base = 'https://gif-backend-production.up.railway.app'; // Railway backend
       const link = document.createElement('a');
       link.href = `${base}/api/files/${filename}`;
       link.download = filename;
@@ -151,7 +295,24 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       document.body.removeChild(link);
       NotificationService.toast(`Downloaded: ${filename}`, 'success');
     } catch (err) {
-      NotificationService.error('Download Failed', 'Unable to download the file');
+      NotificationService.error('Download Failed', 'Unable to download the file from Railway');
+    }
+  };
+  */
+
+  // === New Local backend download (active) ===
+  const downloadFile = async (filename) => {
+    try {
+      const base = 'http://localhost:5000'; // Local backend
+      const link = document.createElement('a');
+      link.href = `${base}/api/files/${filename}`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      NotificationService.toast(`Downloaded: ${filename}`, 'success');
+    } catch (err) {
+      NotificationService.error('Download Failed', 'Unable to download the file from local server');
     }
   };
 

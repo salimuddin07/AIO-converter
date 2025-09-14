@@ -3,7 +3,8 @@ import { createServer } from 'http';
 import app from './src/app.js';
 import { scheduleCleanup } from './src/services/CleanupService.js';
 
-const PORT = process.env.PORT || 5001;
+// Use port 5000 for local development, Railway will override with its own PORT
+const PORT = process.env.PORT || 5000;
 const server = createServer(app);
 scheduleCleanup();
 

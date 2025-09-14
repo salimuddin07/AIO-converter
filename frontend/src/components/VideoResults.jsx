@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 const VideoResults = ({ result, onBack }) => {
-  const base = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+  // === Old Railway backend (commented out) ===
+  // const base = 'https://gif-backend-production.up.railway.app';
+  
+  // === New Local backend (active) ===
+  const base = 'http://localhost:5000'; // Local backend
   
   const [isConverting, setIsConverting] = useState(false);
   const [convertResult, setConvertResult] = useState(null);
