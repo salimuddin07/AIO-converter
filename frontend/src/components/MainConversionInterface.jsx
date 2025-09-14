@@ -97,11 +97,12 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
     );
 
     try {
-      await handleConvert();
-      progressNotification.complete('Files processed successfully!');
+      await handleConvert(progressNotification);
+      progressNotification.close();
+      NotificationService.success('Files processed successfully!');
     } catch (err) {
       console.error('Processing error:', err);
-      progressNotification.error(`Processing failed: ${err.message}`);
+      progressNotification.close();
       setError(err.message);
       
       NotificationService.error(
@@ -203,20 +204,11 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   */
 
   // === Backend API handler ===
-  const handleConvert = async () => {
+  const handleConvert = async (progressNotification) => {
     if (selectedFiles.length === 0 && !urlInput.trim()) {
       NotificationService.toast('Please select files or enter a URL first', 'warning');
       return;
     }
-    
-    setLoading(true);
-    setError('');
-    setUploadProgress(0);
-    
-    const progressNotification = NotificationService.progressToast(
-      'Processing files...', 
-      'Your files are being processed'
-    );
 
     try {
       const form = new FormData();
@@ -262,8 +254,6 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
 
       const result = await response.json();
       console.log('✅ Backend API Response:', result);
-
-      progressNotification.complete('Conversion completed successfully!');
       
       if (result.files && Array.isArray(result.files)) {
         setResults(result.files);
@@ -275,16 +265,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
 
     } catch (err) {
       console.error('❌ Backend API Error:', err);
-      progressNotification.error(`Conversion failed: ${err.message}`);
-      setError(err.message);
-      
-      NotificationService.error(
-        'Conversion Failed', 
-        err.message.includes('fetch') ? 'Unable to connect to server' : err.message
-      );
-    } finally {
-      setLoading(false);
-      setUploadProgress(0);
+      throw err; // Re-throw to be handled by processFiles
     }
   };
 
