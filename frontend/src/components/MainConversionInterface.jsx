@@ -1,9 +1,6 @@
 import { useState, useRef } from 'react';
-import NotificationService from '../utils/NotificationService.js';
-import WebPConverter from './WebPConverter.jsx';
-import EnhancedGifCreator from './EnhancedGifCreator.jsx';
-import ApiTest from './ApiTest.jsx';
-import { getApiUrl } from '../utils/apiConfig.js';
+import { NotificationService } from '../utils/NotificationService.js';
+import { API_CONFIG, validateFile, localAPI, downloadFile } from '../utils/apiConfig.js';
 
 export default function MainConversionInterface({ currentTool, setCurrentTool, loading, setLoading, error, setError }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -100,6 +97,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
     setResults([]);
   };
 
+  // Local processing function - no server required
   const processFiles = async () => {
     if (selectedFiles.length === 0 && !urlInput.trim()) {
       NotificationService.toast('Please select files or enter a URL first', 'warning');
@@ -111,214 +109,85 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
     setUploadProgress(0);
     
     const progressNotification = NotificationService.progressToast(
-      'Processing files...', 
-      'Your files are being processed'
+      'Processing files locally...', 
+      'Your files are being processed in your browser'
     );
 
     try {
-      await handleConvert(progressNotification);
+      const processedResults = [];
+      
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const progress = ((i + 1) / selectedFiles.length) * 100;
+        setUploadProgress(progress);
+        
+        // Validate file
+        try {
+          validateFile(file, file.type.startsWith('video/') ? 'video' : 'image');
+        } catch (validationError) {
+          throw new Error(`${file.name}: ${validationError.message}`);
+        }
+
+        let result;
+        
+        // Process based on current tool
+        switch (currentTool) {
+          case 'convert':
+            result = await localAPI.convert(file, 'png', 0.9);
+            break;
+          case 'resize':
+            result = await localAPI.resize(file, 800, 600, true);
+            break;
+          case 'rotate':
+            result = await localAPI.rotate(file, 90);
+            break;
+          case 'add-text':
+            result = await localAPI.addText(file, 'Sample Text', {
+              fontSize: 30,
+              color: '#ffffff',
+              x: null, // center
+              y: null  // center
+            });
+            break;
+          case 'video-to-gif':
+            if (file.type.startsWith('video/')) {
+              result = await localAPI.videoToGif(file, { frameCount: 10 });
+            } else {
+              throw new Error('Video file required for video to GIF conversion');
+            }
+            break;
+          case 'split-gif':
+            if (file.type === 'image/gif') {
+              result = await localAPI.splitGif(file);
+            } else {
+              throw new Error('GIF file required for splitting');
+            }
+            break;
+          default:
+            result = await localAPI.convert(file, 'png', 0.9);
+        }
+        
+        processedResults.push({
+          originalName: file.name,
+          processedFile: result.file,
+          downloadUrl: result.url,
+          type: currentTool
+        });
+      }
+      
+      setResults(processedResults);
+      setUploadProgress(100);
       progressNotification.close();
-      NotificationService.success('Files processed successfully!');
+      NotificationService.success(`${processedResults.length} file(s) processed successfully!`);
+      
     } catch (err) {
-      console.error('Processing error:', err);
+      console.error('Local processing error:', err);
       progressNotification.close();
       setError(err.message);
-      
-      NotificationService.error(
-        'Processing Failed', 
-        err.message.includes('fetch') ? 'Unable to connect to server' : err.message
-      );
+      NotificationService.error('Processing Failed', err.message);
     } finally {
       setLoading(false);
       setUploadProgress(0);
-    }
-  };
-
-  // === Old Railway backend (commented out) ===
-  /*
-  const handleConvert_Railway = async () => {
-    if (selectedFiles.length === 0 && !urlInput.trim()) {
-      NotificationService.toast('Please select files or enter a URL first', 'warning');
-      return;
-    }
-    
-    setLoading(true);
-    setError('');
-    setUploadProgress(0);
-    
-    const progressNotification = NotificationService.progress(
-      'Processing files...', 
-      'Your files are being processed'
-    );
-
-    try {
-      const form = new FormData();
-      selectedFiles.forEach(file => {
-        form.append('files', file);
-      });
-      form.append('tool', currentTool);
-      const base = 'https://gif-backend-production.up.railway.app'; // Railway backend
-      
-      if (urlInput.trim()) {
-        form.append('url', urlInput.trim());
-      }
-      
-      // Log API configuration for debugging
-      console.log('🔧 API Configuration (Railway):', {
-        railwayBase: base,
-        tool: currentTool,
-        filesCount: selectedFiles.length,
-        hasUrl: !!urlInput.trim()
-      });
-      
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          const newProgress = Math.min(prev + Math.random() * 15, 90);
-          progressNotification.updateProgress(newProgress);
-          return newProgress;
-        });
-      }, 300);
-
-      console.log(`🚀 Making API call to Railway: ${base}/api/convert`);
-      const response = await fetch(`${base}/api/convert`, {
-        method: 'POST',
-        body: form
-      });
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('✅ Railway API Response:', result);
-
-      progressNotification.complete('Conversion completed successfully!');
-      
-      if (result.files && Array.isArray(result.files)) {
-        setResults(result.files);
-      } else if (result.success) {
-        setResults([{ success: true, message: result.message || 'Processing completed', tool: currentTool }]);
-      } else {
-        throw new Error(result.message || 'Processing failed');
-      }
-
-    } catch (err) {
-      console.error('❌ Railway API Error:', err);
-      progressNotification.error(`Conversion failed: ${err.message}`);
-      setError(err.message);
-      
-      NotificationService.error(
-        'Conversion Failed', 
-        err.message.includes('fetch') ? 'Unable to connect to Railway server' : err.message
-      );
-    } finally {
-      setLoading(false);
-      setUploadProgress(0);
-    }
-  };
-  */
-
-  // === Backend API handler ===
-  const handleConvert = async (progressNotification) => {
-    if (selectedFiles.length === 0 && !urlInput.trim()) {
-      NotificationService.toast('Please select files or enter a URL first', 'warning');
-      return;
-    }
-
-    try {
-      const form = new FormData();
-      selectedFiles.forEach(file => {
-        form.append('files', file);
-      });
-      form.append('tool', currentTool);
-      const convertUrl = getApiUrl('/api/convert');
-      
-      if (urlInput.trim()) {
-        form.append('url', urlInput.trim());
-      }
-      
-      // Log API configuration for debugging
-      console.log('🔧 API Configuration:', {
-        backendUrl: convertUrl,
-        tool: currentTool,
-        filesCount: selectedFiles.length,
-        hasUrl: !!urlInput.trim()
-      });
-      
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          const newProgress = Math.min(prev + Math.random() * 15, 90);
-          progressNotification.updateProgress(newProgress);
-          return newProgress;
-        });
-      }, 300);
-
-      console.log(`🚀 Making API call to Backend: ${convertUrl}`);
-      const response = await fetch(convertUrl, {
-        method: 'POST',
-        body: form
-      });
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      if (!response.ok) {
-        throw new Error(`Server error: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('✅ Backend API Response:', result);
-      
-      if (result.files && Array.isArray(result.files)) {
-        setResults(result.files);
-      } else if (result.success) {
-        setResults([{ success: true, message: result.message || 'Processing completed', tool: currentTool }]);
-      } else {
-        throw new Error(result.message || 'Processing failed');
-      }
-
-    } catch (err) {
-      console.error('❌ Backend API Error:', err);
-      throw err; // Re-throw to be handled by processFiles
-    }
-  };
-
-  // === Old Railway backend download (commented out) ===
-  /*
-  const downloadFile_Railway = async (filename) => {
-    try {
-      const base = 'https://gif-backend-production.up.railway.app'; // Railway backend
-      const link = document.createElement('a');
-      link.href = `${base}/api/files/${filename}`;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      NotificationService.toast(`Downloaded: ${filename}`, 'success');
-    } catch (err) {
-      NotificationService.error('Download Failed', 'Unable to download the file from Railway');
-    }
-  };
-  */
-
-  // === Backend download function ===
-  const downloadFile = async (filename) => {
-    try {
-      const downloadUrl = getApiUrl(`/api/files/${filename}`);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      NotificationService.toast(`Downloaded: ${filename}`, 'success');
-    } catch (err) {
-      NotificationService.error('Download Failed', 'Unable to download the file from server');
     }
   };
 
@@ -458,15 +327,15 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
 
         {results.length > 0 && (
           <div className="results-section">
-            <h3>Results:</h3>
+            <h3>✅ Processing Complete! ({results.length} file{results.length > 1 ? 's' : ''})</h3>
             <div className="results-grid">
               {results.map((result, index) => (
                 <div key={index} className="result-item">
                   <div className="result-preview">
-                    {result.url ? (
+                    {result.downloadUrl ? (
                       <img 
-                        src={result.url} 
-                        alt={result.name}
+                        src={result.downloadUrl} 
+                        alt={result.originalName}
                         onError={(e) => {
                           e.target.style.display = 'none';
                           e.target.nextSibling.style.display = 'block';
@@ -480,17 +349,42 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
                     </div>
                   </div>
                   <div className="result-info">
-                    <h4>{result.name || 'Processed File'}</h4>
-                    <p>{result.size ? `${(result.size / 1024 / 1024).toFixed(2)} MB` : ''}</p>
+                    <h4>{result.processedFile?.name || 'Processed File'}</h4>
+                    <p className="process-type">Tool: {result.type}</p>
+                    <p className="file-size">
+                      {result.processedFile?.size 
+                        ? `${(result.processedFile.size / 1024 / 1024).toFixed(2)} MB` 
+                        : ''
+                      }
+                    </p>
                     <button 
                       className="download-button"
-                      onClick={() => downloadFile(result.name)}
+                      onClick={() => downloadFile(
+                        result.processedFile, 
+                        result.processedFile?.name || `processed_${result.originalName}`
+                      )}
                     >
-                      Download
+                      📥 Download
                     </button>
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="results-actions">
+              <button 
+                className="clear-results-button"
+                onClick={() => {
+                  setResults([]);
+                  // Clean up object URLs to prevent memory leaks
+                  results.forEach(result => {
+                    if (result.downloadUrl) {
+                      URL.revokeObjectURL(result.downloadUrl);
+                    }
+                  });
+                }}
+              >
+                🗑️ Clear Results
+              </button>
             </div>
           </div>
         )}
@@ -854,6 +748,37 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
 
         .download-button:hover {
           background: #3182ce;
+        }
+
+        .process-type {
+          background: #e2e8f0;
+          padding: 2px 8px;
+          border-radius: 12px;
+          font-size: 0.8rem !important;
+          display: inline-block;
+          margin-bottom: 8px !important;
+        }
+
+        .results-actions {
+          text-align: center;
+          margin-top: 20px;
+          padding-top: 20px;
+          border-top: 1px solid #e2e8f0;
+        }
+
+        .clear-results-button {
+          background: #e53e3e;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          padding: 10px 20px;
+          cursor: pointer;
+          font-size: 0.9rem;
+          font-weight: 500;
+        }
+
+        .clear-results-button:hover {
+          background: #c53030;
         }
 
         @media (max-width: 768px) {
