@@ -1,4 +1,5 @@
 import fs from "fs/promises";
+import fsSync from "fs";
 import sharp from "sharp";
 import path from "path";
 import https from "https";
@@ -37,7 +38,7 @@ async function downloadImageFromUrl(imageUrl) {
         return;
       }
 
-      const file = fs.createWriteStream(tempPath);
+      const file = fsSync.createWriteStream(tempPath);
       response.pipe(file);
 
       file.on("finish", () => {

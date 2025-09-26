@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>File Upload Tester - GIF Converter</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background: white; }
+        button { margin: 5px; padding: 10px 20px; background: #007cba; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #005a8b; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .processing { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        input[type="file"] { margin: 10px 0; }
+        canvas { border: 1px solid #ccc; margin: 10px 0; }
+        pre { white-space: pre-wrap; word-wrap: break-word; max-height: 200px; overflow-y: auto; }
+        h1 { color: #333; }
+        h2 { color: #555; }
+    </style>
+</head>
+<body>
+    <h1>🧪 GIF Converter - Functionality Tester</h1>
+    <p><strong>Server:</strong> http://localhost:3004</p>
+    
+    <div class="test-section">
+        <h2>🎨 1. Generate Test Image</h2>
+        <p>Create a sample image to use for testing</p>
+        <button onclick="generateTestImage()">Generate & Download Test Image</button>
+        <canvas id="testCanvas" width="300" height="200"></canvas>
+        <div id="imageResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📄 2. Test Text Processing</h2>
+        <p>Upload an image to test text processing service</p>
+        <input type="file" id="textFile" accept="image/*">
+        <button onclick="testTextUpload()">Upload for Text Processing</button>
+        <div id="textResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🖼️ 3. Test WebP Conversion</h2>
+        <p>Convert images to WebP format</p>
+        <input type="file" id="webpFile" accept="image/*">
+        <label>Quality: <input type="range" id="webpQuality" min="1" max="100" value="85"> <span id="qualityValue">85</span></label>
+        <button onclick="testWebPConversion()">Convert to WebP</button>
+        <div id="webpResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎞️ 4. Test Enhanced GIF Creation</h2>
+        <p>Create animated GIFs from multiple images</p>
+        <input type="file" id="gifFile" accept="image/*" multiple>
+        <label>Delay (ms): <input type="number" id="gifDelay" value="500" min="100" max="5000"></label>
+        <button onclick="testEnhancedGif()">Create Animated GIF</button>
+        <div id="gifResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 5. Server Status</h2>
+        <button onclick="checkServerStatus()">Check All API Endpoints</button>
+        <div id="statusResult"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3004/api';
+
+        // Update quality display
+        document.getElementById('webpQuality').addEventListener('input', function() {
+            document.getElementById('qualityValue').textContent = this.value;
+        });
+
+        function generateTestImage() {
+            const canvas = document.getElementById('testCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Create colorful gradient background
+            const gradient = ctx.createLinearGradient(0, 0, 300, 200);
+            gradient.addColorStop(0, '#FF6B6B');
+            gradient.addColorStop(0.3, '#4ECDC4');
+            gradient.addColorStop(0.6, '#45B7D1');
+            gradient.addColorStop(1, '#96CEB4');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 300, 200);
+            
+            // Add geometric shapes
+            ctx.fillStyle = 'rgba(255,255,255,0.8)';
+            ctx.fillRect(50, 30, 200, 60);
+            
+            ctx.fillStyle = '#FFD93D';
+            ctx.beginPath();
+            ctx.arc(75, 150, 25, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            ctx.fillStyle = '#FF6B9D';
+            ctx.beginPath();
+            ctx.arc(225, 150, 25, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Add text
+            ctx.fillStyle = '#333333';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('GIF CONVERTER', 150, 55);
+            ctx.font = '14px Arial';
+            ctx.fillText('Test Image', 150, 75);
+            ctx.fillText(new Date().toLocaleString(), 150, 115);
+            
+            // Convert to blob and download
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'gif-converter-test.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                document.getElementById('imageResult').innerHTML = 
+                    '<div class="result success">✅ Test image generated and downloaded! Use this file for testing other functions.</div>';
+            }, 'image/png');
+        }
+
+        async function testTextUpload() {
+            const fileInput = document.getElementById('textFile');
+            const resultDiv = document.getElementById('textResult');
+            
+            if (!fileInput.files[0]) {
+                resultDiv.innerHTML = '<div class="result error">❌ Please select a file first</div>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('image', fileInput.files[0]);
+            
+            try {
+                resultDiv.innerHTML = '<div class="result processing">⏳ Uploading image for text processing...</div>';
+                
+                const response = await fetch(`${API_BASE}/text/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.text();
+                let jsonResult;
+                try {
+                    jsonResult = JSON.parse(result);
+                } catch (e) {
+                    jsonResult = result;
+                }
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ Text processing upload successful! (Status: ${response.status})
+                            <pre>${JSON.stringify(jsonResult, null, 2)}</pre>
+                        </div>`;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ Text processing failed (Status: ${response.status})
+                            <pre>${result}</pre>
+                        </div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Network error: ${error.message}</div>`;
+            }
+        }
+
+        async function testWebPConversion() {
+            const fileInput = document.getElementById('webpFile');
+            const resultDiv = document.getElementById('webpResult');
+            const quality = document.getElementById('webpQuality').value;
+            
+            if (!fileInput.files[0]) {
+                resultDiv.innerHTML = '<div class="result error">❌ Please select a file first</div>';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('images', fileInput.files[0]);
+            formData.append('quality', quality);
+            
+            try {
+                resultDiv.innerHTML = '<div class="result processing">⏳ Converting to WebP format...</div>';
+                
+                const response = await fetch(`${API_BASE}/webp/convert`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.text();
+                let jsonResult;
+                try {
+                    jsonResult = JSON.parse(result);
+                } catch (e) {
+                    jsonResult = result;
+                }
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ WebP conversion successful! (Status: ${response.status})
+                            <pre>${JSON.stringify(jsonResult, null, 2)}</pre>
+                        </div>`;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ WebP conversion failed (Status: ${response.status})
+                            <pre>${result}</pre>
+                        </div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Network error: ${error.message}</div>`;
+            }
+        }
+
+        async function testEnhancedGif() {
+            const fileInput = document.getElementById('gifFile');
+            const resultDiv = document.getElementById('gifResult');
+            const delay = document.getElementById('gifDelay').value;
+            
+            if (!fileInput.files.length) {
+                resultDiv.innerHTML = '<div class="result error">❌ Please select at least 2 images</div>';
+                return;
+            }
+            
+            if (fileInput.files.length < 2) {
+                resultDiv.innerHTML = '<div class="result error">❌ Please select at least 2 images for GIF creation</div>';
+                return;
+            }
+            
+            const formData = new FormData();
+            for (let file of fileInput.files) {
+                formData.append('images', file);
+            }
+            formData.append('delay', delay);
+            formData.append('loop', '0');
+            formData.append('quality', '80');
+            
+            try {
+                resultDiv.innerHTML = `<div class="result processing">⏳ Creating enhanced GIF from ${fileInput.files.length} images...</div>`;
+                
+                const response = await fetch(`${API_BASE}/enhanced-gif/images-to-gif`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.text();
+                let jsonResult;
+                try {
+                    jsonResult = JSON.parse(result);
+                } catch (e) {
+                    jsonResult = result;
+                }
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            ✅ Enhanced GIF creation successful! (Status: ${response.status})
+                            <pre>${JSON.stringify(jsonResult, null, 2)}</pre>
+                        </div>`;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            ❌ Enhanced GIF creation failed (Status: ${response.status})
+                            <pre>${result}</pre>
+                        </div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Network error: ${error.message}</div>`;
+            }
+        }
+
+        async function checkServerStatus() {
+            const resultDiv = document.getElementById('statusResult');
+            const endpoints = [
+                'text', 'webp', 'enhanced-gif', 'modern', 'convert', 'split', 'video', 'ai', 'files'
+            ];
+            
+            resultDiv.innerHTML = '<div class="result processing">⏳ Checking server status...</div>';
+            
+            let results = [];
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${API_BASE}/${endpoint}`);
+                    const status = response.ok ? '✅' : '❌';
+                    results.push(`${status} /api/${endpoint} (${response.status})`);
+                } catch (error) {
+                    results.push(`❌ /api/${endpoint} (Error: ${error.message})`);
+                }
+            }
+            
+            resultDiv.innerHTML = `
+                <div class="result success">
+                    <strong>🚀 Server Status Check Complete</strong>
+                    <pre>${results.join('\n')}</pre>
+                </div>`;
+        }
+
+        // Auto-generate test image on load
+        window.addEventListener('load', () => {
+            setTimeout(generateTestImage, 500);
+        });
+    </script>
+</body>
+</html>

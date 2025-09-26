@@ -17,6 +17,21 @@ import { tempDir, outputDir, getSafeFilename, ensureDirectories } from '../utils
 
 const router = Router();
 
+// Test route
+router.get('/', (req, res) => {
+    res.json({ 
+        success: true, 
+        service: 'Split Processing Service',
+        message: 'Split processing endpoints are available',
+        endpoints: ['/split', '/frames', '/extract']
+    });
+});
+
+// Health check
+router.get('/health', (req, res) => {
+    res.json({ status: 'ok', service: 'split' });
+});
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {

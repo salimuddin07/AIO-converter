@@ -406,6 +406,166 @@ export class VideoProcessor extends EventEmitter {
       }
     }
   }
+
+  /**
+   * Process video and return info (for upload endpoint)
+   */
+  async processVideo(filePath, originalName) {
+    const videoId = uuid();
+    const info = await this.getVideoInfo(filePath);
+    
+    // Store video info for later use
+    const videoData = {
+      videoId,
+      filePath,
+      originalFilename: originalName,
+      ...info
+    };
+    
+    // Store in memory for now (you might want to use a database)
+    this.videoStore = this.videoStore || new Map();
+    this.videoStore.set(videoId, videoData);
+    
+    return videoData;
+  }
+
+  /**
+   * Process video from URL
+   */
+  async processVideoFromUrl(url) {
+    // Download video from URL first
+    const videoId = uuid();
+    const tempPath = path.join(tempDir, `video_${videoId}.mp4`);
+    
+    // Simple URL download implementation (you might want to improve this)
+    const https = await import('https');
+    const http = await import('http');
+    const fs = await import('fs');
+    
+    return new Promise((resolve, reject) => {
+      const protocol = url.startsWith('https') ? https : http;
+      const file = fs.createWriteStream(tempPath);
+      
+      protocol.get(url, (response) => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Failed to download: ${response.statusCode}`));
+          return;
+        }
+        
+        response.pipe(file);
+        
+        file.on('finish', async () => {
+          try {
+            const result = await this.processVideo(tempPath, path.basename(url));
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        });
+        
+        file.on('error', reject);
+      }).on('error', reject);
+    });
+  }
+
+  /**
+   * Get video preview path
+   */
+  async getVideoPreviewPath(videoId) {
+    this.videoStore = this.videoStore || new Map();
+    const videoData = this.videoStore.get(videoId);
+    
+    if (!videoData) {
+      throw new Error('Video not found');
+    }
+    
+    return videoData.filePath;
+  }
+
+  /**
+   * Convert video to GIF
+   */
+  async convertToGif(videoId, options = {}) {
+    const {
+      startTime = 0,
+      endTime = 5,
+      width,
+      height,
+      fps = 10,
+      quality = 90,
+      method = 'ffmpeg'
+    } = options;
+
+    this.videoStore = this.videoStore || new Map();
+    const videoData = this.videoStore.get(videoId);
+    
+    if (!videoData) {
+      throw new Error('Video not found');
+    }
+
+    const outputName = `gif_${uuid()}.gif`;
+    const outputPath = path.join(outputDir, outputName);
+
+    return new Promise((resolve, reject) => {
+      let command = ffmpeg(videoData.filePath)
+        .seekInput(startTime)
+        .duration(endTime - startTime)
+        .fps(fps);
+
+      // Apply size if specified
+      if (width && height) {
+        command = command.size(`${width}x${height}`);
+      }
+
+      // GIF-specific optimizations
+      command = command
+        .outputOptions([
+          '-vf', 'palettegen=stats_mode=diff',
+          '-y'
+        ])
+        .output(outputPath)
+        .on('end', () => {
+          resolve({
+            success: true,
+            gifPath: outputName,
+            downloadUrl: `/api/video/download/${outputName}`,
+            outputPath
+          });
+        })
+        .on('error', reject);
+
+      command.run();
+    });
+  }
+
+  /**
+   * Get GIF path from filename
+   */
+  async getGifPath(gifPath) {
+    return path.join(outputDir, gifPath);
+  }
+
+  /**
+   * Cleanup video and related files
+   */
+  async cleanup(videoId) {
+    this.videoStore = this.videoStore || new Map();
+    const videoData = this.videoStore.get(videoId);
+    
+    if (videoData) {
+      // Clean up video file
+      try {
+        await fs.unlink(videoData.filePath);
+      } catch (e) {
+        // File might not exist, ignore error
+      }
+      
+      // Remove from store
+      this.videoStore.delete(videoId);
+    }
+    
+    return { success: true };
+  }
 }
 
 // Export singleton instance

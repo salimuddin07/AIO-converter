@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getApiUrl } from '../utils/apiConfig.js';
 
 const VideoResults = ({ result, onBack }) => {
   // === Old Railway backend (commented out) ===
   // const base = 'https://gif-backend-production.up.railway.app';
   
-  // === New Local backend (active) ===
-  const base = 'http://localhost:5000'; // Local backend
+  // === Use API configuration ===
   
   const [isConverting, setIsConverting] = useState(false);
   const [convertResult, setConvertResult] = useState(null);
@@ -29,7 +29,7 @@ const VideoResults = ({ result, onBack }) => {
 
   const fetchVideoInfo = async () => {
     try {
-      const response = await fetch(`${base}/api/video/info/${result.videoId}`);
+      const response = await fetch(getApiUrl(`/api/video/info/${result.videoId}`));
       const info = await response.json();
       setVideoInfo(info);
       
@@ -51,7 +51,7 @@ const VideoResults = ({ result, onBack }) => {
     setIsConverting(true);
     
     try {
-      const response = await fetch(`${base}/api/video/convert`, {
+      const response = await fetch(getApiUrl('/api/video/convert'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ const VideoResults = ({ result, onBack }) => {
 
   const handleDownload = (gifPath, filename) => {
     const link = document.createElement('a');
-    link.href = `${base}/api/video/download/${gifPath}`;
+    link.href = getApiUrl(`/api/video/download/${gifPath}`);
     link.download = filename;
     link.click();
   };
@@ -114,7 +114,7 @@ const VideoResults = ({ result, onBack }) => {
         <div className="result-container">
           <div className="gif-preview">
             <img 
-              src={`${base}/api/video/gif-preview/${convertResult.gifPath}`} 
+              src={getApiUrl(`/api/video/gif-preview/${convertResult.gifPath}`)} 
               alt="Converted GIF" 
               style={{ maxWidth: '100%', height: 'auto' }}
             />
@@ -165,7 +165,7 @@ const VideoResults = ({ result, onBack }) => {
         <div className="video-preview">
           <video 
             ref={videoRef}
-            src={`${base}/api/video/preview/${result.videoId}`}
+            src={getApiUrl(`/api/video/preview/${result.videoId}`)}
             controls
             style={{ width: '100%', maxWidth: '600px' }}
             onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
