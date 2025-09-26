@@ -4,9 +4,6 @@
 
 A comprehensive, modern media conversion platform built with Node.js and React. Features professional-grade architecture with properly named services and clean code structure.
 
-[![GitHub](https://img.shields.io/badge/GitHub-salimuddin07-181717?style=for-the-badge&logo=github)](https://github.com/salimuddin07)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-salimuddin--shaikh-0077B5?style=for-the-badge&logo=linkedin)](https://www.linkedin.com/in/salimuddin-shaikh-330a7b2a5)
-[![Instagram](https://img.shields.io/badge/Instagram-@salimuddin__shaikh__786-E4405F?style=for-the-badge&logo=instagram)](https://www.instagram.com/salimuddin_shaikh_786)
 
 ## 🚀 Features
 
