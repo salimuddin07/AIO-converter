@@ -27,7 +27,7 @@ import VideoJSService from './VideoJSService.js';
 
 // Utility services
 import textService from './TextService.js';
-import { scheduleCleanup, cleanupFiles } from './CleanupService.js';
+import { scheduleCleanup, cleanupFiles } from './cleanupService.js';
 import { describeImage } from './AiService.js';
 
 // Create service objects
