@@ -1,14 +1,14 @@
 import React, { useState, useRef, useCallback } from 'react';
 import AdvancedUploadArea from './AdvancedUploadArea';
 import Results from './Results';
+import { getApiUrl } from '../utils/apiConfig.js';
 import '../aio-convert-style.css';
 
 const AddText = () => {
     // === Old Railway backend (commented out) ===
     // const base = 'https://gif-backend-production.up.railway.app';
     
-    // === New Local backend (active) ===
-    const base = 'http://localhost:5000'; // Local backend
+    // === Use API configuration ===
     
     const [file, setFile] = useState(null);
     const [imageInfo, setImageInfo] = useState(null);
@@ -62,7 +62,7 @@ const AddText = () => {
             setIsProcessing(true);
             setError('');
             
-            const response = await fetch(`${base}/api/text/upload`, {
+            const response = await fetch(getApiUrl('/api/text/upload'), {
                 method: 'POST',
                 body: formData
             });
@@ -94,7 +94,7 @@ const AddText = () => {
             setIsProcessing(true);
             setError('');
             
-            const response = await fetch(`${base}/api/text/upload-url`, {
+            const response = await fetch(getApiUrl('/api/text/upload-url'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ imageUrl: url })
@@ -122,7 +122,7 @@ const AddText = () => {
 
     const fetchFonts = async () => {
         try {
-            const response = await fetch(`${base}/api/text/fonts`);
+            const response = await fetch(getApiUrl('/api/text/fonts'));
             const data = await response.json();
             if (data.fonts) {
                 setAvailableFonts(data.fonts);
@@ -146,7 +146,7 @@ const AddText = () => {
             setIsProcessing(true);
             setError('');
             
-            const response = await fetch(`${base}/api/text/preview`, {
+            const response = await fetch(getApiUrl('/api/text/preview'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -183,7 +183,7 @@ const AddText = () => {
             setError('');
             setResult(null);
             
-            const response = await fetch(`${base}/api/text/add-text`, {
+            const response = await fetch(getApiUrl('/api/text/add-text'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

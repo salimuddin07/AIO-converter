@@ -9,6 +9,21 @@ import { tempDir, getSafeFilename, ensureDirectories } from '../utils/FilePathUt
 
 const router = express.Router();
 
+// Test route
+router.get('/', (req, res) => {
+    res.json({ 
+        success: true, 
+        service: 'WebP Processing Service',
+        message: 'WebP processing endpoints are available',
+        endpoints: ['/convert', '/batch', '/optimize']
+    });
+});
+
+// Health check
+router.get('/health', (req, res) => {
+    res.json({ status: 'ok', service: 'webp' });
+});
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {

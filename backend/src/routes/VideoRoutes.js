@@ -55,10 +55,10 @@ router.post('/upload', upload.single('video'), async (req, res) => {
     
     if (req.file) {
       // Handle file upload
-      result = await videoService.processVideo(req.file.path, req.file.originalname);
+      result = await videoProcessor.processVideo(req.file.path, req.file.originalname);
     } else if (req.body.url) {
       // Handle URL upload
-      result = await videoService.processVideoFromUrl(req.body.url);
+      result = await videoProcessor.processVideoFromUrl(req.body.url);
     } else {
       return res.status(400).json({ error: 'No file or URL provided' });
     }
@@ -87,8 +87,8 @@ router.post('/upload', upload.single('video'), async (req, res) => {
 router.get('/info/:videoId', async (req, res) => {
   try {
     const { videoId } = req.params;
-    const videoPath = await videoService.getVideoPreviewPath(videoId);
-    const videoInfo = await videoService.getVideoInfo(videoPath);
+    const videoPath = await videoProcessor.getVideoPreviewPath(videoId);
+    const videoInfo = await videoProcessor.getVideoInfo(videoPath);
     
     res.json({
       success: true,
@@ -137,7 +137,7 @@ router.post('/convert', async (req, res) => {
       });
     }
     
-    const result = await videoService.convertToGif(videoId, {
+    const result = await videoProcessor.convertToGif(videoId, {
       startTime: parseFloat(startTime),
       endTime: parseFloat(endTime),
       width: width ? parseInt(width) : undefined,
@@ -164,7 +164,7 @@ router.post('/convert', async (req, res) => {
 router.get('/preview/:videoId', async (req, res) => {
   try {
     const { videoId } = req.params;
-    const videoPath = await videoService.getVideoPreviewPath(videoId);
+    const videoPath = await videoProcessor.getVideoPreviewPath(videoId);
     
     if (!fs.existsSync(videoPath)) {
       return res.status(404).json({ error: 'Video not found' });
@@ -208,7 +208,7 @@ router.get('/preview/:videoId', async (req, res) => {
 router.get('/gif-preview/:gifPath', async (req, res) => {
   try {
     const { gifPath } = req.params;
-    const fullPath = await videoService.getGifPath(gifPath);
+    const fullPath = await videoProcessor.getGifPath(gifPath);
     
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ error: 'GIF not found' });
@@ -226,7 +226,7 @@ router.get('/gif-preview/:gifPath', async (req, res) => {
 router.get('/download/:gifPath', async (req, res) => {
   try {
     const { gifPath } = req.params;
-    const fullPath = await videoService.getGifPath(gifPath);
+    const fullPath = await videoProcessor.getGifPath(gifPath);
     
     if (!fs.existsSync(fullPath)) {
       return res.status(404).json({ error: 'GIF not found' });
@@ -247,7 +247,7 @@ router.get('/download/:gifPath', async (req, res) => {
 router.delete('/cleanup/:videoId', async (req, res) => {
   try {
     const { videoId } = req.params;
-    await videoService.cleanup(videoId);
+    await videoProcessor.cleanup(videoId);
     res.json({ success: true, message: 'Cleanup completed' });
   } catch (error) {
     console.error('Cleanup error:', error);

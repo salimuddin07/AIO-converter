@@ -57,10 +57,11 @@ router.post('/test', async (req, res) => {
 router.post('/', upload.array('files'), async (req, res) => {
   try {
     console.log('=== CONVERT REQUEST START ===');
-    const tool = req.body.tool || 'video-to-gif';
+    const { tool = 'convert', targetFormat = 'png', options = {} } = req.body;
     const files = req.files || [];
+    const url = req.body.url;
     
-    if (!files.length && !req.body.url) {
+    if (!files.length && !url) {
       return res.status(400).json({ 
         error: { 
           code: 'NO_FILES', 
@@ -69,19 +70,71 @@ router.post('/', upload.array('files'), async (req, res) => {
       });
     }
 
-    console.log('MOCK PROCESSING: Returning success without actual conversion');
+    console.log(`Processing ${files.length} files with tool: ${tool}, format: ${targetFormat}`);
+
+    // Import conversion services
+    const { convertSingle, convertFromUrl } = await import('../services/ConversionService.js');
+    const results = [];
+
+    // Handle URL conversion
+    if (url && !files.length) {
+      try {
+        const result = await convertFromUrl(url, targetFormat, options);
+        results.push({
+          success: true,
+          originalName: url,
+          outputFile: result.outName,
+          downloadUrl: `/api/output/${result.outName}`,
+          size: result.size,
+          format: targetFormat
+        });
+      } catch (error) {
+        console.error('URL conversion error:', error);
+        results.push({
+          success: false,
+          originalName: url,
+          error: error.message
+        });
+      }
+    }
+
+    // Handle file conversions
+    for (const file of files) {
+      try {
+        console.log(`Converting: ${file.originalname} -> ${targetFormat}`);
+        const result = await convertSingle(file.path, targetFormat, options);
+        results.push({
+          success: true,
+          originalName: file.originalname,
+          outputFile: result.outName,
+          downloadUrl: `/api/output/${result.outName}`,
+          size: result.size,
+          format: targetFormat
+        });
+      } catch (error) {
+        console.error(`Conversion error for ${file.originalname}:`, error);
+        results.push({
+          success: false,
+          originalName: file.originalname,
+          error: error.message
+        });
+      }
+    }
+
+    const successful = results.filter(r => r.success).length;
+    const failed = results.length - successful;
+
     return res.json({ 
-      success: true,
-      message: 'Processing temporarily disabled - backend is healthy',
-      tool: tool,
-      fileCount: files.length,
-      files: files.map((file, index) => ({
-        id: index,
-        originalName: file.originalname,
-        size: file.size,
-        type: file.mimetype,
-        status: 'ready_for_processing'
-      }))
+      success: failed === 0,
+      message: failed === 0 ? 'All conversions completed successfully' : `${successful} succeeded, ${failed} failed`,
+      tool,
+      targetFormat,
+      results,
+      summary: {
+        total: results.length,
+        successful,
+        failed
+      }
     });
 
   } catch (error) {

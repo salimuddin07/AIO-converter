@@ -1,4 +1,3 @@
-import webp from 'node-webp';
 import path from 'path';
 import fs from 'fs/promises';
 import { v4 as uuid } from 'uuid';
@@ -11,6 +10,8 @@ import { outputDir, tempDir } from '../utils/FilePathUtils.js';
  */
 class WebPService {
   constructor() {
+    this.webp = null;
+    this.isInitialized = false;
     this.defaultOptions = {
       quality: 85,
       method: 4, // 0-6, higher = slower but better compression
@@ -18,9 +19,38 @@ class WebPService {
       lossless: false,
       alphaQuality: 100,
       autoFilter: true,
-      sharpness: 0,
+      sharpness: 0, // 0-7
       filterStrength: 60
     };
+  }
+
+  /**
+   * Initialize WebP binaries (lazy loading)
+   */
+  async initialize() {
+    if (this.isInitialized) return;
+    
+    try {
+      const webpModule = await import('node-webp');
+      this.webp = webpModule.default;
+      this.isInitialized = true;
+      console.log('WebP binaries loaded successfully');
+    } catch (error) {
+      console.warn('WebP binaries not found, WebP functionality will be limited:', error.message);
+      this.webp = null;
+      this.isInitialized = true;
+    }
+  }
+
+  /**
+   * Check if WebP is available
+   */
+  async ensureWebPAvailable() {
+    await this.initialize();
+    if (!this.webp) {
+      throw new Error('WebP binaries not available. Please check your node-webp installation.');
+    }
+    return true;
   }
 
   /**
@@ -28,6 +58,8 @@ class WebPService {
    */
   async convertToWebP(imagePath, options = {}) {
     try {
+      await this.ensureWebPAvailable();
+
       const config = { ...this.defaultOptions, ...options };
       const outputName = `webp_${uuid()}.webp`;
       const outputPath = path.join(outputDir, outputName);
@@ -35,7 +67,7 @@ class WebPService {
       console.log('Converting to WebP:', { imagePath, outputPath, config });
 
       // Use node-webp for conversion
-      const result = await webp.cwebp(imagePath, outputPath, `-q ${config.quality} -m ${config.method} -preset ${config.preset}${config.lossless ? ' -lossless' : ''} -alpha_q ${config.alphaQuality}${config.autoFilter ? ' -auto_filter' : ''} -sharpness ${config.sharpness} -f ${config.filterStrength}`);
+      const result = await this.webp.cwebp(imagePath, outputPath, `-q ${config.quality} -m ${config.method} -preset ${config.preset}${config.lossless ? ' -lossless' : ''} -alpha_q ${config.alphaQuality}${config.autoFilter ? ' -auto_filter' : ''} -sharpness ${config.sharpness} -f ${config.filterStrength}`);
 
       const stats = await fs.stat(outputPath);
       const originalStats = await fs.stat(imagePath);

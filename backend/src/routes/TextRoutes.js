@@ -11,6 +11,21 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
+// Test route
+router.get('/', (req, res) => {
+    res.json({ 
+        success: true, 
+        service: 'Text Processing Service',
+        message: 'Text processing endpoints are available',
+        endpoints: ['/upload', '/add-text', '/download/:filename']
+    });
+});
+
+// Health check
+router.get('/health', (req, res) => {
+    res.json({ status: 'ok', service: 'text' });
+});
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {

@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import NotificationService from '../utils/NotificationService.js';
 import WebPConverter from './WebPConverter.jsx';
-
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import EnhancedGifCreator from './EnhancedGifCreator.jsx';
+import ApiTest from './ApiTest.jsx';
+import { getApiUrl } from '../utils/apiConfig.js';
 
 export default function MainConversionInterface({ currentTool, setCurrentTool, loading, setLoading, error, setError }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -10,6 +11,8 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef(null);
   const [urlInput, setUrlInput] = useState('');
+  const [showEnhancedGifCreator, setShowEnhancedGifCreator] = useState(false);
+  const [showApiTest, setShowApiTest] = useState(false);
 
   const toolCategories = {
     'Basic Tools': [
@@ -44,11 +47,27 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         formats: ['MP4', 'AVI', 'MOV', 'JPG', 'PNG'] 
       },
       { 
+        id: 'enhanced-gif-creator', 
+        title: 'Enhanced GIF Creator', 
+        description: 'Advanced GIF creation with effects and optimization',
+        icon: '✨',
+        formats: ['MP4', 'AVI', 'MOV', 'JPG', 'PNG'] 
+      },
+      { 
         id: 'gif-optimizer', 
         title: 'Optimize GIF', 
         description: 'Reduce GIF file size and improve performance',
         icon: '⚡',
         formats: ['GIF'] 
+      }
+    ],
+    'Debug Tools': [
+      { 
+        id: 'api-test', 
+        title: 'API Connection Test', 
+        description: 'Test frontend-backend API connectivity',
+        icon: '🔧',
+        formats: [] 
       }
     ]
   };
@@ -216,7 +235,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         form.append('files', file);
       });
       form.append('tool', currentTool);
-      const base = API_BASE_URL; // Use environment variable
+      const convertUrl = getApiUrl('/api/convert');
       
       if (urlInput.trim()) {
         form.append('url', urlInput.trim());
@@ -224,7 +243,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       
       // Log API configuration for debugging
       console.log('🔧 API Configuration:', {
-        backendUrl: base,
+        backendUrl: convertUrl,
         tool: currentTool,
         filesCount: selectedFiles.length,
         hasUrl: !!urlInput.trim()
@@ -239,8 +258,8 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         });
       }, 300);
 
-      console.log(`🚀 Making API call to Backend: ${base}/api/convert`);
-      const response = await fetch(`${base}/api/convert`, {
+      console.log(`🚀 Making API call to Backend: ${convertUrl}`);
+      const response = await fetch(convertUrl, {
         method: 'POST',
         body: form
       });
@@ -290,9 +309,9 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   // === Backend download function ===
   const downloadFile = async (filename) => {
     try {
-      const base = API_BASE_URL; // Use environment variable
+      const downloadUrl = getApiUrl(`/api/files/${filename}`);
       const link = document.createElement('a');
-      link.href = `${base}/api/files/${filename}`;
+      link.href = downloadUrl;
       link.download = filename;
       document.body.appendChild(link);
       link.click();
@@ -315,7 +334,15 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
                   <div 
                     key={tool.id}
                     className="tool-card"
-                    onClick={() => setCurrentTool(tool.id)}
+                    onClick={() => {
+                      if (tool.id === 'enhanced-gif-creator') {
+                        setShowEnhancedGifCreator(true);
+                      } else if (tool.id === 'api-test') {
+                        setShowApiTest(true);
+                      } else {
+                        setCurrentTool(tool.id);
+                      }
+                    }}
                   >
                     <div className="tool-icon">{tool.icon}</div>
                     <h4 className="tool-title">{tool.title}</h4>
@@ -848,6 +875,52 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
           }
         }
       `}</style>
+
+      {/* Enhanced GIF Creator Modal */}
+      {showEnhancedGifCreator && (
+        <EnhancedGifCreator onClose={() => setShowEnhancedGifCreator(false)} />
+      )}
+
+      {/* API Test Component */}
+      {showApiTest && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '20px',
+            maxWidth: '800px',
+            maxHeight: '600px',
+            overflow: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>API Integration Test</h2>
+              <button 
+                onClick={() => setShowApiTest(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <ApiTest />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

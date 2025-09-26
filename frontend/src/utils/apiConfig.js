@@ -1,7 +1,7 @@
 // API configuration for local backend
 const API_CONFIG = {
   // Use localhost for both development and production (for now)
-  baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001',
+  baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3003',
   
   // Comment out Railway URL - using local backend
   // railwayURL: 'https://gif-backend-production.up.railway.app',
