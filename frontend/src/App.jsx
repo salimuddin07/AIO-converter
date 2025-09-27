@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import PdfToMarkdownConverter from './components/PdfToMarkdownConverter.jsx';
+import LibraryTest from './components/LibraryTest.jsx';
 import { NotificationService } from './utils/NotificationService.js';
 import './aio-convert-style.css';
 
@@ -16,7 +17,9 @@ export default function App() {
       />
       
       <main className="main-content">
-        {currentTool === 'pdf-to-md' ? (
+        {currentTool === 'library-test' ? (
+          <LibraryTest />
+        ) : currentTool === 'pdf-to-md' ? (
           <PdfToMarkdownConverter />
         ) : (
           <div className="welcome-section">
@@ -25,6 +28,12 @@ export default function App() {
               <p className="lead">Convert, resize, and optimize your media files - 100% locally processed!</p>
               
               <div className="tool-grid">
+                <div className="tool-card" onClick={() => setCurrentTool('library-test')}>
+                  <div className="tool-icon">🧪</div>
+                  <h3>Library Test</h3>
+                  <p>Test frontend animation libraries</p>
+                </div>
+                
                 <div className="tool-card" onClick={() => setCurrentTool('gif-maker')}>
                   <div className="tool-icon">🎞️</div>
                   <h3>GIF Maker</h3>

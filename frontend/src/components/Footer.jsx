@@ -50,7 +50,9 @@ export default function Footer() {
       
       <div className="info-section">
         <div className="company-info">
+
           <h4>About AIO Converter</h4>
+
           <p>Professional media conversion platform offering secure, local processing for all your file conversion needs. No uploads required - your files stay private.</p>
         </div>
         
@@ -76,7 +78,10 @@ export default function Footer() {
       </div>
       
       <div className="footer-bottom">
+
         <p>&copy; 2024 AIO Converter - Professional Media Converter</p>
+
+
         <p className="footer-tagline">Empowering creators with secure, local media processing</p>
       </div>
 
