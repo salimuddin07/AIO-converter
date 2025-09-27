@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { ensureDirectories } from './utils/FilePathUtils.js';
 
 // Import routes - temporarily commented to test basic functionality
-// import convertRouter from './routes/ConversionRoutes.js';
+import convertRouter from './routes/ConversionRoutes.js';
 // import splitRouter from './routes/SplitRoutes.js';
 // import videoRouter from './routes/VideoRoutes.js';
 // import textRouter from './routes/TextRoutes.js';
@@ -56,6 +56,11 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Serve the functionality tester HTML file
+app.get('/functionality', (_req, res) => {
+  res.sendFile(path.join(__dirname, '../../functionality-tester.html'));
+});
+
 // Add webp-info endpoint
 app.get('/api/webp-info', (_req, res) => {
   res.json({
@@ -67,7 +72,7 @@ app.get('/api/webp-info', (_req, res) => {
 });
 
 // Temporarily disable API routes for testing
-// app.use('/api/convert', convertRouter);
+app.use('/api/convert', convertRouter);
 // app.use('/api/split', splitRouter);
 // app.use('/api/video', videoRouter);
 // app.use('/api/text', textRouter);
