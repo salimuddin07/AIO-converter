@@ -20,93 +20,128 @@
   }
 
   async convertPdfToMarkdown(file, onProgress) {
-    await this.initializePdfJs();
-    
-    const arrayBuffer = await this.fileToArrayBuffer(file);
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    
-    const totalPages = pdf.numPages;
-    let markdownContent = '';
-    
-    const fileName = file.name.replace(/\.[^/.]+$/, '');
-    markdownContent += `# ${fileName}\n\n`;
-    markdownContent += `*Converted from PDF - ${totalPages} page${totalPages > 1 ? 's' : ''}*\n\n`;
-    markdownContent += `---\n\n`;
+    try {
+      await this.initializePdfJs();
+      
+      const arrayBuffer = await this.fileToArrayBuffer(file);
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      
+      const totalPages = pdf.numPages;
+      let markdownContent = '';
+      
+      const fileName = file.name.replace(/\.[^/.]+$/, '');
+      markdownContent += `# ${fileName}\n\n`;
+      markdownContent += `*Converted from PDF - ${totalPages} page${totalPages > 1 ? 's' : ''}*\n\n`;
+      markdownContent += `---\n\n`;
 
-    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
-      const textContent = await page.getTextContent();
-      
-      if (onProgress && typeof onProgress === 'function') {
-        onProgress((pageNum / totalPages) * 100, `Processing page ${pageNum} of ${totalPages}`);
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        try {
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          if (onProgress && typeof onProgress === 'function') {
+            onProgress((pageNum / totalPages) * 100, `Processing page ${pageNum} of ${totalPages}`);
+          }
+          
+          if (totalPages > 1) {
+            markdownContent += `## Page ${pageNum}\n\n`;
+          }
+          
+          const pageText = this.extractTextFromPage(textContent);
+          
+          if (pageText && pageText.trim()) {
+            markdownContent += pageText + '\n\n';
+          } else {
+            markdownContent += `*[No text content found on this page]*\n\n`;
+          }
+          
+        } catch (pageError) {
+          console.error(`Error processing page ${pageNum}:`, pageError);
+          markdownContent += `*[Error processing page ${pageNum}: ${pageError.message}]*\n\n`;
+        }
       }
-      
-      if (totalPages > 1) {
-        markdownContent += `## Page ${pageNum}\n\n`;
-      }
-      
-      const pageText = this.extractTextFromPage(textContent);
-      markdownContent += pageText + '\n\n';
+
+      return markdownContent;
+    } catch (error) {
+      console.error('PDF conversion error:', error);
+      throw new Error(`Failed to convert PDF: ${error.message}`);
     }
-
-    return markdownContent;
   }
 
   extractTextFromPage(textContent) {
+    if (!textContent || !textContent.items) {
+      return '';
+    }
+
     const items = textContent.items;
     let text = '';
-    let currentY = null;
-    let lineText = '';
     
+    // Simple approach: sort items by Y position (top to bottom), then by X position (left to right)
     const sortedItems = items.sort((a, b) => {
-      if (Math.abs(a.transform[5] - b.transform[5]) > 5) {
-        return b.transform[5] - a.transform[5];
+      const yDiff = b.transform[5] - a.transform[5]; // Y position (top to bottom)
+      if (Math.abs(yDiff) > 2) { // Different lines
+        return yDiff;
       }
-      return a.transform[4] - b.transform[4];
+      return a.transform[4] - b.transform[4]; // Same line, sort by X position (left to right)
     });
 
+    let currentLine = '';
+    let lastY = null;
+    
     for (const item of sortedItems) {
+      const itemText = item.str || '';
       const itemY = Math.round(item.transform[5]);
-      const itemText = item.str.trim();
       
-      if (!itemText) continue;
+      // Skip empty text
+      if (!itemText.trim()) continue;
       
-      if (currentY === null || Math.abs(currentY - itemY) > 5) {
-        if (lineText.trim()) {
-          text += this.formatTextLine(lineText.trim()) + '\n';
+      // Check if we're on a new line
+      if (lastY !== null && Math.abs(lastY - itemY) > 2) {
+        // New line detected, add the previous line to text
+        if (currentLine.trim()) {
+          text += this.formatTextLine(currentLine.trim()) + '\n';
         }
-        lineText = itemText;
-        currentY = itemY;
+        currentLine = itemText;
       } else {
-        if (lineText && !lineText.endsWith(' ') && !itemText.startsWith(' ')) {
-          lineText += ' ';
+        // Same line, concatenate text
+        if (currentLine && !currentLine.endsWith(' ') && !itemText.startsWith(' ')) {
+          currentLine += ' ';
         }
-        lineText += itemText;
+        currentLine += itemText;
       }
+      
+      lastY = itemY;
     }
     
-    if (lineText.trim()) {
-      text += this.formatTextLine(lineText.trim()) + '\n';
+    // Add the last line
+    if (currentLine.trim()) {
+      text += this.formatTextLine(currentLine.trim()) + '\n';
     }
     
     return this.postProcessText(text);
   }
 
   formatTextLine(line) {
-    if (!line.trim()) return '';
+    if (!line || !line.trim()) return '';
     
+    line = line.trim();
+    
+    // Detect headers (all caps, short lines, numbered sections, etc.)
     if (this.isLikelyHeader(line)) {
       return `### ${line}`;
     }
     
-    if (/^[\-\*]\s+/.test(line)) {
-      return `- ${line.replace(/^[\-\*]\s*/, '')}`;
+    // Detect bullet points
+    if (/^[\-\*\•]\s+/.test(line)) {
+      return `- ${line.replace(/^[\-\*\•]\s*/, '')}`;
     }
     
+    // Detect numbered lists
     if (/^\d+[\.\)]\s+/.test(line)) {
       return line.replace(/^(\d+)[\.\)]\s*/, '$1. ');
     }
     
+    // Regular text paragraph
     return line;
   }
 
