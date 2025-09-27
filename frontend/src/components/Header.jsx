@@ -15,8 +15,9 @@ export default function Header({ currentTool, setCurrentTool }) {
         <div className="logo-section">
           <h1 className="site-logo">
             <a href="#" onClick={(e) => handleNavClick(e, 'home')}>AIO Convert</a>
+            <span className="local-badge">LOCAL</span>
           </h1>
-          <p className="tagline">All-in-One Media Converter</p>
+          <p className="tagline">All-in-One Media Converter - 100% Local Processing</p>
         </div>
         
         <div className="header-ad">
@@ -35,6 +36,7 @@ export default function Header({ currentTool, setCurrentTool }) {
           <li><a href="#" className={`nav-link effects ${currentTool === 'effects' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'effects')}>Effects</a></li>
           <li><a href="#" className={`nav-link split ${currentTool === 'split' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'split')}>Split</a></li>
           <li><a href="#" className={`nav-link add-text ${currentTool === 'add-text' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'add-text')}>Add text</a></li>
+          <li><a href="#" className={`nav-link pdf-to-md ${currentTool === 'pdf-to-md' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'pdf-to-md')}>PDF to MD</a></li>
           <li><a href="#" className={`nav-link webp ${currentTool === 'webp-maker' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'webp-maker')}>WebP</a></li>
           <li><a href="#" className={`nav-link apng ${currentTool === 'apng-maker' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'apng-maker')}>APNG</a></li>
           <li><a href="#" className={`nav-link avif ${currentTool === 'avif-converter' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'avif-converter')}>AVIF</a></li>
@@ -66,12 +68,25 @@ export default function Header({ currentTool, setCurrentTool }) {
           margin: 0;
           font-size: 28px;
           font-weight: bold;
+          position: relative;
         }
 
         .site-logo a {
           color: #e74c3c;
           text-decoration: none;
           font-family: Arial, sans-serif;
+        }
+
+        .local-badge {
+          background: #48bb78;
+          color: white;
+          font-size: 10px;
+          padding: 2px 6px;
+          border-radius: 4px;
+          position: absolute;
+          top: -8px;
+          right: -35px;
+          font-weight: 500;
         }
 
         .tagline {

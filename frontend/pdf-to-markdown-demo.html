@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Markdown Converter - Local</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #718096;
+            font-size: 1.2em;
+        }
+        
+        .feature-badge {
+            display: inline-block;
+            background: #48bb78;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        
+        .upload-zone {
+            border: 3px dashed #cbd5e0;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            background: #f7fafc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+        
+        .upload-zone:hover {
+            border-color: #4299e1;
+            background: #ebf8ff;
+            transform: translateY(-2px);
+        }
+        
+        .upload-zone.drag-over {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+        
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+            color: #4299e1;
+        }
+        
+        .upload-zone h3 {
+            color: #2d3748;
+            font-size: 1.5em;
+            margin-bottom: 10px;
+        }
+        
+        .upload-zone p {
+            color: #718096;
+            margin-bottom: 20px;
+        }
+        
+        .browse-btn {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .browse-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(66, 153, 225, 0.3);
+        }
+        
+        .file-info {
+            display: none;
+            background: #f7fafc;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .file-details {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .file-icon {
+            font-size: 3em;
+            margin-right: 20px;
+            color: #e53e3e;
+        }
+        
+        .file-meta h4 {
+            color: #2d3748;
+            font-size: 1.3em;
+            margin-bottom: 5px;
+        }
+        
+        .file-meta p {
+            color: #718096;
+        }
+        
+        .convert-btn {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .convert-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(72, 187, 120, 0.3);
+        }
+        
+        .convert-btn:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .reset-btn {
+            background: #e2e8f0;
+            color: #4a5568;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .reset-btn:hover {
+            background: #cbd5e0;
+        }
+        
+        .progress {
+            display: none;
+            margin: 30px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #48bb78, #38a169);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            text-align: center;
+            color: #4a5568;
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .result {
+            display: none;
+            background: linear-gradient(135deg, #f0fff4, #e6fffa);
+            border-radius: 15px;
+            padding: 30px;
+            border: 2px solid #68d391;
+            margin-bottom: 30px;
+        }
+        
+        .result-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        
+        .result-header h3 {
+            color: #22543d;
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+        
+        .result-stats {
+            color: #2f855a;
+            font-size: 1.1em;
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0 auto;
+            display: block;
+            transition: all 0.3s ease;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(72, 187, 120, 0.3);
+        }
+        
+        .preview {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 25px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .preview pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.6;
+        }
+        
+        .error {
+            display: none;
+            background: #fed7d7;
+            border: 2px solid #fc8181;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: #c53030;
+            text-align: center;
+        }
+        
+        .info-box {
+            background: #ebf8ff;
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 40px;
+        }
+        
+        .info-box h4 {
+            color: #2b6cb0;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .features li {
+            color: #2c5282;
+            padding: 8px 0;
+            border-bottom: 1px solid #cbd5e0;
+        }
+        
+        .features li:last-child {
+            border-bottom: none;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .upload-zone {
+                padding: 40px 15px;
+            }
+            
+            .file-details {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .file-icon {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄➡️📝 PDF to Markdown</h1>
+            <div class="feature-badge">✨ 100% Local Processing</div>
+            <p>Convert PDF documents to clean Markdown format - No uploads, completely private!</p>
+        </div>
+
+        <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">📁</div>
+            <h3>Drop your PDF here or click to browse</h3>
+            <p>Maximum file size: 25MB • Supports text-based PDFs</p>
+            <button class="browse-btn" type="button">Choose PDF File</button>
+        </div>
+
+        <input type="file" id="fileInput" accept=".pdf,application/pdf">
+
+        <div class="file-info" id="fileInfo">
+            <div class="file-details">
+                <div class="file-icon">📄</div>
+                <div class="file-meta">
+                    <h4 id="fileName">document.pdf</h4>
+                    <p id="fileSize">0 MB</p>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button class="convert-btn" id="convertBtn" onclick="convertPdf()">
+                    🚀 Convert to Markdown
+                </button>
+                <button class="reset-btn" onclick="reset()">
+                    🔄 Choose Different File
+                </button>
+            </div>
+        </div>
+
+        <div class="progress" id="progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Processing PDF...</div>
+        </div>
+
+        <div class="error" id="error">
+            <h3>❌ Conversion Failed</h3>
+            <p id="errorMessage">An error occurred during conversion.</p>
+        </div>
+
+        <div class="result" id="result">
+            <div class="result-header">
+                <h3>✅ Conversion Successful!</h3>
+                <div class="result-stats" id="resultStats">
+                    Successfully converted X pages to Markdown
+                </div>
+            </div>
+            
+            <button class="download-btn" id="downloadBtn" onclick="downloadMarkdown()">
+                📥 Download Markdown File
+            </button>
+            
+            <div class="preview">
+                <h4 style="color: #68d391; margin-bottom: 15px;">📖 Preview:</h4>
+                <pre id="previewContent"># Your converted markdown content will appear here...</pre>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h4>🔧 How it works:</h4>
+            <div class="features">
+                <li>📤 <strong>Local Processing:</strong> Your PDF never leaves your computer</li>
+                <li>🔍 <strong>Text Extraction:</strong> Extracts clean text from PDF pages</li>
+                <li>🎯 <strong>Smart Formatting:</strong> Detects headers, lists, and structure</li>
+                <li>📝 <strong>Clean Output:</strong> Generates well-formatted Markdown</li>
+                <li>⚡ <strong>Fast & Private:</strong> No server uploads or processing delays</li>
+                <li>🌐 <strong>Works Offline:</strong> No internet required after loading</li>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set PDF.js worker path
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let selectedFile = null;
+        let convertedMarkdown = null;
+        let markdownFile = null;
+
+        // File input handling
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileSelect(file);
+            }
+        });
+
+        // Drag and drop handling
+        const uploadZone = document.querySelector('.upload-zone');
+        
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+
+        uploadZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            // Validate file
+            if (file.type !== 'application/pdf') {
+                showError('Please select a PDF file');
+                return;
+            }
+
+            if (file.size > 25 * 1024 * 1024) {
+                showError('File too large. Maximum 25MB allowed.');
+                return;
+            }
+
+            selectedFile = file;
+            
+            // Show file info
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+            
+            // Hide upload zone and show file info
+            document.querySelector('.upload-zone').style.display = 'none';
+            document.getElementById('fileInfo').style.display = 'block';
+            
+            // Hide any previous results or errors
+            hideError();
+            hideResult();
+        }
+
+        async function convertPdf() {
+            if (!selectedFile) return;
+
+            const convertBtn = document.getElementById('convertBtn');
+            const progress = document.getElementById('progress');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+
+            try {
+                // Show progress and disable button
+                convertBtn.disabled = true;
+                convertBtn.textContent = '⏳ Converting...';
+                progress.style.display = 'block';
+                hideError();
+                hideResult();
+
+                // Read PDF file
+                const arrayBuffer = await fileToArrayBuffer(selectedFile);
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                const totalPages = pdf.numPages;
+                let markdownContent = '';
+                
+                // Add document header
+                const fileName = selectedFile.name.replace(/\.[^/.]+$/, '');
+                markdownContent += `# ${fileName}\n\n`;
+                markdownContent += `*Converted from PDF - ${totalPages} page${totalPages > 1 ? 's' : ''}*\n\n`;
+                markdownContent += `---\n\n`;
+
+                // Process each page
+                for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const textContent = await page.getTextContent();
+                    
+                    // Update progress
+                    const progressPercent = (pageNum / totalPages) * 100;
+                    progressFill.style.width = progressPercent + '%';
+                    progressText.textContent = `Processing page ${pageNum} of ${totalPages}...`;
+                    
+                    // Add page header for multi-page documents
+                    if (totalPages > 1) {
+                        markdownContent += `## Page ${pageNum}\n\n`;
+                    }
+                    
+                    // Extract text from page
+                    const pageText = extractTextFromPage(textContent);
+                    markdownContent += pageText + '\n\n';
+                }
+
+                // Create markdown file
+                convertedMarkdown = markdownContent;
+                markdownFile = new File(
+                    [markdownContent], 
+                    fileName + '.md', 
+                    { type: 'text/markdown' }
+                );
+
+                // Show result
+                showResult(totalPages, markdownContent);
+
+            } catch (error) {
+                console.error('Conversion error:', error);
+                showError('Failed to convert PDF: ' + error.message);
+            } finally {
+                // Reset button and hide progress
+                convertBtn.disabled = false;
+                convertBtn.textContent = '🚀 Convert to Markdown';
+                progress.style.display = 'none';
+            }
+        }
+
+        function extractTextFromPage(textContent) {
+            const items = textContent.items;
+            let text = '';
+            let currentY = null;
+            let lineText = '';
+            
+            // Sort items by position
+            const sortedItems = items.sort((a, b) => {
+                if (Math.abs(a.transform[5] - b.transform[5]) > 5) {
+                    return b.transform[5] - a.transform[5]; // Y position
+                }
+                return a.transform[4] - b.transform[4]; // X position
+            });
+
+            for (const item of sortedItems) {
+                const itemY = Math.round(item.transform[5]);
+                const itemText = item.str.trim();
+                
+                if (!itemText) continue;
+                
+                if (currentY === null || Math.abs(currentY - itemY) > 5) {
+                    if (lineText.trim()) {
+                        text += formatTextLine(lineText.trim()) + '\n';
+                    }
+                    lineText = itemText;
+                    currentY = itemY;
+                } else {
+                    if (lineText && !lineText.endsWith(' ') && !itemText.startsWith(' ')) {
+                        lineText += ' ';
+                    }
+                    lineText += itemText;
+                }
+            }
+            
+            if (lineText.trim()) {
+                text += formatTextLine(lineText.trim()) + '\n';
+            }
+            
+            return postProcessText(text);
+        }
+
+        function formatTextLine(line) {
+            if (!line.trim()) return '';
+            
+            // Detect headers
+            if (isLikelyHeader(line)) {
+                return `### ${line}`;
+            }
+            
+            // Detect bullet points
+            if (/^[•\-\*]\s+/.test(line)) {
+                return `- ${line.replace(/^[•\-\*]\s*/, '')}`;
+            }
+            
+            // Detect numbered lists
+            if (/^\d+[\.\)]\s+/.test(line)) {
+                return line.replace(/^(\d+)[\.\)]\s*/, '$1. ');
+            }
+            
+            return line;
+        }
+
+        function isLikelyHeader(line) {
+            return (
+                /^[A-Z][A-Z\s]{3,}$/.test(line) ||  // ALL CAPS
+                /^\d+\.\s+[A-Z]/.test(line) ||       // Numbered sections
+                /^Chapter\s+\d+/i.test(line)         // Chapter titles
+            ) && line.length < 100;
+        }
+
+        function postProcessText(text) {
+            // Clean up excessive line breaks
+            text = text.replace(/\n{3,}/g, '\n\n');
+            // Clean up spacing
+            text = text.replace(/[ \t]+/g, ' ');
+            return text.trim();
+        }
+
+        function fileToArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function showResult(pageCount, content) {
+            document.getElementById('resultStats').textContent = 
+                `Successfully converted ${pageCount} page${pageCount !== 1 ? 's' : ''} to Markdown`;
+            
+            // Show preview (first 1000 characters)
+            document.getElementById('previewContent').textContent = 
+                content.substring(0, 1000) + (content.length > 1000 ? '...' : '');
+            
+            document.getElementById('result').style.display = 'block';
+        }
+
+        function downloadMarkdown() {
+            if (markdownFile) {
+                const url = URL.createObjectURL(markdownFile);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = markdownFile.name;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('error').style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function hideResult() {
+            document.getElementById('result').style.display = 'none';
+        }
+
+        function reset() {
+            selectedFile = null;
+            convertedMarkdown = null;
+            markdownFile = null;
+            
+            document.querySelector('.upload-zone').style.display = 'block';
+            document.getElementById('fileInfo').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+            
+            hideError();
+            hideResult();
+        }
+    </script>
+</body>
+</html>
