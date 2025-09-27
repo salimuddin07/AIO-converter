@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs/promises';
+import sharp from 'sharp';
 import { v4 as uuid } from 'uuid';
 import { outputDir, tempDir } from '../utils/FilePathUtils.js';
 
@@ -11,6 +12,7 @@ import { outputDir, tempDir } from '../utils/FilePathUtils.js';
 class WebPService {
   constructor() {
     this.webp = null;
+    this.useSharp = false;
     this.isInitialized = false;
     this.defaultOptions = {
       quality: 85,
@@ -33,23 +35,22 @@ class WebPService {
     try {
       const webpModule = await import('node-webp');
       this.webp = webpModule.default;
-      this.isInitialized = true;
+      this.useSharp = false;
       console.log('WebP binaries loaded successfully');
     } catch (error) {
-      console.warn('WebP binaries not found, WebP functionality will be limited:', error.message);
+      console.warn('WebP binaries not found, using Sharp as fallback:', error.message);
       this.webp = null;
-      this.isInitialized = true;
+      this.useSharp = true;
     }
+    this.isInitialized = true;
   }
 
   /**
-   * Check if WebP is available
+   * Check if WebP is available (either via node-webp or Sharp)
    */
   async ensureWebPAvailable() {
     await this.initialize();
-    if (!this.webp) {
-      throw new Error('WebP binaries not available. Please check your node-webp installation.');
-    }
+    // WebP is always available via Sharp fallback
     return true;
   }
 
@@ -64,10 +65,23 @@ class WebPService {
       const outputName = `webp_${uuid()}.webp`;
       const outputPath = path.join(outputDir, outputName);
 
-      console.log('Converting to WebP:', { imagePath, outputPath, config });
+      console.log('Converting to WebP:', { imagePath, outputPath, config, useSharp: this.useSharp });
 
-      // Use node-webp for conversion
-      const result = await this.webp.cwebp(imagePath, outputPath, `-q ${config.quality} -m ${config.method} -preset ${config.preset}${config.lossless ? ' -lossless' : ''} -alpha_q ${config.alphaQuality}${config.autoFilter ? ' -auto_filter' : ''} -sharpness ${config.sharpness} -f ${config.filterStrength}`);
+      let result;
+      if (this.useSharp) {
+        // Use Sharp as fallback
+        await sharp(imagePath)
+          .webp({ 
+            quality: config.quality,
+            lossless: config.lossless,
+            alphaQuality: config.alphaQuality
+          })
+          .toFile(outputPath);
+        result = { success: true };
+      } else {
+        // Use node-webp for conversion
+        result = await this.webp.cwebp(imagePath, outputPath, `-q ${config.quality} -m ${config.method} -preset ${config.preset}${config.lossless ? ' -lossless' : ''} -alpha_q ${config.alphaQuality}${config.autoFilter ? ' -auto_filter' : ''} -sharpness ${config.sharpness} -f ${config.filterStrength}`);
+      }
 
       const stats = await fs.stat(outputPath);
       const originalStats = await fs.stat(imagePath);
@@ -80,7 +94,8 @@ class WebPService {
         originalSize: originalStats.size,
         compression: `${compression}%`,
         quality: config.quality,
-        lossless: config.lossless
+        lossless: config.lossless,
+        method: this.useSharp ? 'Sharp' : 'node-webp'
       };
     } catch (error) {
       console.error('WebP conversion failed:', error);
