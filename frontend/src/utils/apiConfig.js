@@ -1,66 +1,123 @@
-// API configuration for local backend
-const API_CONFIG = {
-  // Use localhost for both development and production (for now)
-  baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3003',
-  
-  // Comment out Railway URL - using local backend
-  // railwayURL: 'https://gif-backend-production.up.railway.app',
-  
-  timeout: 30000,
-  
-  // API endpoints
-  endpoints: {
-    convert: '/api/convert',
-    video: {
-      upload: '/api/video/upload',
-      info: '/api/video/info',
-      convert: '/api/video/convert'
+﻿const LOCAL_CONFIG = {
+  processing: {
+    maxFileSize: {
+      image: 25,
+      video: 100,
+      pdf: 25
     },
-    text: {
-      upload: '/api/text/upload',
-      uploadUrl: '/api/text/upload-url',
-      fonts: '/api/text/fonts',
-      preview: '/api/text/preview',
-      addText: '/api/text/add-text'
+    supportedFormats: {
+      input: ["jpg", "jpeg", "png", "gif", "bmp", "webp", "mp4", "avi", "mov", "wmv", "pdf"],
+      output: ["jpg", "jpeg", "png", "gif", "webp", "pdf", "md"]
     },
-    ai: {
-      describe: '/api/ai/describe'
-    },
-    split: '/api/split',
-    webp: '/api/webp'
-  }
-};
-
-// Helper function to get full URL
-export const getApiUrl = (endpoint) => {
-  const base = API_CONFIG.baseURL;
-  console.log(`🔗 API Call: ${base}${endpoint}`);
-  return `${base}${endpoint}`;
-};
-
-// Helper function to make API calls with error handling
-export const apiCall = async (endpoint, options = {}) => {
-  const url = getApiUrl(endpoint);
-  const defaultOptions = {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    timeout: API_CONFIG.timeout,
-  };
-  
-  try {
-    console.log(`🚀 Making API call to: ${url}`);
-    const response = await fetch(url, { ...defaultOptions, ...options });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    quality: {
+      default: 0.8,
+      high: 0.9,
+      medium: 0.7,
+      low: 0.5
     }
-    
-    return response;
-  } catch (error) {
-    console.error(`❌ API call failed for ${url}:`, error);
-    throw error;
+  },
+  features: {
+    imageConversion: true,
+    gifCreation: true,
+    videoToGif: true,
+    imageEditing: true,
+    textToImage: true,
+    imageSplitting: true,
+    webpConversion: true,
+    pdfToMarkdown: true
   }
+};
+
+export const API_CONFIG = {
+  baseUrl: "",
+  endpoints: {},
+  local: LOCAL_CONFIG,
+  isLocal: true,
+  getLocalConfig: () => LOCAL_CONFIG
+};
+
+export const validateFile = (file, type = "image") => {
+  if (file.type === "application/pdf") {
+    type = "pdf";
+  }
+  
+  const maxSize = LOCAL_CONFIG.processing.maxFileSize[type] * 1024 * 1024;
+  
+  if (file.size > maxSize) {
+    throw new Error(`File too large. Maximum ${LOCAL_CONFIG.processing.maxFileSize[type]}MB allowed.`);
+  }
+  
+  const supportedTypes = LOCAL_CONFIG.processing.supportedFormats.input;
+  const fileExtension = file.name.split(".").pop().toLowerCase();
+  
+  if (!supportedTypes.includes(fileExtension)) {
+    throw new Error(`Unsupported file type: ${fileExtension}`);
+  }
+  
+  return true;
+};
+
+// Mock localAPI for basic functionality
+export const localAPI = {
+  convert: async (file, format, quality) => {
+    console.log(`Converting ${file.name} to ${format}`);
+    return {
+      success: true,
+      message: `Converted ${file.name} to ${format}`,
+      result: { downloadUrl: '#', filename: `converted.${format}` }
+    };
+  },
+  
+  resize: async (file, width, height, maintainAspectRatio) => {
+    console.log(`Resizing ${file.name} to ${width}x${height}`);
+    return {
+      success: true,
+      message: `Resized ${file.name}`,
+      result: { downloadUrl: '#', filename: `resized_${file.name}` }
+    };
+  },
+  
+  rotate: async (file, degrees) => {
+    console.log(`Rotating ${file.name} by ${degrees} degrees`);
+    return {
+      success: true,
+      message: `Rotated ${file.name}`,
+      result: { downloadUrl: '#', filename: `rotated_${file.name}` }
+    };
+  },
+  
+  addText: async (file, text, options) => {
+    console.log(`Adding text "${text}" to ${file.name}`);
+    return {
+      success: true,
+      message: `Added text to ${file.name}`,
+      result: { downloadUrl: '#', filename: `text_${file.name}` }
+    };
+  },
+  
+  videoToGif: async (file, options) => {
+    console.log(`Converting video ${file.name} to GIF`);
+    return {
+      success: true,
+      message: `Converted ${file.name} to GIF`,
+      result: { downloadUrl: '#', filename: `${file.name.split('.')[0]}.gif` }
+    };
+  },
+  
+  splitGif: async (file) => {
+    console.log(`Splitting GIF ${file.name}`);
+    return {
+      success: true,
+      message: `Split ${file.name}`,
+      result: { downloadUrl: '#', filename: `split_${file.name}` }
+    };
+  }
+};
+
+// Download file function
+export const downloadFile = (url, filename) => {
+  console.log(`Download requested: ${filename}`);
+  alert(`Download feature will be implemented with actual processing. File: ${filename}`);
 };
 
 export default API_CONFIG;
