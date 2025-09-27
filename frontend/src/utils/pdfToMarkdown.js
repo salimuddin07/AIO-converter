@@ -36,23 +36,27 @@
 
       for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
         try {
-          const page = await pdf.getPage(pageNum);
-          const textContent = await page.getTextContent();
-          
           if (onProgress && typeof onProgress === 'function') {
             onProgress((pageNum / totalPages) * 100, `Processing page ${pageNum} of ${totalPages}`);
           }
+          
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          
+          console.log(`Page ${pageNum} text items:`, textContent.items.length); // Debug log
           
           if (totalPages > 1) {
             markdownContent += `## Page ${pageNum}\n\n`;
           }
           
           const pageText = this.extractTextFromPage(textContent);
+          console.log(`Page ${pageNum} extracted text length:`, pageText.length); // Debug log
           
           if (pageText && pageText.trim()) {
             markdownContent += pageText + '\n\n';
           } else {
-            markdownContent += `*[No text content found on this page]*\n\n`;
+            console.warn(`No text found on page ${pageNum}`);
+            markdownContent += `*[No readable text found on page ${pageNum}]*\n\n`;
           }
           
         } catch (pageError) {
@@ -61,7 +65,9 @@
         }
       }
 
+      console.log('Total markdown length:', markdownContent.length); // Debug log
       return markdownContent;
+      
     } catch (error) {
       console.error('PDF conversion error:', error);
       throw new Error(`Failed to convert PDF: ${error.message}`);
@@ -69,56 +75,75 @@
   }
 
   extractTextFromPage(textContent) {
-    if (!textContent || !textContent.items) {
+    if (!textContent || !textContent.items || textContent.items.length === 0) {
       return '';
     }
 
+    // Get all text items from the page
     const items = textContent.items;
-    let text = '';
     
-    // Simple approach: sort items by Y position (top to bottom), then by X position (left to right)
+    // Simple approach: just concatenate all text items with proper spacing
+    let allText = '';
+    
+    // Sort items by their vertical position (Y coordinate) first, then horizontal (X coordinate)
     const sortedItems = items.sort((a, b) => {
-      const yDiff = b.transform[5] - a.transform[5]; // Y position (top to bottom)
-      if (Math.abs(yDiff) > 2) { // Different lines
+      const yDiff = Math.round(b.transform[5]) - Math.round(a.transform[5]); // Y position (higher values = higher on page)
+      if (Math.abs(yDiff) > 5) { // Different lines (with 5px tolerance)
         return yDiff;
       }
-      return a.transform[4] - b.transform[4]; // Same line, sort by X position (left to right)
+      return Math.round(a.transform[4]) - Math.round(b.transform[4]); // X position (left to right)
     });
 
     let currentLine = '';
     let lastY = null;
+    let lastX = null;
     
-    for (const item of sortedItems) {
-      const itemText = item.str || '';
-      const itemY = Math.round(item.transform[5]);
+    for (let i = 0; i < sortedItems.length; i++) {
+      const item = sortedItems[i];
+      const text = item.str || '';
+      const y = Math.round(item.transform[5]);
+      const x = Math.round(item.transform[4]);
       
-      // Skip empty text
-      if (!itemText.trim()) continue;
+      // Skip empty strings
+      if (!text.trim()) continue;
       
-      // Check if we're on a new line
-      if (lastY !== null && Math.abs(lastY - itemY) > 2) {
-        // New line detected, add the previous line to text
+      // Check if we're starting a new line
+      const isNewLine = lastY !== null && Math.abs(y - lastY) > 5;
+      
+      if (isNewLine) {
+        // Add the completed line to allText
         if (currentLine.trim()) {
-          text += this.formatTextLine(currentLine.trim()) + '\n';
+          allText += currentLine.trim() + '\n';
         }
-        currentLine = itemText;
+        currentLine = text;
       } else {
-        // Same line, concatenate text
-        if (currentLine && !currentLine.endsWith(' ') && !itemText.startsWith(' ')) {
-          currentLine += ' ';
+        // Same line - add spacing if needed
+        if (currentLine) {
+          // Add space if there's a significant gap between text items
+          const needSpace = lastX !== null && (x - lastX) > 10;
+          if (needSpace && !currentLine.endsWith(' ') && !text.startsWith(' ')) {
+            currentLine += ' ';
+          }
         }
-        currentLine += itemText;
+        currentLine += text;
       }
       
-      lastY = itemY;
+      lastY = y;
+      lastX = x + (text.length * 6); // Estimate text width
     }
     
-    // Add the last line
+    // Add the final line
     if (currentLine.trim()) {
-      text += this.formatTextLine(currentLine.trim()) + '\n';
+      allText += currentLine.trim() + '\n';
     }
     
-    return this.postProcessText(text);
+    // Clean up the text
+    allText = allText
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .replace(/\n\s*\n/g, '\n\n') // Replace multiple newlines with double newline
+      .trim();
+    
+    return allText;
   }
 
   formatTextLine(line) {
