@@ -1,4 +1,6 @@
-﻿class LocalPdfProcessor {
+
+// pdf to md coverter is redy to run
+class LocalPdfProcessor {
   constructor() {
     this.isReady = false;
     this.initializePdfJs();
