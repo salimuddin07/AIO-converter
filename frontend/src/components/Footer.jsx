@@ -45,28 +45,6 @@ export default function Footer() {
             Transform your media with cutting-edge technology. Fast, secure, and completely private 
             processing that keeps your files safe on your device.
           </p>
-          
-          {/* Social Links */}
-          <div className="social-links">
-            <a href="https://github.com/salimuddin07" target="_blank" rel="noopener noreferrer" className="social-link github">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-              </svg>
-              <span>GitHub</span>
-            </a>
-            <a href="https://www.linkedin.com/in/salimuddin-shaikh-330a7b2a5" target="_blank" rel="noopener noreferrer" className="social-link linkedin">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-              </svg>
-              <span>LinkedIn</span>
-            </a>
-            <a href="https://www.instagram.com/salimuddin_shaikh_786" target="_blank" rel="noopener noreferrer" className="social-link instagram">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-              </svg>
-              <span>Instagram</span>
-            </a>
-          </div>
         </div>
 
         {/* Quick Links */}
@@ -108,62 +86,16 @@ export default function Footer() {
               <span className="feature-icon">📱</span>
               <span>Mobile Optimized</span>
             </li>
-            <li className="feature-item">
-              <span className="feature-icon">🌟</span>
-              <span>All Libraries Working</span>
-            </li>
           </ul>
-        </div>
-
-        {/* Tech Stack */}
-        <div className="footer-section">
-          <h4 className="section-title">
-            <span className="title-icon">🛠️</span>
-            Technology
-          </h4>
-          <div className="tech-stack">
-            <div className="tech-category">
-              <h5>Backend</h5>
-              <div className="tech-items">
-                <span className="tech-item">Node.js</span>
-                <span className="tech-item">Sharp</span>
-                <span className="tech-item">FFmpeg</span>
-                <span className="tech-item">Canvas</span>
-              </div>
-            </div>
-            <div className="tech-category">
-              <h5>Frontend</h5>
-              <div className="tech-items">
-                <span className="tech-item">React</span>
-                <span className="tech-item">GSAP</span>
-                <span className="tech-item">Three.js</span>
-                <span className="tech-item">Framer Motion</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Status Bar */}
+      {/* Status Bar - Simplified */}
       <div className="status-bar">
         <div className="status-container">
-          <div className="status-items">
-            <div className="status-item">
-              <div className="status-indicator online"></div>
-              <span>Backend: Online</span>
-            </div>
-            <div className="status-item">
-              <div className="status-indicator online"></div>
-              <span>Frontend: Online</span>
-            </div>
-            <div className="status-item">
-              <div className="status-indicator online"></div>
-              <span>Libraries: 14/14 Working</span>
-            </div>
-          </div>
           <div className="performance-stats">
             <span className="stat">🚀 99.9% Uptime</span>
-            <span className="stat">⚡ < 2s Processing</span>
+            <span className="stat">⚡ &lt; 2s Processing</span>
             <span className="stat">🔒 Zero Data Collection</span>
           </div>
         </div>
@@ -214,37 +146,123 @@ export default function Footer() {
           transform: translateY(0);
         }
 
-        /* Animated Wave Background */
+        /* WAVE ANIMATION FUNCTIONALITY - DETAILED EXPLANATION */
+        
+        /* 
+        HOW THE WAVE ANIMATION WORKS:
+        
+        1. SVG WAVE STRUCTURE:
+           - We create an SVG with a viewBox that defines the coordinate system
+           - The viewBox="0 24 150 28" means: start at x=0, y=24, width=150, height=28
+           - preserveAspectRatio="none" allows the SVG to stretch to fill container
+        
+        2. WAVE PATH DEFINITION:
+           - The <path> element with id="gentle-wave" defines the wave shape
+           - d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z"
+           - This uses SVG path commands:
+             * M = Move to point (-160, 44)
+             * c = Cubic bezier curve (creates smooth wave curves)
+             * s = Smooth cubic bezier (continues the wave pattern)
+             * v = Vertical line to y=44
+             * h = Horizontal line left by 352 units
+             * z = Close path
+        
+        3. ANIMATION TECHNIQUE:
+           - We use multiple <use> elements to reference the same wave path
+           - Each <use> has different x, y offsets and fill colors
+           - This creates layered waves with depth and transparency
+        
+        4. CSS ANIMATION:
+           - The 'move-forever' keyframe moves waves horizontally
+           - translate3d() triggers hardware acceleration for smooth performance
+           - Different animation-delay and duration for each layer creates parallax effect
+        
+        5. PARALLAX EFFECT:
+           - Front waves move faster, back waves move slower
+           - Different opacities create depth perception
+           - Staggered timing makes waves appear to flow naturally
+        */
+
+        /* Wave Container - positioned absolutely at top of footer */
         .footer-waves {
           position: absolute;
           top: 0;
           left: 0;
           width: 100%;
           height: 80px;
-          overflow: hidden;
-          line-height: 0;
+          overflow: hidden;  /* Hides wave parts that extend beyond container */
+          line-height: 0;    /* Removes any unwanted spacing */
         }
 
+        /* SVG Waves Element */
         .waves {
           position: relative;
           width: 100%;
           height: 80px;
-          margin-bottom: -7px;
+          margin-bottom: -7px;  /* Eliminates gap between waves and footer content */
         }
 
+        /* Individual Wave Layer Animation */
         .parallax > use {
           animation: move-forever 25s cubic-bezier(.55,.5,.45,.5) infinite;
+          /* 
+          Animation breakdown:
+          - move-forever: keyframe name (defined below)
+          - 25s: base duration (each layer will have different duration)
+          - cubic-bezier(.55,.5,.45,.5): custom easing for natural wave motion
+          - infinite: animation repeats forever
+          */
         }
 
-        .parallax > use:nth-child(1) { animation-delay: -2s; animation-duration: 7s; }
-        .parallax > use:nth-child(2) { animation-delay: -3s; animation-duration: 10s; }
-        .parallax > use:nth-child(3) { animation-delay: -4s; animation-duration: 13s; }
-        .parallax > use:nth-child(4) { animation-delay: -5s; animation-duration: 20s; }
+        /* Different Animation Timing for Each Wave Layer (creates parallax effect) */
+        .parallax > use:nth-child(1) { 
+          animation-delay: -2s;      /* Starts 2s into animation */
+          animation-duration: 7s;    /* Fastest wave (front layer) */
+        }
+        .parallax > use:nth-child(2) { 
+          animation-delay: -3s; 
+          animation-duration: 10s;   /* Medium speed */
+        }
+        .parallax > use:nth-child(3) { 
+          animation-delay: -4s; 
+          animation-duration: 13s;   /* Slower */
+        }
+        .parallax > use:nth-child(4) { 
+          animation-delay: -5s; 
+          animation-duration: 20s;   /* Slowest wave (back layer) */
+        }
 
+        /* Wave Movement Keyframes */
         @keyframes move-forever {
-          0% { transform: translate3d(-90px,0,0); }
-          100% { transform: translate3d(85px,0,0); }
+          0% { 
+            transform: translate3d(-90px,0,0); /* Start position: 90px left */
+          }
+          100% { 
+            transform: translate3d(85px,0,0);  /* End position: 85px right */
+          }
+          /* 
+          The wave moves from left to right continuously
+          Total movement distance: 175px (-90 to +85)
+          translate3d() uses GPU acceleration for smooth animation
+          Z-axis (third parameter) is 0 - no 3D transformation needed
+          */
         }
+
+        /* 
+        WAVE CUSTOMIZATION TIPS:
+        
+        1. SPEED: Adjust animation-duration values to make waves faster/slower
+        2. COLORS: Change the fill colors in the SVG <use> elements
+        3. HEIGHT: Modify the height values in .footer-waves and .waves
+        4. OPACITY: Adjust the rgba opacity values for more/less transparency
+        5. DIRECTION: Change translate3d values to reverse wave direction
+        6. WAVE SHAPE: Modify the path 'd' attribute to change wave curves
+        
+        PERFORMANCE NOTES:
+        - Using translate3d() instead of translate() for hardware acceleration
+        - will-change property (defined later) tells browser to optimize these elements
+        - SVG is vector-based, so it scales perfectly on all screen sizes
+        */
 
         /* Main Container */
         .footer-container {
@@ -254,7 +272,7 @@ export default function Footer() {
           margin: 0 auto;
           padding: 80px 40px 60px;
           display: grid;
-          grid-template-columns: 2fr 1fr 1fr 1fr;
+          grid-template-columns: 2fr 1fr 1fr;
           gap: 50px;
           align-items: start;
         }
@@ -341,85 +359,6 @@ export default function Footer() {
           max-width: 400px;
         }
 
-        /* Social Links */
-        .social-links {
-          display: flex;
-          gap: 15px;
-          flex-wrap: wrap;
-        }
-
-        .social-link {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px 20px;
-          border-radius: 50px;
-          text-decoration: none;
-          font-weight: 600;
-          font-size: 14px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          position: relative;
-          overflow: hidden;
-        }
-
-        .social-link::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -100%;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-          transition: left 0.5s;
-        }
-
-        .social-link:hover::before {
-          left: 100%;
-        }
-
-        .social-link svg {
-          width: 20px;
-          height: 20px;
-          transition: transform 0.3s ease;
-        }
-
-        .social-link:hover svg {
-          transform: scale(1.2) rotate(5deg);
-        }
-
-        .github {
-          background: linear-gradient(45deg, #333, #24292e);
-          color: white;
-        }
-
-        .github:hover {
-          background: linear-gradient(45deg, #24292e, #000);
-          transform: translateY(-3px);
-          box-shadow: 0 10px 25px rgba(36, 41, 46, 0.4);
-        }
-
-        .linkedin {
-          background: linear-gradient(45deg, #0077b5, #004471);
-          color: white;
-        }
-
-        .linkedin:hover {
-          background: linear-gradient(45deg, #004471, #002d47);
-          transform: translateY(-3px);
-          box-shadow: 0 10px 25px rgba(0, 119, 181, 0.4);
-        }
-
-        .instagram {
-          background: linear-gradient(45deg, #e1306c, #fd1d1d, #fcaf45);
-          color: white;
-        }
-
-        .instagram:hover {
-          background: linear-gradient(45deg, #fd1d1d, #fcaf45, #e1306c);
-          transform: translateY(-3px);
-          box-shadow: 0 10px 25px rgba(225, 48, 108, 0.4);
-        }
-
         /* Section Styles */
         .footer-section {
           position: relative;
@@ -504,45 +443,6 @@ export default function Footer() {
           filter: drop-shadow(0 0 8px currentColor);
         }
 
-        /* Tech Stack */
-        .tech-stack {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-
-        .tech-category h5 {
-          color: #64b5f6;
-          font-size: 14px;
-          font-weight: 600;
-          margin: 0 0 10px 0;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-
-        .tech-items {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .tech-item {
-          background: rgba(100, 181, 246, 0.1);
-          color: #64b5f6;
-          padding: 6px 12px;
-          border-radius: 20px;
-          font-size: 12px;
-          font-weight: 600;
-          border: 1px solid rgba(100, 181, 246, 0.2);
-          transition: all 0.3s ease;
-        }
-
-        .tech-item:hover {
-          background: rgba(100, 181, 246, 0.2);
-          transform: translateY(-2px);
-          box-shadow: 0 5px 15px rgba(100, 181, 246, 0.3);
-        }
-
         /* Status Bar */
         .status-bar {
           background: linear-gradient(135deg, rgba(44, 62, 80, 0.9), rgba(52, 73, 94, 0.9));
@@ -558,55 +458,34 @@ export default function Footer() {
           margin: 0 auto;
           padding: 0 40px;
           display: flex;
-          justify-content: space-between;
+          justify-content: center;
           align-items: center;
           flex-wrap: wrap;
           gap: 20px;
-        }
-
-        .status-items {
-          display: flex;
-          gap: 30px;
-          flex-wrap: wrap;
-        }
-
-        .status-item {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          color: #bdc3c7;
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .status-indicator {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          position: relative;
-        }
-
-        .status-indicator.online {
-          background: #27ae60;
-          box-shadow: 0 0 10px #27ae60;
-          animation: pulse-online 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse-online {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.7; box-shadow: 0 0 20px #27ae60; }
         }
 
         .performance-stats {
           display: flex;
-          gap: 20px;
+          gap: 30px;
           flex-wrap: wrap;
+          justify-content: center;
         }
 
         .stat {
           color: #64b5f6;
-          font-size: 13px;
+          font-size: 15px;
           font-weight: 600;
+          padding: 8px 16px;
+          background: rgba(100, 181, 246, 0.1);
+          border-radius: 25px;
+          border: 1px solid rgba(100, 181, 246, 0.2);
+          transition: all 0.3s ease;
+        }
+
+        .stat:hover {
+          background: rgba(100, 181, 246, 0.2);
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(100, 181, 246, 0.3);
         }
 
         /* Bottom Bar */
@@ -750,10 +629,6 @@ export default function Footer() {
             font-size: 2rem;
           }
 
-          .social-links {
-            justify-content: center;
-          }
-
           .status-container {
             padding: 0 20px;
             flex-direction: column;
@@ -788,13 +663,14 @@ export default function Footer() {
             font-size: 1.8rem;
           }
 
-          .status-items {
+          .performance-stats {
             justify-content: center;
+            gap: 15px;
           }
 
-          .social-link {
-            padding: 10px 16px;
+          .stat {
             font-size: 13px;
+            padding: 6px 12px;
           }
         }
 
@@ -804,7 +680,6 @@ export default function Footer() {
         }
 
         .aio-convert-footer .footer-link,
-        .aio-convert-footer .social-link,
         .aio-convert-footer .scroll-to-top {
           will-change: transform;
         }
