@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getApiUrl } from '../utils/apiConfig.js';
+import { getApiUrl, realAPI } from '../utils/apiConfig.js';
 
 const VideoResults = ({ result, onBack }) => {
   // === Old Railway backend (commented out) ===
@@ -29,8 +29,7 @@ const VideoResults = ({ result, onBack }) => {
 
   const fetchVideoInfo = async () => {
     try {
-      const response = await fetch(getApiUrl(`/api/video/info/${result.videoId}`));
-      const info = await response.json();
+      const info = await realAPI.getVideoInfo(result.videoId);
       setVideoInfo(info);
       
       // Set default end time based on video duration
@@ -51,26 +50,11 @@ const VideoResults = ({ result, onBack }) => {
     setIsConverting(true);
     
     try {
-      const response = await fetch(getApiUrl('/api/video/convert'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          videoId: result.videoId,
-          ...settings
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Conversion failed');
-      }
-
-      const convertedResult = await response.json();
+      const convertedResult = await realAPI.convertVideoToGif(result.videoId, settings);
       setConvertResult(convertedResult);
     } catch (error) {
       console.error('Conversion error:', error);
-      alert('Conversion failed. Please try again.');
+      alert(`Conversion failed: ${error.message}`);
     } finally {
       setIsConverting(false);
     }

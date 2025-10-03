@@ -27,7 +27,7 @@ export default function Header({ currentTool, setCurrentTool }) {
 
       <nav className="main-nav">
         <ul className="nav-links">
-          <li><a href="#" className={`nav-link gif-maker ${currentTool === 'gif-maker' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'gif-maker')}>GIF maker</a></li>
+          <li><a href="#" className={`nav-link gif-maker ${currentTool === 'gif-maker' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'gif-maker')}>Images to GIF</a></li>
           <li><a href="#" className={`nav-link video-to-gif ${currentTool === 'video-to-gif' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'video-to-gif')}>Video to GIF</a></li>
           <li><a href="#" className={`nav-link resize ${currentTool === 'resize' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'resize')}>Resize</a></li>
           <li><a href="#" className={`nav-link rotate ${currentTool === 'rotate' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'rotate')}>Rotate</a></li>

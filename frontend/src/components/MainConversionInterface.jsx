@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
-import { API_CONFIG, validateFile, localAPI, downloadFile } from '../utils/apiConfig.js';
+import { API_CONFIG, validateFile, realAPI, downloadFile } from '../utils/apiConfig.js';
 
 export default function MainConversionInterface({ currentTool, setCurrentTool, loading, setLoading, error, setError }) {
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -133,16 +133,16 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         // Process based on current tool
         switch (currentTool) {
           case 'convert':
-            result = await localAPI.convert(file, 'png', 0.9);
+            result = await realAPI.convert(file, 'png', 0.9);
             break;
           case 'resize':
-            result = await localAPI.resize(file, 800, 600, true);
+            result = await realAPI.resize(file, 800, 600, true);
             break;
           case 'rotate':
-            result = await localAPI.rotate(file, 90);
+            result = await realAPI.rotate(file, 90);
             break;
           case 'add-text':
-            result = await localAPI.addText(file, 'Sample Text', {
+            result = await realAPI.addText(file, 'Sample Text', {
               fontSize: 30,
               color: '#ffffff',
               x: null, // center
@@ -151,20 +151,20 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
             break;
           case 'video-to-gif':
             if (file.type.startsWith('video/')) {
-              result = await localAPI.videoToGif(file, { frameCount: 10 });
+              result = await realAPI.videoToGif(file, { frameCount: 10 });
             } else {
               throw new Error('Video file required for video to GIF conversion');
             }
             break;
           case 'split-gif':
             if (file.type === 'image/gif') {
-              result = await localAPI.splitGif(file);
+              result = await realAPI.splitGif(file);
             } else {
               throw new Error('GIF file required for splitting');
             }
             break;
           default:
-            result = await localAPI.convert(file, 'png', 0.9);
+            result = await realAPI.convert(file, 'png', 0.9);
         }
         
         processedResults.push({

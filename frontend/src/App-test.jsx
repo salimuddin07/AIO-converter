@@ -2,20 +2,11 @@ import React, { useState } from 'react';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import PdfToMarkdownConverter from './components/PdfToMarkdownConverter.jsx';
-import LibraryTest from './components/LibraryTest.jsx';
-import VideoToGifConverter from './components/VideoToGifConverter.jsx';
-import ImageGifMaker from './components/ImageGifMaker.jsx';
-import MainConversionInterface from './components/MainConversionInterface.jsx';
-import ImageEditor from './components/ImageEditor.jsx';
-import ImageEditorWithUpload from './components/ImageEditorWithUpload.jsx';
-import WebPConverter from './components/WebPConverter.jsx';
-import GifSplitter from './components/GifSplitter.jsx';
-import AddText from './components/AddText.jsx';
-import { NotificationService } from './utils/NotificationService.js';
-import './aio-convert-style.css';
 
 export default function App() {
   const [currentTool, setCurrentTool] = useState('home');
+
+  console.log('App rendering, currentTool:', currentTool);
 
   return (
     <div className="app">
@@ -25,40 +16,8 @@ export default function App() {
       />
       
       <main className="main-content">
-        {currentTool === 'library-test' ? (
-          <LibraryTest />
-        ) : currentTool === 'pdf-to-md' ? (
+        {currentTool === 'pdf-to-md' ? (
           <PdfToMarkdownConverter />
-        ) : currentTool === 'gif-maker' ? (
-          <ImageGifMaker />
-        ) : currentTool === 'video-to-gif' ? (
-          <VideoToGifConverter />
-        ) : currentTool === 'image-converter' ? (
-          <MainConversionInterface />
-        ) : currentTool === 'image-editor' ? (
-          <ImageEditorWithUpload tool="edit" />
-        ) : currentTool === 'resize' ? (
-          <ImageEditorWithUpload tool="resize" />
-        ) : currentTool === 'rotate' ? (
-          <ImageEditorWithUpload tool="rotate" />
-        ) : currentTool === 'crop' ? (
-          <ImageEditorWithUpload tool="crop" />
-        ) : currentTool === 'optimize' ? (
-          <MainConversionInterface />
-        ) : currentTool === 'effects' ? (
-          <ImageEditorWithUpload tool="effects" />
-        ) : currentTool === 'split' ? (
-          <GifSplitter />
-        ) : currentTool === 'add-text' ? (
-          <AddText />
-        ) : currentTool === 'webp-maker' ? (
-          <WebPConverter />
-        ) : currentTool === 'apng-maker' ? (
-          <MainConversionInterface />
-        ) : currentTool === 'avif-converter' ? (
-          <MainConversionInterface />
-        ) : currentTool === 'jxl-converter' ? (
-          <MainConversionInterface />
         ) : (
           <div className="welcome-section">
             <div className="container">
@@ -66,52 +25,31 @@ export default function App() {
               <p className="lead">Convert, resize, and optimize your media files - 100% locally processed!</p>
               
               <div className="tool-grid">
-                <div className="tool-card" onClick={() => setCurrentTool('library-test')}>
+                <div className="tool-card" onClick={() => {
+                  console.log('Clicked library-test');
+                  setCurrentTool('library-test');
+                }}>
                   <div className="tool-icon">🧪</div>
                   <h3>Library Test</h3>
                   <p>Test frontend animation libraries</p>
                 </div>
                 
-                <div className="tool-card" onClick={() => setCurrentTool('gif-maker')}>
+                <div className="tool-card" onClick={() => {
+                  console.log('Clicked gif-maker');
+                  setCurrentTool('gif-maker');
+                }}>
                   <div className="tool-icon">🖼️</div>
                   <h3>GIF Maker</h3>
                   <p>Combine images into animated GIFs</p>
                 </div>
                 
-                <div className="tool-card" onClick={() => setCurrentTool('image-converter')}>
-                  <div className="tool-icon">🔄</div>
-                  <h3>Image Converter</h3>
-                  <p>Convert between image formats</p>
-                </div>
-                
-                <div className="tool-card" onClick={() => setCurrentTool('pdf-to-md')}>
+                <div className="tool-card" onClick={() => {
+                  console.log('Clicked pdf-to-md');
+                  setCurrentTool('pdf-to-md');
+                }}>
                   <div className="tool-icon">📄</div>
                   <h3>PDF to Markdown</h3>
                   <p>Convert PDF documents to Markdown</p>
-                </div>
-                
-                <div className="tool-card" onClick={() => setCurrentTool('image-editor')}>
-                  <div className="tool-icon">✏️</div>
-                  <h3>Image Editor</h3>
-                  <p>Resize, crop, and edit images</p>
-                </div>
-                
-                <div className="tool-card" onClick={() => setCurrentTool('split')}>
-                  <div className="tool-icon">✂️</div>
-                  <h3>GIF Splitter</h3>
-                  <p>Extract frames from GIFs</p>
-                </div>
-                
-                <div className="tool-card" onClick={() => setCurrentTool('add-text')}>
-                  <div className="tool-icon">📝</div>
-                  <h3>Add Text</h3>
-                  <p>Add text overlays to images</p>
-                </div>
-                
-                <div className="tool-card" onClick={() => setCurrentTool('webp-maker')}>
-                  <div className="tool-icon">🖼️</div>
-                  <h3>WebP Converter</h3>
-                  <p>Convert to/from WebP format</p>
                 </div>
               </div>
               

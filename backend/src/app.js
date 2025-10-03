@@ -2,19 +2,19 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-// import errorHandler from './middleware/errorHandler.js';
+import errorHandler from './middleware/ErrorHandler.js';
 import { ensureDirectories } from './utils/FilePathUtils.js';
 
-// Import routes - temporarily commented to test basic functionality
+// Import routes
 import convertRouter from './routes/ConversionRoutes.js';
-// import splitRouter from './routes/SplitRoutes.js';
-// import videoRouter from './routes/VideoRoutes.js';
-// import textRouter from './routes/TextRoutes.js';
-// import aiRouter from './routes/AiRoutes.js';
-// import filesRouter from './routes/FileRoutes.js';
-// import webpRouter from './routes/WebpRoutes.js';
-// import enhancedGifRouter from './routes/EnhancedGifRoutes.js';
-// import modernFormatRouter from './routes/ModernFormatRoutes.js';
+import splitRouter from './routes/SplitRoutes.js';
+import videoRouter from './routes/VideoRoutes.js';
+import textRouter from './routes/TextRoutes.js';
+import aiRouter from './routes/AiRoutes.js';
+import filesRouter from './routes/FileRoutes.js';
+import webpRouter from './routes/WebpRoutes.js';
+import enhancedGifRouter from './routes/EnhancedGifRoutes.js';
+import modernFormatRouter from './routes/ModernFormatRoutes.js';
 
 const app = express();
 
@@ -71,16 +71,16 @@ app.get('/api/webp-info', (_req, res) => {
   });
 });
 
-// Temporarily disable API routes for testing
+// Enable all API routes
 app.use('/api/convert', convertRouter);
-// app.use('/api/split', splitRouter);
-// app.use('/api/video', videoRouter);
-// app.use('/api/text', textRouter);
-// app.use('/api/ai', aiRouter);
-// app.use('/api/files', filesRouter);
-// app.use('/api/webp', webpRouter);
-// app.use('/api/enhanced-gif', enhancedGifRouter);
-// app.use('/api/modern', modernFormatRouter);
+app.use('/api/split', splitRouter);
+app.use('/api/video', videoRouter);
+app.use('/api/text', textRouter);
+app.use('/api/ai', aiRouter);
+app.use('/api/files', filesRouter);
+app.use('/api/webp', webpRouter);
+app.use('/api/enhanced-gif', enhancedGifRouter);
+app.use('/api/modern', modernFormatRouter);
 
 // Serve converted files statically
 const __filename = fileURLToPath(import.meta.url);
@@ -100,7 +100,7 @@ app.use((err, _req, res, next) => {
   return next(err);
 });
 
-// Temporarily disable error handling
-// app.use(errorHandler);
+// Enable error handling
+app.use(errorHandler);
 
 export default app;

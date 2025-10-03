@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ProgressVisualization from './ProgressVisualization.jsx';
 import { colors, colorVariations, buttonStyles } from '../utils/polishedHelpers.js';
-import NotificationService from '../utils/NotificationService.js';
+import { NotificationService } from '../utils/NotificationService.js';
 
 export default function HomePage({ onNavigate }) {
   const [featuredStats, setFeaturedStats] = useState({

@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import VideoResults from './VideoResults';
+import { realAPI } from '../utils/apiConfig.js';
 
 const VideoToGifConverter = () => {
   const [file, setFile] = useState(null);
@@ -30,14 +31,13 @@ const VideoToGifConverter = () => {
   };
 
   const handleFileSelect = (selectedFile) => {
-    // Validate file type
-    const validTypes = ['video/mp4', 'video/webm', 'video/avi', 'video/quicktime', 'video/x-msvideo', 'video/x-flv', 'video/ogg', 'video/x-ms-wmv', 'video/3gpp'];
-    if (!validTypes.includes(selectedFile.type)) {
-      alert('Please select a valid video file (MP4, WebM, AVI, MOV, FLV, OGG, WMV, 3GP)');
+    const isVideo = selectedFile.type.startsWith('video/');
+
+    if (!isVideo) {
+      alert('Please select a supported video file (MP4, WebM, AVI, MOV, etc.) to create GIFs');
       return;
     }
 
-    // Check file size (200MB limit)
     if (selectedFile.size > 209715200) {
       alert('The file you are trying to upload is too large for us to process! Max file size is 200 MB');
       return;
@@ -67,7 +67,7 @@ const VideoToGifConverter = () => {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
   }, []);
@@ -81,30 +81,27 @@ const VideoToGifConverter = () => {
     }
 
     setIsUploading(true);
-    const formData = new FormData();
     
-    if (file) {
-      formData.append('video', file);
-    } else if (url) {
-      formData.append('url', url);
-    }
-
     try {
-      const base = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
-      const response = await fetch(`${base}/api/video/upload`, {
-        method: 'POST',
-        body: formData
-      });
+      let result;
+      
+      if (file) {
+        const isVideo = file.type.startsWith('video/');
+        
+        if (!isVideo) {
+          throw new Error('Selected file is not a video. Please choose a supported video file.');
+        }
 
-      if (!response.ok) {
-        throw new Error('Upload failed');
+        result = await realAPI.videoToGif(file);
+      } else if (url) {
+        // For URL upload
+        result = await realAPI.uploadVideoFromUrl(url);
       }
-
-      const result = await response.json();
+      
       setUploadResult(result);
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload failed. Please try again.');
+      alert(`Upload failed: ${error.message}`);
     } finally {
       setIsUploading(false);
     }
@@ -116,7 +113,7 @@ const VideoToGifConverter = () => {
 
   return (
     <div id="main">
-      <h1>MP4 video to GIF converter</h1>
+  <h1>Video to GIF Converter</h1>
       
       <form 
         className="form" 
@@ -159,7 +156,8 @@ const VideoToGifConverter = () => {
           </p>
           
           <p>
-            MP4, WebM, AVI, MPEG, MKV, FLV, OGG, MOV, M4V, WMV, ASF, 3GP and other video files<br />
+            <strong>Supported files:</strong><br />
+            • Videos: MP4, WebM, AVI, MPEG, MKV, FLV, OGG, MOV, M4V, WMV, ASF, 3GP<br />
             Max file size: 200MB
           </p>
           
