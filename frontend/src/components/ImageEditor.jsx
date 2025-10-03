@@ -7,13 +7,18 @@ const ImageEditor = ({
   width = 800, 
   height = 600, 
   onSave,
-  tools = ['text', 'draw', 'crop', 'filters']
+  tools = ['text', 'draw', 'crop', 'filters'],
+  defaultTool = 'text'
 }) => {
   const stageRef = useRef();
   const layerRef = useRef();
   const transformerRef = useRef();
+  const pathRef = useRef([]);
   const [image, setImage] = useState(null);
-  const [selectedTool, setSelectedTool] = useState('text');
+  const [selectedTool, setSelectedTool] = useState(defaultTool);
+  useEffect(() => {
+    setSelectedTool(defaultTool);
+  }, [defaultTool]);
   const [selectedElement, setSelectedElement] = useState(null);
   const [elements, setElements] = useState([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -27,41 +32,74 @@ const ImageEditor = ({
     fontWeight: 'normal',
     fontStyle: 'normal'
   });
+  const [canvasSize, setCanvasSize] = useState({ width, height });
 
   useEffect(() => {
-    if (imageUrl) {
-      const img = new window.Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        setImage(img);
-      };
-      img.src = imageUrl;
+    if (selectedTool !== 'select' && transformerRef.current) {
+      transformerRef.current.nodes([]);
+      transformerRef.current.getLayer().batchDraw();
     }
-  }, [imageUrl]);
+  }, [selectedTool]);
 
-  const handleStageClick = (e) => {
-    const clickedOnEmpty = e.target === e.target.getStage();
-    
-    if (clickedOnEmpty) {
-      setSelectedElement(null);
+  useEffect(() => {
+    if (!imageUrl) {
+      setImage(null);
+      setCanvasSize({ width, height });
       return;
     }
 
-    if (selectedTool === 'text' && clickedOnEmpty) {
-      addText(e.evt.offsetX, e.evt.offsetY);
+    const img = new window.Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      setImage(img);
+      const maxDimension = 1200;
+      const scale = Math.min(maxDimension / img.width, maxDimension / img.height, 1);
+      setCanvasSize({
+        width: Math.max(200, Math.round(img.width * scale)),
+        height: Math.max(200, Math.round(img.height * scale))
+      });
+    };
+    img.onerror = () => {
+      setImage(null);
+      setCanvasSize({ width, height });
+    };
+    img.src = imageUrl;
+
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [imageUrl, width, height]);
+
+  const handleStageClick = (event) => {
+    const stage = event.target.getStage();
+    const clickedOnEmpty = event.target === stage;
+    const pointer = stage.getPointerPosition();
+
+    if (selectedTool === 'text' && pointer && clickedOnEmpty) {
+      addText(pointer.x, pointer.y);
+      return;
+    }
+
+    if (clickedOnEmpty) {
+      setSelectedElement(null);
+      if (transformerRef.current) {
+        transformerRef.current.nodes([]);
+        transformerRef.current.getLayer().batchDraw();
+      }
     }
   };
 
   const addText = (x, y) => {
     const newText = {
-      id: Date.now(),
+      id: `text-${Date.now()}`,
       type: 'text',
       x: x,
       y: y,
       text: 'Double click to edit',
       ...textConfig
     };
-    setElements([...elements, newText]);
+    setElements((prev) => [...prev, newText]);
   };
 
   const handleTextDblClick = (id) => {
@@ -70,7 +108,7 @@ const ImageEditor = ({
 
     const newText = prompt('Enter text:', text.text);
     if (newText !== null) {
-      setElements(elements.map(el => 
+      setElements(prev => prev.map(el => 
         el.id === id ? { ...el, text: newText } : el
       ));
     }
@@ -80,7 +118,11 @@ const ImageEditor = ({
     if (selectedTool === 'draw') {
       setIsDrawing(true);
       const pos = e.target.getStage().getPointerPosition();
-      setCurrentPath([pos.x, pos.y]);
+      if (pos) {
+        const initialPath = [pos.x, pos.y];
+        pathRef.current = initialPath;
+        setCurrentPath(initialPath);
+      }
     }
   };
 
@@ -89,28 +131,36 @@ const ImageEditor = ({
 
     const stage = e.target.getStage();
     const point = stage.getPointerPosition();
-    setCurrentPath([...currentPath, point.x, point.y]);
+    if (point) {
+      const updatedPath = [...pathRef.current, point.x, point.y];
+      pathRef.current = updatedPath;
+      setCurrentPath(updatedPath);
+    }
   };
 
   const handleMouseUp = () => {
     if (selectedTool === 'draw' && isDrawing) {
       const newLine = {
-        id: Date.now(),
+        id: `line-${Date.now()}`,
         type: 'line',
-        points: currentPath,
+        points: pathRef.current,
         stroke: brushColor,
         strokeWidth: brushSize,
         tension: 0.5,
         lineCap: 'round',
         lineJoin: 'round'
       };
-      setElements([...elements, newLine]);
+      setElements((prev) => [...prev, newLine]);
       setCurrentPath([]);
+      pathRef.current = [];
       setIsDrawing(false);
     }
   };
 
   const handleElementSelect = (id) => {
+    if (selectedTool !== 'select') {
+      return;
+    }
     setSelectedElement(id);
     const node = stageRef.current.findOne(`#element-${id}`);
     if (node && transformerRef.current) {
@@ -120,14 +170,14 @@ const ImageEditor = ({
   };
 
   const handleElementTransform = (id, newAttrs) => {
-    setElements(elements.map(el => 
+    setElements(prev => prev.map(el => 
       el.id === id ? { ...el, ...newAttrs } : el
     ));
   };
 
   const deleteSelectedElement = () => {
     if (selectedElement) {
-      setElements(elements.filter(el => el.id !== selectedElement));
+      setElements(prev => prev.filter(el => el.id !== selectedElement));
       setSelectedElement(null);
       if (transformerRef.current) {
         transformerRef.current.nodes([]);
@@ -168,7 +218,8 @@ const ImageEditor = ({
   const applyFilter = (filterType) => {
     if (!layerRef.current) return;
 
-    layerRef.current.cache();
+    layerRef.current.clearCache();
+    layerRef.current.cache({ drawBorder: false });
     
     switch (filterType) {
       case 'blur':
@@ -202,6 +253,7 @@ const ImageEditor = ({
         break;
       default:
         layerRef.current.filters([]);
+        layerRef.current.clearCache();
     }
     
     layerRef.current.getLayer().batchDraw();
@@ -422,15 +474,15 @@ const ImageEditor = ({
         background: '#f8f9fa',
         display: 'flex',
         justifyContent: 'center',
-        minHeight: `${height + 32}px`
+        minHeight: `${canvasSize.height + 32}px`
       }}>
         <Stage
           ref={stageRef}
-          width={width}
-          height={height}
+          width={canvasSize.width}
+          height={canvasSize.height}
           onMouseDown={handleMouseDown}
-          onMousemove={handleMouseMove}
-          onMouseup={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
           onClick={handleStageClick}
           style={{ 
             background: 'white',
@@ -443,8 +495,8 @@ const ImageEditor = ({
             {image && (
               <KonvaImage
                 image={image}
-                width={width}
-                height={height}
+                width={canvasSize.width}
+                height={canvasSize.height}
                 listening={false}
               />
             )}

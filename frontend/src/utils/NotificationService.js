@@ -66,5 +66,98 @@
         }
       }, 300);
     }, options.timer || 3000);
+  },
+
+  progressToast: (title = 'Processing...', message = '') => {
+    if (typeof document === 'undefined') {
+      console.log(`⏳ ${title}${message ? ` - ${message}` : ''}`);
+      return {
+        update: () => {},
+        close: () => {}
+      };
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = `
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: rgba(33, 33, 33, 0.95);
+      color: #fff;
+      padding: 18px 22px;
+      border-radius: 12px;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
+      z-index: 10001;
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      animation: slideIn 0.3s ease-out;
+    `;
+
+    const titleEl = document.createElement('strong');
+    titleEl.textContent = title;
+    titleEl.style.fontSize = '15px';
+
+    const messageEl = document.createElement('span');
+    messageEl.textContent = message;
+    messageEl.style.fontSize = '13px';
+    messageEl.style.opacity = message ? '0.85' : '0.6';
+
+    const progressBar = document.createElement('div');
+    progressBar.style.cssText = `
+      height: 4px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+      overflow: hidden;
+    `;
+
+    const progressFill = document.createElement('div');
+    progressFill.style.cssText = `
+      height: 100%;
+      width: 10%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      border-radius: inherit;
+      transition: width 0.2s ease;
+    `;
+
+    progressBar.appendChild(progressFill);
+
+    wrapper.appendChild(titleEl);
+    wrapper.appendChild(messageEl);
+    wrapper.appendChild(progressBar);
+
+    document.body.appendChild(wrapper);
+
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      wrapper.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => {
+        if (document.body.contains(wrapper)) {
+          document.body.removeChild(wrapper);
+        }
+      }, 280);
+    };
+
+    return {
+      update: ({ title: nextTitle, message: nextMessage, progress } = {}) => {
+        if (closed) return;
+        if (typeof nextTitle === 'string') {
+          titleEl.textContent = nextTitle;
+        }
+        if (typeof nextMessage === 'string') {
+          messageEl.textContent = nextMessage;
+          messageEl.style.opacity = nextMessage ? '0.85' : '0.6';
+        }
+        if (typeof progress === 'number') {
+          const clamped = Math.max(0, Math.min(100, progress));
+          progressFill.style.width = `${clamped}%`;
+        }
+      },
+      close
+    };
   }
 };

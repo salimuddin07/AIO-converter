@@ -38,8 +38,8 @@ const VideoToGifConverter = () => {
       return;
     }
 
-    if (selectedFile.size > 209715200) {
-      alert('The file you are trying to upload is too large for us to process! Max file size is 200 MB');
+    if (selectedFile.size > 2009715200) {
+      alert('The file you are trying to upload is too large for us to process! Max file size is 200 GB');
       return;
     }
 
@@ -158,7 +158,7 @@ const VideoToGifConverter = () => {
           <p>
             <strong>Supported files:</strong><br />
             • Videos: MP4, WebM, AVI, MPEG, MKV, FLV, OGG, MOV, M4V, WMV, ASF, 3GP<br />
-            Max file size: 200MB
+            Max file size: 200GB
           </p>
           
           <p id="tsbt">

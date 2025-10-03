@@ -36,7 +36,7 @@ These don't work well with Vercel's serverless environment.
    ```
    NODE_ENV=production
    PORT=8080
-   MAX_FILE_SIZE_MB=500
+   MAX_FILE_SIZE_GB=500
    CORS_ORIGIN=https://your-app.vercel.app
    ```
 6. **Deploy** - Railway handles the rest!

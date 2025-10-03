@@ -60,7 +60,7 @@ const WebPConverter = () => {
       ? { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff'] }
       : { 'image/webp': ['.webp'] },
     multiple: true,
-    maxSize: 50 * 1024 * 1024 // 50MB
+    maxSize: 50 * 1024 * 1024 // 50GB
   });
 
   // File management
@@ -222,7 +222,7 @@ const WebPConverter = () => {
             Supported: {activeTab === 'convert-to-webp' 
               ? 'JPG, PNG, GIF, BMP, TIFF' 
               : 'WebP files only'
-            } • Max 50MB per file
+            } • Max 50GB per file
           </p>
         </div>
       </div>

@@ -31,7 +31,7 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage,
   limits: {
-    fileSize: 500 * 1024 * 1024 // 500MB limit
+    fileSize: 500 * 1024 * 1024 // 500GB limit
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
@@ -152,19 +152,58 @@ router.post('/images-to-gif', upload.array('images', 50), async (req, res) => {
       quality = 'high',
       width,
       height,
-      loop = true
+      loop = true,
+      delay,
+      loopCount,
+      frameDelays,
+      fit
     } = req.body;
 
     console.log(`Creating GIF from ${req.files.length} images`);
 
     const imagePaths = req.files.map(file => file.path);
     
+    const parsedDelay = delay !== undefined && delay !== null && delay !== ''
+      ? parseInt(delay, 10)
+      : null;
+    const sanitizedDelay = Number.isNaN(parsedDelay) ? null : parsedDelay;
+
+    const parsedLoopCount = loopCount !== undefined && loopCount !== null && loopCount !== '' && loopCount !== 'infinite'
+      ? parseInt(loopCount, 10)
+      : null;
+    const sanitizedLoopCount = Number.isNaN(parsedLoopCount) ? null : parsedLoopCount;
+
+    let parsedFrameDelays = [];
+    if (frameDelays) {
+      try {
+        const raw = JSON.parse(frameDelays);
+        if (Array.isArray(raw)) {
+          parsedFrameDelays = raw.map((value) => {
+            const numeric = parseInt(value, 10);
+            if (Number.isNaN(numeric)) {
+              return null;
+            }
+            return Math.max(10, Math.min(2000, numeric));
+          });
+        }
+      } catch (parseError) {
+        console.warn('Unable to parse frameDelays payload:', parseError.message);
+      }
+    }
+
+    const allowedFits = new Set(['contain', 'cover', 'fill']);
+    const sanitizedFit = allowedFits.has(fit) ? fit : undefined;
+
     const result = await enhancedGifProcessor.imagesToGif(imagePaths, {
       fps: parseInt(fps),
       quality,
       width: width ? parseInt(width) : null,
       height: height ? parseInt(height) : null,
-      loop: loop === 'true' || loop === true
+      loop: loop === 'true' || loop === true,
+      delay: sanitizedDelay,
+      loopCount: sanitizedLoopCount,
+      frameDelays: parsedFrameDelays,
+      fit: sanitizedFit
     });
 
     // Clean up uploaded files

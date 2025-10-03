@@ -73,7 +73,7 @@ frontend/
 
 ## Validation Rules
 - Supported extensions: .png .jpg .jpeg .gif .svg .bmp .tiff
-- Max per-file size: 10 MB (configurable: `MAX_FILE_SIZE_MB`).
+- Max per-file size: 10GB (configurable: `MAX_FILE_SIZE_GB`).
 - Max batch count: 30 files.
 - Reject if any file invalid; return structured error JSON `{error: {code, message, details[]}}`.
 
@@ -90,7 +90,7 @@ frontend/
 - Limit MIME sniffing by reading initial file bytes.
 - Rate limiting & API keys when auth added.
 - Sanitize file names; no user-controlled path segments.
-- Consider streaming large files; currently buffer-based approach acceptable (<10MB).
+- Consider streaming large files; currently buffer-based approach acceptable (<10GB).
 
 ## Future Enhancements
 - Resize/crop parameters (width, height, fit) via query/body.
@@ -103,7 +103,7 @@ frontend/
 | Name | Default | Purpose |
 |------|---------|---------|
 | PORT | 4000 | HTTP server port |
-| MAX_FILE_SIZE_MB | 10 | Upload size limit per file |
+| MAX_FILE_SIZE_GB | 10 | Upload size limit per file |
 | CLEANUP_INTERVAL_CRON | */15 * * * * | Cron schedule for cleanup |
 | FILE_TTL_MINUTES | 30 | Minutes before temp/output deletion |
 | JPEG_QUALITY | 80 | JPEG output quality setting |

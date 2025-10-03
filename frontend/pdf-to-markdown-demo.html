@@ -354,7 +354,7 @@
         <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
             <div class="upload-icon">📁</div>
             <h3>Drop your PDF here or click to browse</h3>
-            <p>Maximum file size: 25MB • Supports text-based PDFs</p>
+            <p>Maximum file size: 25GB • Supports text-based PDFs</p>
             <button class="browse-btn" type="button">Choose PDF File</button>
         </div>
 
@@ -365,7 +365,7 @@
                 <div class="file-icon">📄</div>
                 <div class="file-meta">
                     <h4 id="fileName">document.pdf</h4>
-                    <p id="fileSize">0 MB</p>
+                    <p id="fileSize">0 GB</p>
                 </div>
             </div>
             
@@ -469,7 +469,7 @@
             }
 
             if (file.size > 25 * 1024 * 1024) {
-                showError('File too large. Maximum 25MB allowed.');
+                showError('File too large. Maximum 25GB allowed.');
                 return;
             }
 
@@ -477,7 +477,7 @@
             
             // Show file info
             document.getElementById('fileName').textContent = file.name;
-            document.getElementById('fileSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+            document.getElementById('fileSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' GB';
             
             // Hide upload zone and show file info
             document.querySelector('.upload-zone').style.display = 'none';

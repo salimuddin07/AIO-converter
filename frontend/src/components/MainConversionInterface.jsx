@@ -10,6 +10,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   const [urlInput, setUrlInput] = useState('');
   const [showEnhancedGifCreator, setShowEnhancedGifCreator] = useState(false);
   const [showApiTest, setShowApiTest] = useState(false);
+  const activeTool = typeof currentTool === 'string' && currentTool.trim() ? currentTool : 'home';
 
   const toolCategories = {
     'Basic Tools': [
@@ -131,7 +132,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         let result;
         
         // Process based on current tool
-        switch (currentTool) {
+        switch (activeTool) {
           case 'convert':
             result = await realAPI.convert(file, 'png', 0.9);
             break;
@@ -171,7 +172,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
           originalName: file.name,
           processedFile: result.file,
           downloadUrl: result.url,
-          type: currentTool
+          type: activeTool
         });
       }
       
@@ -192,7 +193,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   };
 
   const renderToolInterface = () => {
-    if (currentTool === 'home') {
+  if (activeTool === 'home') {
       return (
         <div className="tool-grid">
           {Object.entries(toolCategories).map(([category, tools]) => (
@@ -230,7 +231,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       );
     }
 
-    if (currentTool === 'webp') {
+  if (activeTool === 'webp') {
       return (
         <div className="specialized-tool">
           <div className="tool-header">
@@ -256,7 +257,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
           >
             ← Back to Tools
           </button>
-          <h2>{currentTool.charAt(0).toUpperCase() + currentTool.slice(1)} Tool</h2>
+          <h2>{activeTool.charAt(0).toUpperCase() + activeTool.slice(1)} Tool</h2>
         </div>
 
         <div className="upload-area"
@@ -290,7 +291,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
                   <div key={index} className="file-item">
                     <span>{file.name}</span>
                     <span className="file-size">
-                      {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'URL'}
+                      {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} GB` : 'URL'}
                     </span>
                   </div>
                 ))}
@@ -321,7 +322,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
             onClick={processFiles}
             disabled={loading || (selectedFiles.length === 0 && !urlInput.trim())}
           >
-            {loading ? 'Processing...' : `Process with ${currentTool}`}
+            {loading ? 'Processing...' : `Process with ${activeTool}`}
           </button>
         </div>
 
@@ -353,7 +354,7 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
                     <p className="process-type">Tool: {result.type}</p>
                     <p className="file-size">
                       {result.processedFile?.size 
-                        ? `${(result.processedFile.size / 1024 / 1024).toFixed(2)} MB` 
+                        ? `${(result.processedFile.size / 1024 / 1024).toFixed(2)} GB` 
                         : ''
                       }
                     </p>

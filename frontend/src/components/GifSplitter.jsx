@@ -43,8 +43,8 @@ export default function GifSplitter() {
       return;
     }
     
-    if (file && file.size > 209715200) { // 200MB limit
-      setError('The file you are trying to upload is too large! Max file size is 200 MB');
+    if (file && file.size > 2009715200) { // 200GB limit
+      setError('The file you are trying to upload is too large! Max file size is 200 GB');
       return;
     }
 
@@ -125,7 +125,7 @@ export default function GifSplitter() {
           
           <p>
             Supported image types: animated GIF, WebP, APNG, MNG, AVIF, JXL (JPEG XL)<br/>
-            Max file size: 200MB
+            Max file size: 200GB
           </p>
           
           <p>

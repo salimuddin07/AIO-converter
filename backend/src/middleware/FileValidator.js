@@ -2,7 +2,7 @@ import path from 'path';
 import { createError } from './ErrorHandler.js';
 import { config, supportedExtensions } from '../config/index.js';
 
-const MAX_BYTES = config.maxFileSizeMB * 1024 * 1024;
+const MAX_BYTES = config.maxFileSizeGB * 1024 * 1024;
 const MAX_COUNT = config.maxBatchCount;
 
 export default function validateFiles(req, _res, next) {
@@ -17,7 +17,7 @@ export default function validateFiles(req, _res, next) {
   files.forEach(f => {
     const ext = path.extname(f.originalname).toLowerCase();
   if (!supportedExtensions.includes(ext)) problems.push(`${f.originalname}: unsupported format`);
-  if (f.size > MAX_BYTES) problems.push(`${f.originalname}: exceeds ${config.maxFileSizeMB}MB`);
+  if (f.size > MAX_BYTES) problems.push(`${f.originalname}: exceeds ${config.maxFileSizeGB}GB`);
   });
   if (problems.length) {
     return next(createError('Validation failed', 400, 'VALIDATION_ERROR', problems));

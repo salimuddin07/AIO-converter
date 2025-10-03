@@ -236,7 +236,7 @@ Create `.env` files in both backend and frontend directories:
 NODE_ENV=development
 PORT=3001
 OPENAI_API_KEY=your_openai_key_here
-MAX_FILE_SIZE_MB=500
+MAX_FILE_SIZE_GB=500
 MAX_BATCH_COUNT=20
 ```
 
@@ -448,7 +448,7 @@ VITE_MAX_FILE_SIZE=500
 ```env
 NODE_ENV=development
 PORT=3003
-MAX_FILE_SIZE_MB=500
+MAX_FILE_SIZE_GB=500
 MAX_BATCH_COUNT=20
 OPENAI_API_KEY=your_openai_key_here
 CORS_ORIGIN=http://localhost:3001
@@ -458,7 +458,7 @@ CORS_ORIGIN=http://localhost:3001
 ```env
 NODE_ENV=production
 PORT=8080
-MAX_FILE_SIZE_MB=500
+MAX_FILE_SIZE_GB=500
 MAX_BATCH_COUNT=20
 OPENAI_API_KEY=your_openai_key_here
 CORS_ORIGIN=https://your-frontend-url.vercel.app
@@ -693,7 +693,7 @@ PORT=4000
 NODE_ENV=development
 
 # File Processing
-MAX_FILE_SIZE_MB=500
+MAX_FILE_SIZE_GB=500
 MAX_BATCH_COUNT=50
 TEMP_DIR=./temp
 OUTPUT_DIR=./output
