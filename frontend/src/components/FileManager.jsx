@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Sortable from 'sortablejs';
 import { colorVariations } from '../utils/polishedHelpers';
-import NotificationService from '../utils/NotificationService';
+import { NotificationService } from '../utils/NotificationService.js';
 
 const FileManager = ({ 
   files = [], 

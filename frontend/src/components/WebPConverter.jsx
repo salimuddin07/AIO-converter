@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { NotificationService } from '../utils/NotificationService';
+import { NotificationService } from '../utils/NotificationService.js';
+import { realAPI, downloadFile } from '../utils/apiConfig';
 import '../aio-convert-style.css';
 
 const WebPConverter = () => {
@@ -104,28 +105,14 @@ const WebPConverter = () => {
     setConversionProgress(0);
 
     try {
-      const formData = new FormData();
-      files.forEach(fileObj => {
-        if (activeTab === 'convert-to-webp') {
-          formData.append('images', fileObj.file);
-        } else {
-          formData.append('webp_files', fileObj.file);
-        }
-      });
-
-      // Add conversion settings
-      Object.entries(conversionSettings).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-
-      const endpoint = activeTab === 'convert-to-webp' ? '/api/webp/convert' : '/api/webp/decode';
+      const fileObjects = files.map(f => f.file);
+      let result;
       
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        body: formData
-      });
-
-      const result = await response.json();
+      if (activeTab === 'convert-to-webp') {
+        result = await realAPI.convertToWebp(fileObjects, conversionSettings);
+      } else {
+        result = await realAPI.decodeWebp(fileObjects, conversionSettings);
+      }
 
       if (result.success) {
         setConversionResults(result);
@@ -157,24 +144,17 @@ const WebPConverter = () => {
   const downloadAllAsZip = async () => {
     if (!conversionResults?.zipDownload) {
       // Create ZIP on demand
-      const formData = new FormData();
-      files.forEach(fileObj => {
-        formData.append(activeTab === 'convert-to-webp' ? 'images' : 'webp_files', fileObj.file);
-      });
-      
-      Object.entries(conversionSettings).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-      formData.append('downloadAsZip', 'true');
+      const fileObjects = files.map(f => f.file);
+      const zipSettings = { ...conversionSettings, downloadAsZip: 'true' };
 
       try {
-        const endpoint = activeTab === 'convert-to-webp' ? '/api/webp/convert' : '/api/webp/decode';
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          body: formData
-        });
+        let result;
+        if (activeTab === 'convert-to-webp') {
+          result = await realAPI.convertToWebp(fileObjects, zipSettings);
+        } else {
+          result = await realAPI.decodeWebp(fileObjects, zipSettings);
+        }
         
-        const result = await response.json();
         if (result.success && result.zipDownload) {
           downloadFile(result.zipDownload.downloadUrl, result.zipDownload.filename);
         }

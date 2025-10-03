@@ -25,7 +25,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-dropzone": "^14.3.8",
-    "react-konva": "^19.0.10",
+    "react-konva": "^18.2.14",
     "sortablejs": "^1.15.6",
     "sweetalert2": "^11.23.0",
     "three": "^0.180.0",

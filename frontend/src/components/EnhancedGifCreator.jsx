@@ -6,8 +6,8 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
-import NotificationService from '../utils/NotificationService.js';
-import { getApiUrl } from '../utils/apiConfig.js';
+import { NotificationService } from '../utils/NotificationService.js';
+import { realAPI, getApiUrl } from '../utils/apiConfig.js';
 
 export default function EnhancedGifCreator({ onClose }) {
   const [activeTab, setActiveTab] = useState('video');
@@ -76,34 +76,23 @@ export default function EnhancedGifCreator({ onClose }) {
     );
 
     try {
-      const formData = new FormData();
+      let result;
       
       if (activeTab === 'video') {
-        formData.append('video', files[0]);
+        // Prepare video options
+        const videoOptions = {
+          startTime: options.startTime,
+          duration: options.duration,
+          fps: options.fps,
+          quality: options.quality,
+          optimization: options.optimization
+        };
         
-        // Add video-specific options
-        formData.append('startTime', options.startTime);
-        formData.append('duration', options.duration);
-        formData.append('fps', options.fps);
-        formData.append('quality', options.quality);
-        formData.append('optimization', options.optimization);
-        
-        if (options.width) formData.append('width', options.width);
-        if (options.height) formData.append('height', options.height);
-        if (options.effects.length > 0) {
-          formData.append('effects', JSON.stringify(options.effects));
-        }
+        if (options.width) videoOptions.width = options.width;
+        if (options.height) videoOptions.height = options.height;
+        if (options.effects.length > 0) videoOptions.effects = options.effects;
 
-        const response = await fetch(getApiUrl('/api/gif/video-to-gif'), {
-          method: 'POST',
-          body: formData
-        });
-
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-
-        const result = await response.json();
+        result = await realAPI.createGifFromVideo(files[0], videoOptions);
         setResult(result);
 
         progressNotification.close();
@@ -122,44 +111,34 @@ export default function EnhancedGifCreator({ onClose }) {
         }, 100);
 
       } else if (activeTab === 'images') {
-        files.forEach((file, index) => {
-          formData.append('images', file);
-        });
+        // Prepare image options
+        const imageOptions = {
+          fps: options.fps,
+          quality: options.quality,
+          loop: 'true'
+        };
         
-        formData.append('fps', options.fps);
-        formData.append('quality', options.quality);
-        formData.append('loop', 'true');
-        
-        if (options.width) formData.append('width', options.width);
-        if (options.height) formData.append('height', options.height);
+        if (options.width) imageOptions.width = options.width;
+        if (options.height) imageOptions.height = options.height;
 
-        const response = await fetch(getApiUrl('/api/gif/images-to-gif'), {
-          method: 'POST',
-          body: formData
-        });
-
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-
-        const result = await response.json();
-        setResult(result);
-
-        progressNotification.close();
-        NotificationService.success('GIF created from images!');
-
-        // Animate result
-        setTimeout(() => {
-          if (resultRef.current) {
-            gsap.from(resultRef.current, {
-              duration: 0.8,
-              scale: 0.8,
-              opacity: 0,
-              ease: 'back.out(1.7)'
-            });
-          }
-        }, 100);
+        result = await realAPI.createGifFromImages(files, imageOptions);
       }
+
+      setResult(result);
+      progressNotification.close();
+      NotificationService.success(activeTab === 'video' ? 'GIF created successfully!' : 'GIF created from images!');
+
+      // Animate result appearance
+      setTimeout(() => {
+        if (resultRef.current) {
+          gsap.from(resultRef.current, {
+            duration: 0.8,
+            scale: 0.8,
+            opacity: 0,
+            ease: 'back.out(1.7)'
+          });
+        }
+      }, 100);
 
     } catch (error) {
       console.error('GIF creation error:', error);

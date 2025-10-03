@@ -1,8 +1,20 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useId } from 'react';
 
-const SUPPORTED = ['image/png','image/jpeg','image/gif','image/svg+xml','image/bmp','image/tiff','video/mp4','video/avi','video/mov','video/webm'];
+const DEFAULT_SUPPORTED = ['image/png','image/jpeg','image/gif','image/svg+xml','image/bmp','image/tiff','video/mp4','video/avi','video/mov','video/webm'];
 
-export default function UploadArea({ onConvert, loading }) {
+export default function UploadArea({ 
+  onConvert, 
+  onFileSelect, 
+  onUrlUpload,
+  loading, 
+  acceptedTypes,
+  maxSize,
+  title,
+  subtitle,
+  isProcessing,
+  variant = 'convert',
+  convertButtonLabel
+}) {
   const [files, setFiles] = useState([]);
   const [targetFormat, setTargetFormat] = useState('gif');
   
@@ -35,18 +47,104 @@ export default function UploadArea({ onConvert, loading }) {
   const [rangeTo, setRangeTo] = useState(5);
 
   const dropRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const inputId = useId();
+  const [statusMessage, setStatusMessage] = useState('');
+
+  const acceptedList = useMemo(() => {
+    if (!acceptedTypes) return DEFAULT_SUPPORTED;
+    if (Array.isArray(acceptedTypes)) return acceptedTypes;
+    if (typeof acceptedTypes === 'string') {
+      return acceptedTypes.split(',').map(type => type.trim()).filter(Boolean);
+    }
+    return DEFAULT_SUPPORTED;
+  }, [acceptedTypes]);
+
+  const normalizedAccepts = useMemo(
+    () => acceptedList.map(type => type.toLowerCase()),
+    [acceptedList]
+  );
+
+  const acceptAttribute = useMemo(() => acceptedList.join(','), [acceptedList]);
+  const maxBytes = useMemo(() => (maxSize ? maxSize * 1024 * 1024 : null), [maxSize]);
+  const isUploadOnly = variant === 'upload';
+  const hasConvertHandler = typeof onConvert === 'function';
+  const showAdvancedControls = hasConvertHandler && !isUploadOnly;
+
+  const fileIsAccepted = useCallback((file) => {
+    if (!normalizedAccepts.length) return true;
+    const fileType = (file.type || '').toLowerCase();
+    const fileName = (file.name || '').toLowerCase();
+
+    return normalizedAccepts.some(pattern => {
+      if (pattern === '*/*') return true;
+      if (pattern.endsWith('/*')) {
+        const prefix = pattern.slice(0, -1);
+        return fileType.startsWith(prefix);
+      }
+      if (pattern.startsWith('.')) {
+        return fileName.endsWith(pattern);
+      }
+      if (pattern.includes('/')) {
+        return fileType === pattern;
+      }
+      // fallback to extension check without leading dot
+      return fileName.endsWith(`.${pattern}`);
+    });
+  }, [normalizedAccepts]);
 
   const handleFiles = useCallback(list => {
     const arr = Array.from(list);
-    const filtered = arr.filter(f => SUPPORTED.includes(f.type) || f.name.endsWith('.svg'));
+    if (!arr.length) return;
+
+    const accepted = [];
+    const rejectedReasons = [];
+
+    arr.forEach(file => {
+      if (!fileIsAccepted(file)) {
+        rejectedReasons.push(`${file.name} has an unsupported type`);
+        return;
+      }
+      if (maxBytes && file.size > maxBytes) {
+        rejectedReasons.push(`${file.name} exceeds the ${maxSize}MB limit`);
+        return;
+      }
+      accepted.push(file);
+    });
+
+    if (rejectedReasons.length) {
+      setStatusMessage(rejectedReasons[0]);
+    } else {
+      setStatusMessage('');
+    }
+
+    if (!accepted.length) {
+      return;
+    }
+
+    if (isUploadOnly) {
+      const nextFile = accepted[0];
+      setFiles(nextFile ? [nextFile] : []);
+      if (nextFile) {
+        setFrameDelays([20]);
+        setEnabledFrames([true]);
+      } else {
+        setFrameDelays([]);
+        setEnabledFrames([]);
+      }
+      if (nextFile && typeof onFileSelect === 'function') {
+        onFileSelect(nextFile);
+      }
+      return;
+    }
+
     setFiles(prev => {
-      const newFiles = [...prev, ...filtered];
-      // Initialize frame controls
+      const newFiles = [...prev, ...accepted];
       setFrameDelays(new Array(newFiles.length).fill(20));
       setEnabledFrames(new Array(newFiles.length).fill(true));
       return newFiles;
     });
-  }, []);
+  }, [fileIsAccepted, isUploadOnly, maxBytes, maxSize, onFileSelect]);
 
   function onDrop(e) {
     e.preventDefault();
@@ -121,36 +219,50 @@ export default function UploadArea({ onConvert, loading }) {
   function submit() {
     if (!files.length) return;
     
-    const enabledFiles = files.filter((_, i) => enabledFrames[i]);
-    const enabledDelays = frameDelays.filter((_, i) => enabledFrames[i]);
+    const enabledFiles = showAdvancedControls
+      ? files.filter((_, i) => enabledFrames[i])
+      : files;
+
+    const enabledDelays = showAdvancedControls
+      ? frameDelays.filter((_, i) => enabledFrames[i])
+      : frameDelays.slice(0, enabledFiles.length);
     
-    onConvert({ 
-      files: enabledFiles, 
-      targetFormat, 
-      gifOptions: {
-        ...gifOptions,
-        frameDelays: enabledDelays
-      }, 
-      videoOptions 
-    });
+    if (hasConvertHandler && showAdvancedControls) {
+      onConvert({ 
+        files: enabledFiles, 
+        targetFormat, 
+        gifOptions: {
+          ...gifOptions,
+          frameDelays: enabledDelays
+        }, 
+        videoOptions 
+      });
+    } else if (typeof onFileSelect === 'function' && enabledFiles.length > 0) {
+      onFileSelect(enabledFiles[0]);
+    }
   }
 
   return (
     <div>
       <h1>
-        {targetFormat === 'gif' ? 'Animated GIF Maker' : 
-         targetFormat === 'svg' ? 'Image to SVG Converter' :
-         targetFormat === 'png' ? 'Image to PNG Converter' :
-         targetFormat === 'jpg' ? 'Image to JPG Converter' :
-         'Image Converter'}
+        {title || (
+          targetFormat === 'gif' ? 'Animated GIF Maker' : 
+          targetFormat === 'svg' ? 'Image to SVG Converter' :
+          targetFormat === 'png' ? 'Image to PNG Converter' :
+          targetFormat === 'jpg' ? 'Image to JPG Converter' :
+          'Image Converter'
+        )}
       </h1>
+      {subtitle && (
+        <p style={{ color: '#555', marginTop: '8px', marginBottom: '20px' }}>{subtitle}</p>
+      )}
       
       <div
         ref={dropRef}
         onDrop={onDrop}
         onDragOver={onDragOver}
         className="dropzone"
-        onClick={() => document.getElementById('file-input')?.click()}
+        onClick={() => fileInputRef.current?.click()}
         style={{
           border: '2px dashed #ccc',
           borderRadius: '10px',
@@ -161,19 +273,31 @@ export default function UploadArea({ onConvert, loading }) {
         }}
       >
         <input
-          id="file-input"
+          id={inputId}
           type="file"
-          multiple
-          accept={SUPPORTED.join(',')}
-          onChange={e => handleFiles(e.target.files)}
+          ref={fileInputRef}
+          multiple={!isUploadOnly}
+          accept={acceptAttribute}
+          onChange={e => {
+            handleFiles(e.target.files);
+            // Allow selecting the same file twice in a row
+            e.target.value = '';
+          }}
           style={{ display: 'none' }}
         />
         
         {files.length === 0 ? (
           <div>
-            <h3>📁 Upload Images to Convert to {targetFormat.toUpperCase()}</h3>
+            <h3>
+              📁 {title ? 'Upload your media' : `Upload Images to Convert to ${targetFormat.toUpperCase()}`}
+            </h3>
             <p>Drop files here or click to browse</p>
-            <p><small>Supports: GIF, JPG, PNG, BMP, TIFF, WebP, MP4, AVI, MOV, SVG</small></p>
+            <p>
+              <small>
+                Supports: {acceptedList.length ? acceptedList.join(', ') : 'All supported formats'}
+                {maxSize ? ` · Max ${maxSize}MB` : ''}
+              </small>
+            </p>
           </div>
         ) : (
           <div>
@@ -183,7 +307,11 @@ export default function UploadArea({ onConvert, loading }) {
         )}
       </div>
 
-      {files.length > 0 && (
+      {statusMessage && (
+        <p style={{ marginTop: '12px', color: '#b71c1c' }}>{statusMessage}</p>
+      )}
+
+      {!isUploadOnly && files.length > 0 && (
         <div style={{ marginTop: '20px' }}>
           {/* Frame List (like ezgif.com) */}
           <div className="frame-list" style={{ marginBottom: '20px' }}>
@@ -475,44 +603,69 @@ export default function UploadArea({ onConvert, loading }) {
           <div style={{ textAlign: 'center', padding: '20px' }}>
             <button 
               onClick={submit} 
-              disabled={loading || !files.length}
+              disabled={(loading || isProcessing) || !files.length}
               style={{
                 padding: '12px 30px',
                 fontSize: '16px',
                 fontWeight: 'bold',
-                backgroundColor: loading ? '#ccc' : '#007bff',
+                backgroundColor: (loading || isProcessing) ? '#ccc' : '#007bff',
                 color: 'white',
                 border: 'none',
                 borderRadius: '5px',
-                cursor: loading ? 'not-allowed' : 'pointer'
+                cursor: (loading || isProcessing) ? 'not-allowed' : 'pointer'
               }}
             >
-              {loading ? `Converting to ${targetFormat.toUpperCase()}...` : `Convert to ${targetFormat.toUpperCase()}!`}
+              {(loading || isProcessing)
+                ? `Converting to ${targetFormat.toUpperCase()}...`
+                : convertButtonLabel || `Convert to ${targetFormat.toUpperCase()}!`}
             </button>
           </div>
         </div>
       )}
 
-      {/* Target Format Selection */}
-      <div className="controls" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f0f0f0', borderRadius: '5px' }}>
-        <label>
-          Output Format:
-          <select 
-            value={targetFormat} 
-            onChange={e => setTargetFormat(e.target.value)}
-            style={{ marginLeft: '10px', padding: '5px' }}
+      {isUploadOnly && files.length > 0 && (
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <button
+            onClick={submit}
+            disabled={isProcessing || !files.length}
+            style={{
+              padding: '12px 30px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              backgroundColor: isProcessing ? '#ccc' : '#1976d2',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: isProcessing ? 'not-allowed' : 'pointer'
+            }}
           >
-            <option value="gif">GIF (Animated)</option>
-            <option value="png">PNG</option>
-            <option value="jpg">JPG</option>
-            <option value="svg">SVG</option>
-            <option value="mp4">MP4 Video</option>
-            <option value="frames">Extract Frames</option>
-          </select>
-        </label>
-      </div>
+            {isProcessing ? 'Preparing…' : (convertButtonLabel || 'Use Selected Image')}
+          </button>
+        </div>
+      )}
 
-      {files.length > 0 && (
+      {/* Target Format Selection */}
+      {!isUploadOnly && (
+        <div className="controls" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f0f0f0', borderRadius: '5px' }}>
+          <label>
+            Output Format:
+            <select 
+              value={targetFormat} 
+              onChange={e => setTargetFormat(e.target.value)}
+              style={{ marginLeft: '10px', padding: '5px' }}
+            >
+              <option value="gif">GIF (Animated)</option>
+              <option value="png">PNG</option>
+              <option value="jpg">JPG</option>
+              <option value="svg">SVG</option>
+              <option value="mp4">MP4 Video</option>
+              <option value="frames">Extract Frames</option>
+            </select>
+          </label>
+        </div>
+      )}
+
+      {!isUploadOnly && files.length > 0 && (
         <ul className="file-list" style={{ marginTop: '15px' }}>
           <strong>Uploaded Files:</strong>
           {files.map((file, i) => (

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { realAPI } from '../utils/apiConfig';
 
 export default function Results({ results }) {
   const [preview, setPreview] = useState(null);
@@ -19,13 +20,7 @@ export default function Results({ results }) {
     if (!preview) return;
     try {
       setCaptionLoading(true);
-      const res = await fetch((import.meta.env.VITE_BACKEND_URL || '') + '/api/ai/describe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: preview.convertedName })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || 'AI describe failed');
+      const data = await realAPI.describeImage(preview.convertedName);
       setCaption(data.caption || '');
     } catch (e) {
       setCaption(`Error: ${e.message}`);

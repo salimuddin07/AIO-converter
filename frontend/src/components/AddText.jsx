@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import AdvancedUploadArea from './AdvancedUploadArea';
 import Results from './Results';
-import { getApiUrl } from '../utils/apiConfig.js';
+import { getApiUrl, realAPI } from '../utils/apiConfig.js';
 import '../aio-convert-style.css';
 
 const AddText = () => {
@@ -62,12 +62,7 @@ const AddText = () => {
             setIsProcessing(true);
             setError('');
             
-            const response = await fetch(getApiUrl('/api/text/upload'), {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
+            const data = await realAPI.uploadImage(selectedFile);
             
             if (data.success) {
                 setFile({ id: data.fileId, name: selectedFile.name });
@@ -81,7 +76,7 @@ const AddText = () => {
             }
         } catch (err) {
             console.error('Upload error:', err);
-            setError('Failed to upload file');
+            setError(`Failed to upload file: ${err.message}`);
         } finally {
             setIsProcessing(false);
         }
@@ -94,13 +89,7 @@ const AddText = () => {
             setIsProcessing(true);
             setError('');
             
-            const response = await fetch(getApiUrl('/api/text/upload-url'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageUrl: url })
-            });
-
-            const data = await response.json();
+            const data = await realAPI.uploadImageFromUrl(url);
             
             if (data.success) {
                 setFile({ id: data.fileId, name: 'Image from URL' });
@@ -122,8 +111,7 @@ const AddText = () => {
 
     const fetchFonts = async () => {
         try {
-            const response = await fetch(getApiUrl('/api/text/fonts'));
-            const data = await response.json();
+            const data = await realAPI.getFonts();
             if (data.fonts) {
                 setAvailableFonts(data.fonts);
             }
@@ -146,17 +134,7 @@ const AddText = () => {
             setIsProcessing(true);
             setError('');
             
-            const response = await fetch(getApiUrl('/api/text/preview'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fileId: file.id,
-                    ...textConfig,
-                    frameRange: { start: textConfig.frameStart, end: textConfig.frameEnd }
-                })
-            });
-
-            const data = await response.json();
+            const data = await realAPI.previewText(file.id, textConfig);
             
             if (data.success) {
                 setPreviewUrl(data.preview);
@@ -183,17 +161,17 @@ const AddText = () => {
             setError('');
             setResult(null);
             
-            const response = await fetch(getApiUrl('/api/text/add-text'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fileId: file.id,
-                    ...textConfig,
-                    frameRange: { start: textConfig.frameStart, end: textConfig.frameEnd }
-                })
+            const data = await realAPI.addText(file, textConfig.text, {
+                x: textConfig.x,
+                y: textConfig.y,
+                fontSize: textConfig.fontSize,
+                fontFamily: textConfig.fontFamily,
+                color: textConfig.color,
+                backgroundColor: textConfig.backgroundColor,
+                strokeColor: textConfig.strokeColor,
+                strokeWidth: textConfig.strokeWidth,
+                frameRange: { start: textConfig.frameStart, end: textConfig.frameEnd }
             });
-
-            const data = await response.json();
             
             if (data.success) {
                 setResult({
@@ -208,7 +186,7 @@ const AddText = () => {
             }
         } catch (err) {
             console.error('Text addition error:', err);
-            setError('Failed to add text to image');
+            setError(`Failed to add text to image: ${err.message}`);
         } finally {
             setIsProcessing(false);
         }
@@ -280,6 +258,8 @@ const AddText = () => {
                             title="Choose animated image"
                             subtitle="Upload your GIF, WebP, APNG, or static image"
                             isProcessing={isProcessing}
+                            variant="upload"
+                            convertButtonLabel="Use this image"
                         />
                     ) : (
                         <div className="file-selected">

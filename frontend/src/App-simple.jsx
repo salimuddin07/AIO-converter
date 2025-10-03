@@ -26,9 +26,9 @@ export default function App() {
               
               <div className="tool-grid">
                 <div className="tool-card" onClick={() => setCurrentTool('gif-maker')}>
-                  <div className="tool-icon">🎞️</div>
+                  <div className="tool-icon">🖼️</div>
                   <h3>GIF Maker</h3>
-                  <p>Convert videos to animated GIFs</p>
+                  <p>Combine images into animated GIFs</p>
                 </div>
                 
                 <div className="tool-card" onClick={() => setCurrentTool('image-converter')}>

@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Konva from 'konva';
-import { Stage, Layer, Image as KonvaImage, Text as KonvaText, Transformer } from 'react-konva';
-import { colorVariations } from '../utils/polishedHelpers';
+import { Stage, Layer, Image as KonvaImage, Text as KonvaText, Transformer, Line } from 'react-konva';
 
 const ImageEditor = ({ 
   imageUrl, 
@@ -216,9 +215,9 @@ const ImageEditor = ({
       style={{
         padding: '12px',
         margin: '4px',
-        border: `2px solid ${active ? colorVariations('#1976d2').base : '#e0e0e0'}`,
+        border: `2px solid ${active ? '#1976d2' : '#e0e0e0'}`,
         borderRadius: '8px',
-        background: active ? colorVariations('#1976d2').transparent : 'white',
+        background: active ? 'rgba(25, 118, 210, 0.1)' : 'white',
         cursor: 'pointer',
         transition: 'all 0.3s ease',
         display: 'flex',
@@ -475,7 +474,7 @@ const ImageEditor = ({
                 );
               } else if (element.type === 'line') {
                 return (
-                  <Konva.Line
+                  <Line
                     key={element.id}
                     id={`element-${element.id}`}
                     {...element}
@@ -489,7 +488,7 @@ const ImageEditor = ({
             
             {/* Current drawing path */}
             {isDrawing && currentPath.length > 0 && (
-              <Konva.Line
+              <Line
                 points={currentPath}
                 stroke={brushColor}
                 strokeWidth={brushSize}

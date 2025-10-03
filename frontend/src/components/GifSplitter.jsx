@@ -1,9 +1,14 @@
 import React, { useState } from 'react';
+import { realAPI } from '../utils/apiConfig';
+import Results from './Results';
 
-export default function GifSplitter({ onSplit, loading }) {
+export default function GifSplitter() {
   const [file, setFile] = useState(null);
   const [url, setUrl] = useState('');
   const [dragActive, setDragActive] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState(null);
+  const [error, setError] = useState('');
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -31,17 +36,36 @@ export default function GifSplitter({ onSplit, loading }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file && !url) return;
-    
-    if (file && file.size > 209715200) { // 200MB limit
-      alert('The file you are trying to upload is too large! Max file size is 200 MB');
+    if (!file && !url) {
+      setError('Please select a GIF file or enter a URL');
       return;
     }
     
-    if (onSplit) {
-      onSplit({ file, url });
+    if (file && file.size > 209715200) { // 200MB limit
+      setError('The file you are trying to upload is too large! Max file size is 200 MB');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      setResult(null);
+      
+      let splitResult;
+      if (file) {
+        splitResult = await realAPI.splitGif(file);
+      } else if (url) {
+        splitResult = await realAPI.splitGifFromUrl(url);
+      }
+      
+      setResult(splitResult);
+    } catch (err) {
+      console.error('Split error:', err);
+      setError(`Split failed: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -119,6 +143,15 @@ export default function GifSplitter({ onSplit, loading }) {
           </p>
         </fieldset>
       </form>
+
+      {error && (
+        <div className="error" style={{color: 'red', margin: '20px 0'}}>
+          <h3>Error:</h3>
+          <p>{error}</p>
+        </div>
+      )}
+
+      {results && <Results results={results} />}
       
       <div className="txt">
         <h2>Animated GIF, APNG, WebP, AVIF, JPEG XL and MNG frame splitter (extractor/decompiler)</h2>

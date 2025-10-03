@@ -29,11 +29,60 @@
 };
 
 export const API_CONFIG = {
-  baseUrl: "",
-  endpoints: {},
+  baseUrl: "http://localhost:3003",
+  endpoints: {
+    // Conversion routes
+    convert: "/api/convert",
+    convertTest: "/api/convert/test",
+    
+    // Video routes
+    videoUpload: "/api/video/upload",
+    videoInfo: "/api/video/info",
+    videoConvert: "/api/video/convert", 
+    videoPreview: "/api/video/preview",
+    videoGifPreview: "/api/video/gif-preview",
+    videoDownload: "/api/video/download",
+    videoCleanup: "/api/video/cleanup",
+    
+    // Text routes
+    textUpload: "/api/text/upload",
+    textUploadUrl: "/api/text/upload-url", 
+    textAddText: "/api/text/add-text",
+    textFonts: "/api/text/fonts",
+    textFormats: "/api/text/formats",
+    textPreview: "/api/text/preview",
+    textDownload: "/api/text/download",
+    
+    // Split routes
+    splitVideo: "/api/split/video",
+    splitGif: "/api/split/gif", 
+    splitStatus: "/api/split/status",
+    
+    // AI routes
+    ai: "/api/ai",
+    aiDescribe: "/api/ai/describe",
+    
+    // File routes
+    files: "/api/files",
+    
+    // WebP routes
+    webp: "/api/webp",
+    webpInfo: "/api/webp-info",
+    
+    // Enhanced GIF routes
+    enhancedGif: "/api/enhanced-gif",
+    
+    // Modern format routes
+    modern: "/api/modern"
+  },
   local: LOCAL_CONFIG,
   isLocal: true,
   getLocalConfig: () => LOCAL_CONFIG
+};
+
+// Get API URL helper function
+export const getApiUrl = (endpoint) => {
+  return `${API_CONFIG.baseUrl}${API_CONFIG.endpoints[endpoint] || endpoint}`;
 };
 
 export const validateFile = (file, type = "image") => {
@@ -57,67 +106,368 @@ export const validateFile = (file, type = "image") => {
   return true;
 };
 
-// Mock localAPI for basic functionality
-export const localAPI = {
-  convert: async (file, format, quality) => {
-    console.log(`Converting ${file.name} to ${format}`);
-    return {
-      success: true,
-      message: `Converted ${file.name} to ${format}`,
-      result: { downloadUrl: '#', filename: `converted.${format}` }
-    };
+// Real API for backend communication
+export const realAPI = {
+  // Convert image formats
+  convert: async (files, outputFormat, quality) => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    formData.append('outputFormat', outputFormat);
+    formData.append('quality', quality || 0.8);
+    
+    const response = await fetch(getApiUrl('convert'), {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+    }
+    
+    return await response.json();
   },
-  
-  resize: async (file, width, height, maintainAspectRatio) => {
-    console.log(`Resizing ${file.name} to ${width}x${height}`);
-    return {
-      success: true,
-      message: `Resized ${file.name}`,
-      result: { downloadUrl: '#', filename: `resized_${file.name}` }
-    };
+
+  // Video to GIF conversion
+  videoToGif: async (videoFile, options = {}) => {
+    const formData = new FormData();
+    formData.append('video', videoFile);
+    
+    // Add options
+    Object.keys(options).forEach(key => {
+      formData.append(key, options[key]);
+    });
+    
+    const response = await fetch(getApiUrl('videoUpload'), {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Video upload failed: ${response.status}`);
+    }
+    
+    return await response.json();
   },
-  
-  rotate: async (file, degrees) => {
-    console.log(`Rotating ${file.name} by ${degrees} degrees`);
-    return {
-      success: true,
-      message: `Rotated ${file.name}`,
-      result: { downloadUrl: '#', filename: `rotated_${file.name}` }
-    };
+
+  // Upload video from URL
+  uploadVideoFromUrl: async (url) => {
+    const formData = new FormData();
+    formData.append('url', url);
+    
+    const response = await fetch(getApiUrl('videoUpload'), {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Video URL upload failed: ${response.status}`);
+    }
+    
+    return await response.json();
   },
-  
-  addText: async (file, text, options) => {
-    console.log(`Adding text "${text}" to ${file.name}`);
-    return {
-      success: true,
-      message: `Added text to ${file.name}`,
-      result: { downloadUrl: '#', filename: `text_${file.name}` }
-    };
+
+  // Get video info
+  getVideoInfo: async (videoId) => {
+    const response = await fetch(getApiUrl('videoInfo') + `/${videoId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to get video info: ${response.status}`);
+    }
+    return await response.json();
   },
-  
-  videoToGif: async (file, options) => {
-    console.log(`Converting video ${file.name} to GIF`);
-    return {
-      success: true,
-      message: `Converted ${file.name} to GIF`,
-      result: { downloadUrl: '#', filename: `${file.name.split('.')[0]}.gif` }
-    };
+
+  // Convert video to GIF
+  convertVideoToGif: async (videoId, options) => {
+    const response = await fetch(getApiUrl('videoConvert'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ videoId, ...options })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Video conversion failed: ${response.status}`);
+    }
+    
+    return await response.json();
   },
-  
-  splitGif: async (file) => {
-    console.log(`Splitting GIF ${file.name}`);
-    return {
-      success: true,
-      message: `Split ${file.name}`,
-      result: { downloadUrl: '#', filename: `split_${file.name}` }
-    };
+
+  // Add text to image
+  addText: async (imageFile, text, options = {}) => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    formData.append('text', text);
+    
+    Object.keys(options).forEach(key => {
+      formData.append(key, options[key]);
+    });
+    
+    const response = await fetch(getApiUrl('textAddText'), {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Add text failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  // Split GIF
+  splitGif: async (gifFile) => {
+    const formData = new FormData();
+    formData.append('gif', gifFile);
+    
+    const response = await fetch(getApiUrl('splitGif'), {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`GIF split failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  // Split GIF from URL
+  splitGifFromUrl: async (url) => {
+    const formData = new FormData();
+    formData.append('url', url);
+    
+    const response = await fetch(getApiUrl('splitGif'), {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`GIF split from URL failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  // Upload image for text addition
+  uploadImage: async (imageFile) => {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    
+    const response = await fetch(getApiUrl('textUpload'), {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Image upload failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  // Upload image from URL for text addition
+  uploadImageFromUrl: async (imageUrl) => {
+    const response = await fetch(getApiUrl('textUpload') + '-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageUrl })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Image URL upload failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  // Get available fonts
+  getFonts: async () => {
+    const response = await fetch(getApiUrl('textFonts'));
+    if (!response.ok) {
+      throw new Error(`Failed to get fonts: ${response.status}`);
+    }
+    return await response.json();
+  },
+
+  // Preview text on image
+  previewText: async (fileId, textConfig) => {
+    const response = await fetch(getApiUrl('textPreview'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileId,
+        ...textConfig,
+        frameRange: { start: textConfig.frameStart, end: textConfig.frameEnd }
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Text preview failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  // Test API connection
+  testConnection: async () => {
+    try {
+      const response = await fetch(getApiUrl('convertTest'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ test: 'connection' })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Test failed: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('API Connection Test Failed:', error);
+      throw error;
+    }
+  },
+
+  // AI describe image
+  describeImage: async (imageName) => {
+    const response = await fetch(getApiUrl('aiDescribe'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: imageName })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Image description failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  // WebP conversion methods
+  convertToWebp: async (files, settings = {}) => {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('images', file);
+    });
+    
+    Object.entries(settings).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+    
+    const response = await fetch(getApiUrl('webp') + '/convert', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`WebP conversion failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  decodeWebp: async (files, settings = {}) => {
+    const formData = new FormData();
+    files.forEach(file => {
+      formData.append('webp_files', file);
+    });
+    
+    Object.entries(settings).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+    
+    const response = await fetch(getApiUrl('webp') + '/decode', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`WebP decoding failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  // Enhanced GIF creation methods
+  createGifFromVideo: async (videoFile, options = {}) => {
+    const formData = new FormData();
+    formData.append('video', videoFile);
+    
+    Object.entries(options).forEach(([key, value]) => {
+      if (key === 'effects' && Array.isArray(value)) {
+        formData.append(key, JSON.stringify(value));
+      } else {
+        formData.append(key, value);
+      }
+    });
+    
+    const response = await fetch(getApiUrl('enhancedGif') + '/video-to-gif', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`GIF creation from video failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
+  createGifFromImages: async (imageFiles, options = {}) => {
+    const formData = new FormData();
+    imageFiles.forEach(file => {
+      formData.append('images', file);
+    });
+    
+    Object.entries(options).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+    
+    const response = await fetch(getApiUrl('enhancedGif') + '/images-to-gif', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`GIF creation from images failed: ${response.status}`);
+    }
+    
+    return await response.json();
   }
 };
 
-// Download file function
-export const downloadFile = (url, filename) => {
-  console.log(`Download requested: ${filename}`);
-  alert(`Download feature will be implemented with actual processing. File: ${filename}`);
+// Use real API instead of mock API
+export const localAPI = realAPI;
+
+// Download file function for real file downloads
+export const downloadFile = async (url, filename) => {
+  try {
+    console.log(`Downloading: ${filename} from ${url}`);
+    
+    // If it's a relative URL, make it absolute
+    const downloadUrl = url.startsWith('http') ? url : `${API_CONFIG.baseUrl}${url}`;
+    
+    const response = await fetch(downloadUrl);
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    const downloadLink = document.createElement('a');
+    downloadLink.href = URL.createObjectURL(blob);
+    downloadLink.download = filename;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    URL.revokeObjectURL(downloadLink.href);
+    
+    console.log(`Successfully downloaded: ${filename}`);
+  } catch (error) {
+    console.error('Download error:', error);
+    alert(`Download failed: ${error.message}`);
+  }
 };
 
 export default API_CONFIG;
