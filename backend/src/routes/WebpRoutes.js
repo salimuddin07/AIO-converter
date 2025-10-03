@@ -39,7 +39,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50GB limit
   fileFilter: (req, file, cb) => {
     // Accept images for WebP conversion
     if (file.mimetype.startsWith('image/')) {
@@ -123,7 +123,7 @@ router.use((error, req, res, next) => {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         error: 'File too large',
-        message: 'File size must be less than 50MB'
+        message: 'File size must be less than 50GB'
       });
     }
     if (error.code === 'LIMIT_FILE_COUNT') {

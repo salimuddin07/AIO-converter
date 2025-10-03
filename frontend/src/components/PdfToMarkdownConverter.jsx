@@ -17,8 +17,8 @@ export default function PdfToMarkdownConverter() {
         setError('Please select a PDF file');
         return;
       }
-      if (file.size > 25 * 1024 * 1024) {
-        setError('File too large. Maximum 25MB allowed.');
+      if (file.size > 25 * 1024 * 1024 * 1024) {
+        setError('File too large. Maximum 25GB allowed.');
         return;
       }
       setSelectedFile(file);
@@ -118,7 +118,7 @@ export default function PdfToMarkdownConverter() {
         >
           <div className="upload-icon">📁</div>
           <h3>Drop PDF Here or Click to Browse</h3>
-          <p>Maximum file size: 25MB</p>
+          <p>Maximum file size: 25GB</p>
           <button className="browse-button">Choose PDF File</button>
         </div>
       )}
@@ -137,7 +137,7 @@ export default function PdfToMarkdownConverter() {
             <div className="file-icon">📄</div>
             <div className="file-details">
               <h3>{selectedFile.name}</h3>
-              <p>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+              <p>{(selectedFile.size / 1024 / 1024).toFixed(2)} GB</p>
             </div>
           </div>
           

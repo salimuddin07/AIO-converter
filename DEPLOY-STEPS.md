@@ -50,7 +50,7 @@ In Railway dashboard, add these environment variables:
 ```
 NODE_ENV=production
 PORT=8080
-MAX_FILE_SIZE_MB=500
+MAX_FILE_SIZE_GB=500
 MAX_BATCH_COUNT=20
 CORS_ORIGIN=*
 ```

@@ -9,9 +9,9 @@ export async function describeImage(filePath) {
   if (!apiKey) throw new Error('OPENAI_API_KEY not set');
   const client = new OpenAI({ apiKey });
 
-  // Read and base64 encode (cap at ~2MB to be safe)
+  // Read and base64 encode (cap at ~2GB to be safe)
   const stat = await fs.stat(filePath);
-  const maxBytes = 2 * 1024 * 1024;
+  const maxBytes = 2 * 1024 * 1024 * 1024;
   if (stat.size > maxBytes) {
     throw new Error('Image too large to describe');
   }

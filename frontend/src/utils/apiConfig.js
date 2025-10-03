@@ -93,7 +93,7 @@ export const validateFile = (file, type = "image") => {
   const maxSize = LOCAL_CONFIG.processing.maxFileSize[type] * 1024 * 1024;
   
   if (file.size > maxSize) {
-    throw new Error(`File too large. Maximum ${LOCAL_CONFIG.processing.maxFileSize[type]}MB allowed.`);
+    throw new Error(`File too large. Maximum ${LOCAL_CONFIG.processing.maxFileSize[type]}GB allowed.`);
   }
   
   const supportedTypes = LOCAL_CONFIG.processing.supportedFormats.input;
@@ -431,7 +431,16 @@ export const realAPI = {
     });
     
     if (!response.ok) {
-      throw new Error(`GIF creation from images failed: ${response.status}`);
+      let message = `GIF creation from images failed: ${response.status}`;
+      try {
+        const errorPayload = await response.json();
+        if (errorPayload?.error) {
+          message = `${errorPayload.error}${errorPayload.details ? ` - ${errorPayload.details}` : ''}`;
+        }
+      } catch (parseError) {
+        // ignore body parse issues
+      }
+      throw new Error(message);
     }
     
     return await response.json();

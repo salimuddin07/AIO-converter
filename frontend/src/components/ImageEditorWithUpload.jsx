@@ -1,13 +1,22 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ImageEditor from './ImageEditor.jsx';
-import { realAPI } from '../utils/apiConfig.js';
+import { ImageCropTool, ImageResizeTool, ImageRotateTool } from './ImageTransformTools.jsx';
 
 const ImageEditorWithUpload = ({ tool = 'edit' }) => {
   const [imageUrl, setImageUrl] = useState(null);
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [objectUrl, setObjectUrl] = useState(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [objectUrl]);
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -29,7 +38,11 @@ const ImageEditorWithUpload = ({ tool = 'edit' }) => {
     }
   };
 
-  const handleFileSelect = async (selectedFile) => {
+  const handleFileSelect = (selectedFile) => {
+    if (!selectedFile) {
+      return;
+    }
+
     // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
     if (!validTypes.includes(selectedFile.type)) {
@@ -37,31 +50,37 @@ const ImageEditorWithUpload = ({ tool = 'edit' }) => {
       return;
     }
 
-    // Check file size (50MB limit for image editing)
-    if (selectedFile.size > 52428800) {
-      alert('The file you are trying to upload is too large! Max file size is 50 MB');
+    // Check file size (50GB limit for image editing)
+    if (selectedFile.size > 52242880000) {
+      alert('The file you are trying to upload is too large! Max file size is 50 GB');
       return;
     }
 
-    setFile(selectedFile);
     setIsUploading(true);
-
-    try {
-      // Upload the image to get a URL
-      const result = await realAPI.uploadImage(selectedFile);
-      if (result.success) {
-        setImageUrl(result.imageUrl || URL.createObjectURL(selectedFile));
-      } else {
-        // Fallback to blob URL
-        setImageUrl(URL.createObjectURL(selectedFile));
-      }
-    } catch (error) {
-      console.error('Upload error:', error);
-      // Fallback to blob URL
-      setImageUrl(URL.createObjectURL(selectedFile));
-    } finally {
-      setIsUploading(false);
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+      setObjectUrl(null);
     }
+
+    const nextUrl = URL.createObjectURL(selectedFile);
+    const img = new window.Image();
+
+    img.onload = () => {
+      setFile(selectedFile);
+      setImageUrl(nextUrl);
+      setObjectUrl(nextUrl);
+      setIsUploading(false);
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(nextUrl);
+      setObjectUrl(null);
+      setIsUploading(false);
+      console.error('Preview error: unable to load selected image.');
+      alert('We could not load that image. Please try another file.');
+    };
+
+    img.src = nextUrl;
   };
 
   const handleFileChange = (e) => {
@@ -91,21 +110,35 @@ const ImageEditorWithUpload = ({ tool = 'edit' }) => {
 
   const getToolTitle = () => {
     switch (tool) {
-      case 'resize': return 'Image Resizer';
-      case 'crop': return 'Image Cropper';
-      case 'rotate': return 'Image Rotator';
-      case 'effects': return 'Image Effects';
-      default: return 'Image Editor';
+      case 'resize':
+        return 'Image Resizer';
+      case 'crop':
+        return 'Image Cropper';
+      case 'rotate':
+        return 'Image Rotator';
+      case 'effects':
+        return 'Image Effects';
+      case 'add-text':
+        return 'Add Text to Images';
+      default:
+        return 'Image Editor';
     }
   };
 
   const getToolDescription = () => {
     switch (tool) {
-      case 'resize': return 'Resize and scale your images';
-      case 'crop': return 'Crop and trim your images';
-      case 'rotate': return 'Rotate and flip your images';
-      case 'effects': return 'Apply filters and effects to your images';
-      default: return 'Edit and enhance your images';
+      case 'resize':
+        return 'Resize, scale, and export your image at precise dimensions with aspect ratio controls.';
+      case 'crop':
+        return 'Select the exact region you want to keep using modern cropping controls.';
+      case 'rotate':
+        return 'Rotate, flip, or mirror your image before downloading the adjusted result.';
+      case 'effects':
+        return 'Apply filters and effects to your images instantly.';
+      case 'add-text':
+        return 'Upload an image and add text, drawings, or filters right in your browser.';
+      default:
+        return 'Edit and enhance your images';
     }
   };
 
@@ -154,7 +187,7 @@ const ImageEditorWithUpload = ({ tool = 'edit' }) => {
               <p>Drag and drop an image here, or click to browse</p>
               <p style={{ fontSize: '14px', color: '#666', marginTop: '10px' }}>
                 Supported formats: JPG, PNG, GIF, WebP, BMP<br/>
-                Maximum file size: 50MB
+                Maximum file size: 50GB
               </p>
             </div>
           )}
@@ -163,15 +196,21 @@ const ImageEditorWithUpload = ({ tool = 'edit' }) => {
     );
   }
 
-  return (
-    <div>
+  const renderEditor = () => {
+    const header = (
       <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
         <h2>{getToolTitle()}</h2>
         <p>{getToolDescription()}</p>
-        <button 
+        <button
           onClick={() => {
             setImageUrl(null);
             setFile(null);
+            setObjectUrl(prev => {
+              if (prev) {
+                URL.revokeObjectURL(prev);
+              }
+              return null;
+            });
           }}
           style={{
             padding: '8px 16px',
@@ -185,14 +224,48 @@ const ImageEditorWithUpload = ({ tool = 'edit' }) => {
           Choose Different Image
         </button>
       </div>
-      
-      <ImageEditor
-        imageUrl={imageUrl}
-        onSave={handleSave}
-        tools={tool === 'resize' ? ['crop', 'filters'] : tool === 'crop' ? ['crop'] : tool === 'rotate' ? ['crop', 'filters'] : ['text', 'draw', 'crop', 'filters']}
-      />
-    </div>
-  );
+    );
+
+    if (tool === 'resize') {
+      return (
+        <>
+          {header}
+          <ImageResizeTool imageUrl={imageUrl} onExport={handleSave} />
+        </>
+      );
+    }
+
+    if (tool === 'rotate') {
+      return (
+        <>
+          {header}
+          <ImageRotateTool imageUrl={imageUrl} onExport={handleSave} />
+        </>
+      );
+    }
+
+    if (tool === 'crop') {
+      return (
+        <>
+          {header}
+          <ImageCropTool imageUrl={imageUrl} onExport={handleSave} />
+        </>
+      );
+    }
+
+    return (
+      <>
+        {header}
+        <ImageEditor
+          imageUrl={imageUrl}
+          onSave={handleSave}
+          defaultTool={tool === 'effects' ? 'filters' : 'text'}
+        />
+      </>
+    );
+  };
+
+  return renderEditor();
 };
 
 export default ImageEditorWithUpload;

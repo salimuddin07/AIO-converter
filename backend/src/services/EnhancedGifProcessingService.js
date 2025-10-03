@@ -26,6 +26,15 @@ import { outputDir, tempDir } from '../utils/FilePathUtils.js';
 // Configure ffmpeg paths
 ffmpeg.setFfmpegPath(ffmpegPath);
 
+const sanitizeFrameDelay = (value, fallback) => {
+  const numeric = parseInt(value, 10);
+  if (Number.isNaN(numeric)) {
+    return fallback;
+  }
+  const clamped = Math.max(10, Math.min(2000, numeric));
+  return clamped;
+};
+
 export class EnhancedGifProcessor {
   constructor() {
     this.supportedFormats = {
@@ -166,7 +175,10 @@ export class EnhancedGifProcessor {
       fps = 10,
       quality = 'high',
       loop = true,
-      delay = null
+      delay = null,
+      loopCount = null,
+      frameDelays = [],
+      fit = 'contain'
     } = options;
 
     const outputId = uuid();
@@ -178,12 +190,17 @@ export class EnhancedGifProcessor {
     for (const imagePath of imagePaths) {
       let pipeline = sharp(imagePath);
 
-      // Get dimensions of first image for consistency
-      if (processedFrames.length === 0 && (width || height)) {
-        pipeline = pipeline.resize(width, height, {
-          fit: 'contain',
-          background: { r: 255, g: 255, b: 255, alpha: 0 }
-        });
+      if (width || height) {
+        const fitOption = ['cover', 'fill'].includes(fit) ? fit : 'contain';
+        const resizeOptions = {
+          fit: fitOption
+        };
+
+        if (fitOption === 'contain') {
+          resizeOptions.background = { r: 255, g: 255, b: 255, alpha: 0 };
+        }
+
+        pipeline = pipeline.resize(width || null, height || null, resizeOptions);
       }
 
       const buffer = await pipeline.png().toBuffer();
@@ -195,7 +212,9 @@ export class EnhancedGifProcessor {
       fps,
       quality,
       loop,
-      delay
+      delay,
+      loopCount,
+      frameDelays
     });
 
     await fs.writeFile(outputPath, gif);
@@ -259,24 +278,38 @@ export class EnhancedGifProcessor {
    * Create GIF from image buffers
    */
   async createGifFromBuffers(buffers, options = {}) {
-    const { fps = 10, quality = 'high', loop = true, delay = null } = options;
+    const {
+      fps = 10,
+      quality = 'high',
+      loop = true,
+      delay = null,
+      loopCount = null,
+      frameDelays = []
+    } = options;
 
     // Get dimensions from first buffer
     const firstImage = sharp(buffers[0]);
     const { width, height } = await firstImage.metadata();
 
     const encoder = new GIFEncoder(width, height, 'octree', true);
-    const frameDelay = delay || Math.round(1000 / fps);
-    encoder.setDelay(frameDelay);
-    encoder.setRepeat(loop ? 0 : -1);
+    const defaultDelay = sanitizeFrameDelay(delay ?? Math.round(1000 / fps), Math.round(1000 / fps));
+    const perFrameDelays = Array.isArray(frameDelays) ? frameDelays : [];
+
+    const repeatValue = typeof loopCount === 'number' && loopCount >= 0
+      ? loopCount
+      : (loop ? 0 : -1);
+    encoder.setRepeat(repeatValue);
     
     const qualityValue = quality === 'high' ? 1 : quality === 'medium' ? 10 : 20;
     encoder.setQuality(qualityValue);
 
     encoder.start();
-
     // Process each buffer
-    for (const buffer of buffers) {
+    for (let index = 0; index < buffers.length; index += 1) {
+      const buffer = buffers[index];
+      const frameDelay = sanitizeFrameDelay(perFrameDelays[index], defaultDelay);
+      encoder.setDelay(frameDelay);
+
       const { data, info } = await sharp(buffer)
         .ensureAlpha()
         .raw()

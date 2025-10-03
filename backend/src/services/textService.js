@@ -24,13 +24,13 @@ class TextService {
             const metadata = await sharp(inputBuffer).metadata();
             
             const stats = await fs.stat(inputPath);
-            const sizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+            const sizeInGB = (stats.size / (1024 * 1024)).toFixed(2);
 
             return {
                 width: metadata.width,
                 height: metadata.height,
                 format: metadata.format,
-                size: `${sizeInMB} MB`,
+                size: `${sizeInGB} GB`,
                 frames: metadata.pages || 1,
                 hasAnimation: (metadata.pages || 1) > 1,
                 density: metadata.density,

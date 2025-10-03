@@ -106,7 +106,7 @@ export default function UploadArea({
         return;
       }
       if (maxBytes && file.size > maxBytes) {
-        rejectedReasons.push(`${file.name} exceeds the ${maxSize}MB limit`);
+        rejectedReasons.push(`${file.name} exceeds the ${maxSize}GB limit`);
         return;
       }
       accepted.push(file);
@@ -295,7 +295,7 @@ export default function UploadArea({
             <p>
               <small>
                 Supports: {acceptedList.length ? acceptedList.join(', ') : 'All supported formats'}
-                {maxSize ? ` · Max ${maxSize}MB` : ''}
+                {maxSize ? ` · Max ${maxSize}GB` : ''}
               </small>
             </p>
           </div>

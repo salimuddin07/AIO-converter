@@ -2,16 +2,15 @@ import React, { useState } from 'react';
 import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import PdfToMarkdownConverter from './components/PdfToMarkdownConverter.jsx';
-import LibraryTest from './components/LibraryTest.jsx';
+import MarkdownToPdf from './components/MarkdownToPdf.jsx';
+import ImagesToPdfConverter from './components/ImagesToPdfConverter.jsx';
 import VideoToGifConverter from './components/VideoToGifConverter.jsx';
 import ImageGifMaker from './components/ImageGifMaker.jsx';
 import MainConversionInterface from './components/MainConversionInterface.jsx';
-import ImageEditor from './components/ImageEditor.jsx';
 import ImageEditorWithUpload from './components/ImageEditorWithUpload.jsx';
 import WebPConverter from './components/WebPConverter.jsx';
 import GifSplitter from './components/GifSplitter.jsx';
 import AddText from './components/AddText.jsx';
-import { NotificationService } from './utils/NotificationService.js';
 import './aio-convert-style.css';
 
 export default function App() {
@@ -25,10 +24,12 @@ export default function App() {
       />
       
       <main className="main-content">
-        {currentTool === 'library-test' ? (
-          <LibraryTest />
-        ) : currentTool === 'pdf-to-md' ? (
+        {currentTool === 'pdf-to-md' ? (
           <PdfToMarkdownConverter />
+        ) : currentTool === 'md-to-pdf' ? (
+          <MarkdownToPdf />
+        ) : currentTool === 'image-to-pdf' ? (
+          <ImagesToPdfConverter />
         ) : currentTool === 'gif-maker' ? (
           <ImageGifMaker />
         ) : currentTool === 'video-to-gif' ? (
@@ -66,12 +67,6 @@ export default function App() {
               <p className="lead">Convert, resize, and optimize your media files - 100% locally processed!</p>
               
               <div className="tool-grid">
-                <div className="tool-card" onClick={() => setCurrentTool('library-test')}>
-                  <div className="tool-icon">🧪</div>
-                  <h3>Library Test</h3>
-                  <p>Test frontend animation libraries</p>
-                </div>
-                
                 <div className="tool-card" onClick={() => setCurrentTool('gif-maker')}>
                   <div className="tool-icon">🖼️</div>
                   <h3>GIF Maker</h3>
@@ -88,6 +83,18 @@ export default function App() {
                   <div className="tool-icon">📄</div>
                   <h3>PDF to Markdown</h3>
                   <p>Convert PDF documents to Markdown</p>
+                </div>
+
+                <div className="tool-card" onClick={() => setCurrentTool('md-to-pdf')}>
+                  <div className="tool-icon">📝</div>
+                  <h3>Markdown to PDF</h3>
+                  <p>Render Markdown into a polished PDF</p>
+                </div>
+
+                <div className="tool-card" onClick={() => setCurrentTool('image-to-pdf')}>
+                  <div className="tool-icon">🖼️</div>
+                  <h3>Images to PDF</h3>
+                  <p>Combine multiple images into a PDF</p>
                 </div>
                 
                 <div className="tool-card" onClick={() => setCurrentTool('image-editor')}>
