@@ -1,9 +1,10 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import html2pdf from 'html2pdf.js';
+import { PDFDocument } from 'pdf-lib';
 import { NotificationService } from '../utils/NotificationService.js';
-import { PAGE_SIZES_MM, sanitizeFileName, clampMargin } from '../utils/pdfExport.js';
+import { PAGE_SIZES_MM, sanitizeFileName, clampMargin, mmToPixels, getPageSizeMm } from '../utils/pdfExport.js';
 
 const SAMPLE_MARKDOWN = String.raw`# Markdown to PDF
 
@@ -50,6 +51,14 @@ export default function MarkdownToPdf() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
   const previewRef = useRef(null);
+  const exportRef = useRef(null);
+  const [pageStats, setPageStats] = useState({ estimatedPages: 0, actualPages: null, availableHeightPx: 0 });
+  const [exportMode, setExportMode] = useState('all');
+  const [pageInputs, setPageInputs] = useState({ start: 1, end: 1 });
+  const [selectedPages, setSelectedPages] = useState([]);
+  const [pageSelectionError, setPageSelectionError] = useState('');
+
+  const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
 
   const renderedHtml = useMemo(() => {
     try {
@@ -61,6 +70,139 @@ export default function MarkdownToPdf() {
       return '';
     }
   }, [markdown]);
+
+  useEffect(() => {
+    if (!exportRef.current) {
+      return;
+    }
+
+    const target = exportRef.current;
+    target.innerHTML = renderedHtml || '';
+
+    const { pageSize, orientation, margin } = options;
+    const { width: pageWidthMm, height: pageHeightMm } = getPageSizeMm(pageSize, orientation);
+    const marginPx = mmToPixels(margin);
+    const pageWidthPx = mmToPixels(pageWidthMm);
+    const pageHeightPx = mmToPixels(pageHeightMm);
+    const contentWidthPx = Math.max(120, pageWidthPx - marginPx * 2);
+    const contentHeightPx = Math.max(120, pageHeightPx - marginPx * 2);
+
+    target.style.width = `${contentWidthPx}px`;
+    target.style.padding = `${marginPx}px`;
+    target.style.boxSizing = 'border-box';
+
+    const measure = () => {
+      const height = target.getBoundingClientRect?.().height || 0;
+      const hasContent = Boolean(markdown.trim());
+      const estimatedPages = hasContent && contentHeightPx > 0
+        ? Math.max(1, Math.ceil(height / contentHeightPx))
+        : 0;
+
+      setPageStats((prev) => ({
+        estimatedPages,
+        actualPages: hasContent ? prev.actualPages : null,
+        availableHeightPx: contentHeightPx
+      }));
+
+      if (estimatedPages > 0) {
+        const safeMax = Math.max(estimatedPages, 1);
+        setPageInputs((prev) => ({
+          start: clampValue(prev.start || 1, 1, safeMax),
+          end: clampValue(prev.end || safeMax, 1, safeMax)
+        }));
+
+        setSelectedPages((prev) => {
+          if (!Array.isArray(prev) || prev.length === 0) {
+            return Array.from({ length: safeMax }, (_, idx) => idx + 1);
+          }
+
+          const normalized = Array.from(new Set(prev
+            .map((page) => clampValue(Number(page) || 1, 1, safeMax))))
+            .sort((a, b) => a - b);
+
+          return normalized.length ? normalized : Array.from({ length: safeMax }, (_, idx) => idx + 1);
+        });
+      }
+    };
+
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(measure);
+    } else {
+      setTimeout(measure, 0);
+    }
+  }, [renderedHtml, options, markdown]);
+
+  const resolvedPages = pageStats.actualPages ?? pageStats.estimatedPages ?? 0;
+  const hasResolvedPages = resolvedPages > 0;
+  const pageLabel = pageStats.actualPages
+    ? `${pageStats.actualPages} page${pageStats.actualPages === 1 ? '' : 's'}`
+    : pageStats.estimatedPages
+      ? `≈ ${pageStats.estimatedPages} page${pageStats.estimatedPages === 1 ? '' : 's'}`
+      : '—';
+  const selectedPageSet = useMemo(() => new Set(selectedPages), [selectedPages]);
+
+  useEffect(() => {
+    if (!hasResolvedPages) {
+      setSelectedPages([]);
+      return;
+    }
+
+    setPageInputs((prev) => ({
+      start: clampValue(prev.start || 1, 1, resolvedPages),
+      end: clampValue(prev.end || resolvedPages, 1, resolvedPages)
+    }));
+
+    setSelectedPages((prev) => {
+      if (!Array.isArray(prev) || prev.length === 0) {
+        return Array.from({ length: resolvedPages }, (_, idx) => idx + 1);
+      }
+
+      const normalized = Array.from(new Set(prev
+        .map((page) => clampValue(Number(page) || 1, 1, resolvedPages)))).sort((a, b) => a - b);
+
+      return normalized.length ? normalized : Array.from({ length: resolvedPages }, (_, idx) => idx + 1);
+    });
+  }, [hasResolvedPages, resolvedPages]);
+
+  useEffect(() => {
+    if (exportMode !== 'custom' && pageSelectionError) {
+      setPageSelectionError('');
+    }
+  }, [exportMode, pageSelectionError]);
+
+  const togglePageSelection = (pageNumber) => {
+    if (!hasResolvedPages) {
+      return;
+    }
+
+    setPageSelectionError('');
+    setSelectedPages((prev) => {
+      const set = new Set(prev);
+      if (set.has(pageNumber)) {
+        set.delete(pageNumber);
+      } else {
+        set.add(pageNumber);
+      }
+      const next = Array.from(set)
+        .map((page) => clampValue(Number(page) || 1, 1, resolvedPages))
+        .filter((value, index, array) => array.indexOf(value) === index)
+        .sort((a, b) => a - b);
+      return next;
+    });
+  };
+
+  const selectAllPages = () => {
+    if (!hasResolvedPages) {
+      return;
+    }
+    setPageSelectionError('');
+    setSelectedPages(Array.from({ length: resolvedPages }, (_, idx) => idx + 1));
+  };
+
+  const clearSelectedPages = () => {
+    setPageSelectionError('');
+    setSelectedPages([]);
+  };
 
   const handleFileUpload = async (event) => {
     const file = event.target.files?.[0];
@@ -105,8 +247,13 @@ export default function MarkdownToPdf() {
   };
 
   const convertToPdf = async () => {
-    if (!previewRef.current) {
+    if (!exportRef.current) {
       NotificationService.warning('Nothing to export yet. Add some Markdown first.');
+      return;
+    }
+
+    if (!markdown.trim()) {
+      NotificationService.warning('Add some Markdown before exporting.');
       return;
     }
 
@@ -120,15 +267,86 @@ export default function MarkdownToPdf() {
         margin,
         filename: exportName,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+        pagebreak: { mode: ['css', 'legacy'] },
         jsPDF: { unit: 'mm', format: pageSize, orientation }
       };
 
+      setPageSelectionError('');
       NotificationService.toast('Generating PDF…', 'info');
-      await html2pdf()
-        .set(pdfOptions)
-        .from(previewRef.current)
-        .save();
+
+      const worker = html2pdf().set(pdfOptions).from(exportRef.current);
+      const pdfArrayBuffer = await worker.outputPdf('arraybuffer');
+      const pdfDoc = await PDFDocument.load(pdfArrayBuffer);
+      const totalPages = pdfDoc.getPageCount();
+
+      setPageStats((prev) => ({
+        ...prev,
+        actualPages: totalPages,
+        estimatedPages: prev.estimatedPages || totalPages
+      }));
+
+      setPageInputs((prev) => {
+        const max = Math.max(totalPages, 1);
+        return {
+          start: clampValue(prev.start || 1, 1, max),
+          end: clampValue(prev.end || max, 1, max)
+        };
+      });
+
+      setSelectedPages((prev) => {
+        if (!Array.isArray(prev) || !prev.length) {
+          return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+        }
+        const normalized = Array.from(new Set(prev
+          .map((page) => clampValue(Number(page) || 1, 1, totalPages)))).sort((a, b) => a - b);
+        return normalized.length ? normalized : Array.from({ length: totalPages }, (_, idx) => idx + 1);
+      });
+
+      const clampPage = (value) => clampValue(value, 1, totalPages);
+      let pageNumbers = Array.from({ length: totalPages }, (_, idx) => idx + 1);
+
+      if (exportMode === 'range') {
+        const start = clampPage(pageInputs.start || 1);
+        const end = clampPage(pageInputs.end || totalPages);
+        const [min, max] = start <= end ? [start, end] : [end, start];
+        pageNumbers = Array.from({ length: max - min + 1 }, (_, idx) => min + idx);
+      } else if (exportMode === 'custom') {
+        const normalized = Array.from(new Set(selectedPages
+          .map((page) => clampPage(Number(page) || 1)))).sort((a, b) => a - b);
+
+        if (!normalized.length) {
+          const message = 'Select at least one page before downloading.';
+          setPageSelectionError(message);
+          NotificationService.warning(message);
+          return;
+        }
+
+        pageNumbers = normalized;
+      }
+
+      const pageIndexes = pageNumbers.map((page) => clampPage(page) - 1);
+
+      let outputBytes;
+
+      if (pageIndexes.length === totalPages) {
+        outputBytes = await pdfDoc.save();
+      } else {
+        const subsetDoc = await PDFDocument.create();
+        const copiedPages = await subsetDoc.copyPages(pdfDoc, pageIndexes);
+        copiedPages.forEach((page) => subsetDoc.addPage(page));
+        outputBytes = await subsetDoc.save();
+      }
+
+      const blob = new Blob([outputBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = exportName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
       NotificationService.success('PDF downloaded successfully');
     } catch (conversionError) {
@@ -206,6 +424,134 @@ export default function MarkdownToPdf() {
             </label>
           </div>
 
+          <div className="page-controls">
+            <div className="page-count">
+              <span>Total pages</span>
+              <strong>{pageLabel}</strong>
+              {pageStats.actualPages && pageStats.estimatedPages && pageStats.actualPages !== pageStats.estimatedPages && (
+                <small>Estimated before export: ≈{pageStats.estimatedPages}</small>
+              )}
+              {!pageStats.actualPages && pageStats.estimatedPages > 0 && (
+                <small>Final count will confirm on export.</small>
+              )}
+            </div>
+
+            <fieldset className="page-mode" disabled={!hasResolvedPages}>
+              <legend>Select pages to export</legend>
+              {!hasResolvedPages && (
+                <small className="page-hint">Add Markdown and wait a moment for page estimates to unlock selection controls.</small>
+              )}
+              <label className="radio-line">
+                <input
+                  type="radio"
+                  name="export-mode"
+                  value="all"
+                  checked={exportMode === 'all'}
+                  onChange={() => setExportMode('all')}
+                />
+                <span>All pages ({pageLabel})</span>
+              </label>
+
+              <label className="radio-line">
+                <input
+                  type="radio"
+                  name="export-mode"
+                  value="range"
+                  checked={exportMode === 'range'}
+                  onChange={() => setExportMode('range')}
+                  disabled={!hasResolvedPages}
+                />
+                <span>Pages</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={Math.max(resolvedPages, 1)}
+                  value={pageInputs.start}
+                  onChange={(e) => {
+                    const next = clampValue(parseInt(e.target.value, 10) || 1, 1, Math.max(resolvedPages, 1));
+                    setPageInputs((prev) => ({ ...prev, start: next }));
+                  }}
+                  disabled={exportMode !== 'range' || !hasResolvedPages}
+                />
+                <span>to</span>
+                <input
+                  type="number"
+                  min="1"
+                  max={Math.max(resolvedPages, 1)}
+                  value={pageInputs.end}
+                  onChange={(e) => {
+                    const next = clampValue(parseInt(e.target.value, 10) || 1, 1, Math.max(resolvedPages, 1));
+                    setPageInputs((prev) => ({ ...prev, end: next }));
+                  }}
+                  disabled={exportMode !== 'range' || !hasResolvedPages}
+                />
+              </label>
+
+              <div className={`radio-custom ${exportMode === 'custom' ? 'active' : ''}`}>
+                <label className="radio-line spread">
+                  <input
+                    type="radio"
+                    name="export-mode"
+                    value="custom"
+                    checked={exportMode === 'custom'}
+                    onChange={() => setExportMode('custom')}
+                    disabled={!hasResolvedPages}
+                  />
+                  <span>Choose specific pages</span>
+                  <span className="selection-count">
+                    {!hasResolvedPages
+                      ? '—'
+                      : selectedPages.length === resolvedPages
+                        ? 'All pages selected'
+                        : selectedPages.length > 0
+                          ? `${selectedPages.length} selected`
+                          : 'None selected yet'}
+                  </span>
+                </label>
+
+                <div className="page-picker" data-disabled={exportMode !== 'custom'}>
+                  {Array.from({ length: resolvedPages }, (_, idx) => idx + 1).map((pageNumber) => {
+                    const isSelected = selectedPageSet.has(pageNumber);
+                    return (
+                      <button
+                        key={pageNumber}
+                        type="button"
+                        className={`page-chip ${isSelected ? 'selected' : ''}`}
+                        onClick={() => togglePageSelection(pageNumber)}
+                        disabled={exportMode !== 'custom'}
+                        aria-pressed={isSelected}
+                        title={`Toggle page ${pageNumber}`}
+                      >
+                        {pageNumber}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="page-picker-actions">
+                  <button
+                    type="button"
+                    onClick={selectAllPages}
+                    disabled={exportMode !== 'custom' || !hasResolvedPages}
+                  >
+                    Select all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearSelectedPages}
+                    disabled={exportMode !== 'custom' || !hasResolvedPages}
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                {pageSelectionError && exportMode === 'custom' && (
+                  <small className="error-message">{pageSelectionError}</small>
+                )}
+              </div>
+            </fieldset>
+          </div>
+
           <div className="uploader">
             <input
               id="md-file-input"
@@ -238,6 +584,10 @@ export default function MarkdownToPdf() {
           <strong>Something went wrong:</strong> {error}
         </div>
       )}
+
+      <div className="export-measure-root" aria-hidden="true">
+        <div ref={exportRef} className="markdown-export" />
+      </div>
 
       <style>{`
         .md-to-pdf {
@@ -342,6 +692,175 @@ export default function MarkdownToPdf() {
           display: flex;
           flex-direction: column;
           gap: 6px;
+        }
+
+        .page-controls {
+          padding: 16px;
+          border: 1px solid #e2e8f0;
+          border-radius: 14px;
+          background: rgba(248, 250, 252, 0.8);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .page-count {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .page-count span {
+          font-weight: 600;
+          color: #1f2937;
+        }
+
+        .page-count strong {
+          font-size: 1.4rem;
+          color: #0f172a;
+        }
+
+        .page-count small {
+          color: #64748b;
+          font-size: 0.8rem;
+        }
+
+        .page-mode {
+          border: none;
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .page-mode legend {
+          font-weight: 600;
+          color: #1f2937;
+          margin-bottom: 4px;
+        }
+
+        .page-hint {
+          color: #64748b;
+          font-size: 0.85rem;
+        }
+
+        .radio-line {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.95rem;
+          color: #1f2937;
+        }
+
+        .radio-line.spread {
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .radio-custom {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          border-radius: 12px;
+          padding: 10px 12px;
+          transition: background 0.2s ease;
+        }
+
+        .radio-custom.active {
+          background: rgba(99, 102, 241, 0.08);
+        }
+
+        .selection-count {
+          margin-left: auto;
+          font-size: 0.85rem;
+          color: #475569;
+        }
+
+        .radio-line input[type='number'] {
+          width: 72px;
+          text-align: center;
+        }
+
+        .page-picker {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+          gap: 8px;
+        }
+
+        .page-picker[data-disabled='true'] {
+          opacity: 0.5;
+          pointer-events: none;
+        }
+
+        .page-chip {
+          border: 1px solid #cbd5f5;
+          border-radius: 8px;
+          background: #fff;
+          padding: 8px 0;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .page-chip.selected {
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+          color: #fff;
+          border-color: transparent;
+          box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2);
+        }
+
+        .page-chip:disabled {
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+
+        .page-picker-actions {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .page-picker-actions button {
+          border: none;
+          border-radius: 999px;
+          padding: 6px 14px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          background: rgba(15, 118, 110, 0.12);
+          color: #0f766e;
+          cursor: pointer;
+          transition: background 0.2s ease;
+        }
+
+        .page-picker-actions button:hover:not(:disabled) {
+          background: rgba(15, 118, 110, 0.2);
+        }
+
+        .page-picker-actions button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .error-message {
+          color: #b91c1c;
+          font-size: 0.85rem;
+        }
+
+        .export-measure-root {
+          position: absolute;
+          top: 0;
+          left: -9999px;
+          opacity: 0;
+          pointer-events: none;
+          max-width: none;
+        }
+
+        .markdown-export {
+          line-height: 1.7;
+          color: #1f2937;
+          font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
 
         input[type='text'],
@@ -495,6 +1014,43 @@ export default function MarkdownToPdf() {
         .preview .empty {
           color: #94a3b8;
           font-style: italic;
+        }
+
+        .markdown-export h1,
+        .markdown-export h2,
+        .markdown-export h3,
+        .markdown-export h4 {
+          color: #111827;
+        }
+
+        .markdown-export pre {
+          background: #0f172a;
+          color: #e2e8f0;
+          padding: 12px;
+          border-radius: 12px;
+          overflow-x: auto;
+          font-size: 0.9rem;
+        }
+
+        .markdown-export table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 16px 0;
+        }
+
+        .markdown-export th,
+        .markdown-export td {
+          border: 1px solid #e5e7eb;
+          padding: 8px 12px;
+          text-align: left;
+        }
+
+        .markdown-export blockquote {
+          border-left: 4px solid #6366f1;
+          margin: 16px 0;
+          padding: 8px 16px;
+          background: rgba(99, 102, 241, 0.08);
+          color: #4338ca;
         }
 
         .error-banner {
