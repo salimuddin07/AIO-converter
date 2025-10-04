@@ -40,12 +40,29 @@ const detectRuntimeBackendUrl = () => {
     return globalOverride.trim();
   }
 
-  const envValue = typeof import.meta !== 'undefined' && import.meta?.env?.VITE_BACKEND_URL
-    ? String(import.meta.env.VITE_BACKEND_URL)
-    : '';
+  const importMetaEnv = (typeof import.meta !== 'undefined' && import.meta?.env) || {};
+  const envCandidates = [
+    importMetaEnv.VITE_BACKEND_URL,
+    importMetaEnv.VITE_API_BASE_URL,
+    importMetaEnv.VITE_BACKEND_BASE_URL,
+    importMetaEnv.VITE_APP_BACKEND_URL
+  ];
 
-  if (envValue.trim()) {
-    return envValue.trim();
+  const matchedEnv = envCandidates.find((value) => typeof value === 'string' && value.trim());
+  if (matchedEnv) {
+    return matchedEnv.trim();
+  }
+
+  if (typeof process !== 'undefined' && process.env) {
+    const processCandidates = [
+      process.env.VITE_BACKEND_URL,
+      process.env.VITE_API_BASE_URL,
+      process.env.BACKEND_URL
+    ];
+    const matchedProcess = processCandidates.find((value) => typeof value === 'string' && value.trim());
+    if (matchedProcess) {
+      return matchedProcess.trim();
+    }
   }
 
   return 'http://localhost:3003';
@@ -65,7 +82,34 @@ const normalizeBaseUrl = (url) => {
 };
 
 const API_BASE_URL = normalizeBaseUrl(detectRuntimeBackendUrl());
-const IS_LOCAL_BACKEND = /^https?:\/\/(localhost|127\.0\.0\.1)(:\\d+)?$/i.test(API_BASE_URL);
+const IS_LOCAL_BACKEND = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(API_BASE_URL);
+const IS_BROWSER = typeof window !== 'undefined' && typeof window.location !== 'undefined';
+const IS_HTTPS_PAGE = IS_BROWSER && window.location.protocol === 'https:';
+const IS_HTTP_BACKEND = /^http:\/\//i.test(API_BASE_URL);
+const MIXED_CONTENT_MESSAGE = IS_HTTPS_PAGE && IS_HTTP_BACKEND
+  ? `Requests to ${API_BASE_URL} were blocked because the app is running over HTTPS. Configure an HTTPS backend URL (e.g. https://api.example.com) and expose it via VITE_BACKEND_URL or VITE_API_BASE_URL.`
+  : null;
+
+const handleNetworkError = (error, fallbackMessage) => {
+  if (error instanceof TypeError) {
+    if (MIXED_CONTENT_MESSAGE) {
+      throw new Error(MIXED_CONTENT_MESSAGE);
+    }
+    const message = fallbackMessage || error.message || 'Network request failed.';
+    throw new Error(message);
+  }
+  throw error;
+};
+
+const withNetworkGuard = async (operation, fallbackMessage) => {
+  try {
+    return await operation();
+  } catch (error) {
+    handleNetworkError(error, fallbackMessage);
+  }
+};
+
+const DEFAULT_NETWORK_MESSAGE = 'Unable to reach the backend. Ensure it is running and accessible from this environment (HTTPS required when the app is served over HTTPS).';
 
 export const API_CONFIG = {
   baseUrl: API_BASE_URL,
@@ -116,6 +160,8 @@ export const API_CONFIG = {
   },
   local: LOCAL_CONFIG,
   isLocal: IS_LOCAL_BACKEND,
+  isHttpsPage: IS_HTTPS_PAGE,
+  mixedContentMessage: MIXED_CONTENT_MESSAGE,
   getLocalConfig: () => LOCAL_CONFIG
 };
 
@@ -186,74 +232,73 @@ export const validateFile = (file, type = "image") => {
 // Real API for backend communication
 export const realAPI = {
   // Convert image formats
-  convert: async (files, outputFormat, quality) => {
+  convert: async (files, outputFormat, quality) => withNetworkGuard(async () => {
     const formData = new FormData();
     files.forEach(file => formData.append('files', file));
     formData.append('outputFormat', outputFormat);
     formData.append('quality', quality || 0.8);
-    
+
     const response = await fetch(getApiUrl('convert'), {
       method: 'POST',
       body: formData
     });
-    
+
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      await throwApiError(response, 'Conversion failed');
     }
-    
+
     return await response.json();
-  },
+  }, DEFAULT_NETWORK_MESSAGE),
 
   // Video to GIF conversion
-  videoToGif: async (videoFile, options = {}) => {
+  videoToGif: async (videoFile, options = {}) => withNetworkGuard(async () => {
     const formData = new FormData();
     formData.append('video', videoFile);
-    
-    // Add options
+
     Object.keys(options).forEach(key => {
       formData.append(key, options[key]);
     });
-    
+
     const response = await fetch(getApiUrl('videoUpload'), {
       method: 'POST',
       body: formData
     });
-    
+
     if (!response.ok) {
-      throw new Error(`Video upload failed: ${response.status}`);
+      await throwApiError(response, 'Video upload failed');
     }
-    
+
     return await response.json();
-  },
+  }, 'Video upload failed. Verify the backend URL is reachable (HTTPS required for hosted builds).'),
 
   // Upload video from URL
-  uploadVideoFromUrl: async (url) => {
+  uploadVideoFromUrl: async (url) => withNetworkGuard(async () => {
     const formData = new FormData();
     formData.append('url', url);
-    
+
     const response = await fetch(getApiUrl('videoUpload'), {
       method: 'POST',
       body: formData
     });
-    
+
     if (!response.ok) {
-      throw new Error(`Video URL upload failed: ${response.status}`);
+      await throwApiError(response, 'Video URL upload failed');
     }
-    
+
     return await response.json();
-  },
+  }, 'Video URL upload failed. Ensure the backend can be reached from this page.'),
 
   // Get video info
-  getVideoInfo: async (videoId) => {
-    const response = await fetch(getApiUrl('videoInfo') + `/${videoId}`);
+  getVideoInfo: async (videoId) => withNetworkGuard(async () => {
+    const response = await fetch(`${getApiUrl('videoInfo')}/${videoId}`);
     if (!response.ok) {
-      throw new Error(`Failed to get video info: ${response.status}`);
+      await throwApiError(response, 'Failed to get video info');
     }
     return await response.json();
-  },
+  }, DEFAULT_NETWORK_MESSAGE),
 
   // Convert video to GIF
-  convertVideoToGif: async (videoId, options) => {
+  convertVideoToGif: async (videoId, options) => withNetworkGuard(async () => {
     const response = await fetch(getApiUrl('videoConvert'), {
       method: 'POST',
       headers: {
@@ -261,13 +306,13 @@ export const realAPI = {
       },
       body: JSON.stringify({ videoId, ...options })
     });
-    
+
     if (!response.ok) {
-      throw new Error(`Video conversion failed: ${response.status}`);
+      await throwApiError(response, 'Video conversion failed');
     }
-    
+
     return await response.json();
-  },
+  }, DEFAULT_NETWORK_MESSAGE),
 
   // Add text to image
   addText: async (imageFile, text, options = {}) => {
@@ -292,7 +337,7 @@ export const realAPI = {
   },
 
   // Split GIF
-  splitGif: async (gifFile, options = {}) => {
+  splitGif: async (gifFile, options = {}) => withNetworkGuard(async () => {
     const formData = new FormData();
     formData.append('gif', gifFile);
     Object.entries(options).forEach(([key, value]) => {
@@ -300,21 +345,21 @@ export const realAPI = {
         formData.append(key, value);
       }
     });
-    
+
     const response = await fetch(getApiUrl('splitGif'), {
       method: 'POST',
       body: formData
     });
-    
+
     if (!response.ok) {
       await throwApiError(response, 'GIF split failed');
     }
-    
+
     return await response.json();
-  },
+  }, DEFAULT_NETWORK_MESSAGE),
 
   // Split GIF from URL
-  splitGifFromUrl: async (url, options = {}) => {
+  splitGifFromUrl: async (url, options = {}) => withNetworkGuard(async () => {
     const formData = new FormData();
     formData.append('url', url);
     Object.entries(options).forEach(([key, value]) => {
@@ -322,21 +367,21 @@ export const realAPI = {
         formData.append(key, value);
       }
     });
-    
+
     const response = await fetch(getApiUrl('splitGif'), {
       method: 'POST',
       body: formData
     });
-    
+
     if (!response.ok) {
       await throwApiError(response, 'GIF split from URL failed');
     }
-    
+
     return await response.json();
-  },
+  }, DEFAULT_NETWORK_MESSAGE),
 
   // Split Video into frames
-  splitVideo: async (videoFile, options = {}) => {
+  splitVideo: async (videoFile, options = {}) => withNetworkGuard(async () => {
     const formData = new FormData();
     if (videoFile) {
       formData.append('video', videoFile);
@@ -358,9 +403,9 @@ export const realAPI = {
     }
 
     return await response.json();
-  },
+  }, 'Video split failed. Provide an HTTPS-accessible backend or run the local dev client.'),
 
-  splitVideoFromUrl: async (url, options = {}) => {
+  splitVideoFromUrl: async (url, options = {}) => withNetworkGuard(async () => {
     const formData = new FormData();
     formData.append('url', url);
 
@@ -380,7 +425,7 @@ export const realAPI = {
     }
 
     return await response.json();
-  },
+  }, 'Video split from URL failed. Provide an HTTPS backend URL for hosted builds.'),
 
   // Upload image for text addition
   uploadImage: async (imageFile) => {
@@ -608,13 +653,13 @@ export const realAPI = {
     return results;
   },
 
-  getModernFormatInfo: async (format) => {
+  getModernFormatInfo: withNetworkGuard(async (format) => {
     const response = await fetch(getApiUrl('modern') + `/format-info/${format}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch modern format info for ${format}`);
     }
     return await response.json();
-  },
+  }),
 
   compareModernFormats: async (file) => {
     const formData = new FormData();
