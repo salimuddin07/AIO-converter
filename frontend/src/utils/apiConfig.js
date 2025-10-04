@@ -86,6 +86,19 @@ export const getApiUrl = (endpoint) => {
 };
 
 export const validateFile = (file, type = "image") => {
+  const appendFormOptions = (formData, options = {}) => {
+    Object.entries(options).forEach(([key, value]) => {
+      if (value === undefined || value === null) {
+        return;
+      }
+
+      if (typeof value === 'object' && !(value instanceof File) && !(value instanceof Blob)) {
+        formData.append(key, JSON.stringify(value));
+      } else {
+        formData.append(key, value);
+      }
+    });
+  };
   if (file.type === "application/pdf") {
     type = "pdf";
   }
@@ -388,6 +401,115 @@ export const realAPI = {
     }
     
     return await response.json();
+  },
+
+  createApngSequence: async (files, settings = {}) => {
+    if (!files || files.length === 0) {
+      throw new Error('Select at least one frame to build an APNG');
+    }
+
+    const formData = new FormData();
+    files.forEach((file) => formData.append('images', file));
+    appendFormOptions(formData, settings);
+
+    const response = await fetch(getApiUrl('modern') + '/create-apng', {
+      method: 'POST',
+      body: formData
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.success === false) {
+      throw new Error(payload?.details || payload?.error || 'APNG creation failed');
+    }
+
+    return payload.result;
+  },
+
+  convertToAvifModern: async (files, settings = {}) => {
+    if (!files || files.length === 0) {
+      throw new Error('Select at least one image to convert to AVIF');
+    }
+
+    const results = [];
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('image', file);
+      appendFormOptions(formData, settings);
+
+      const response = await fetch(getApiUrl('modern') + '/to-avif', {
+        method: 'POST',
+        body: formData
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload?.details || payload?.error || `Failed to convert ${file.name} to AVIF`);
+      }
+
+      results.push({
+        originalName: file.name,
+        originalSize: file.size,
+        ...payload.result
+      });
+    }
+
+    return results;
+  },
+
+  convertToJxl: async (files, settings = {}) => {
+    if (!files || files.length === 0) {
+      throw new Error('Select at least one image to convert to JPEG XL');
+    }
+
+    const results = [];
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append('image', file);
+      appendFormOptions(formData, settings);
+
+      const response = await fetch(getApiUrl('modern') + '/to-jxl', {
+        method: 'POST',
+        body: formData
+      });
+
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || payload.success === false) {
+        throw new Error(payload?.details || payload?.error || `Failed to convert ${file.name} to JXL`);
+      }
+
+      results.push({
+        originalName: file.name,
+        originalSize: file.size,
+        ...payload.result
+      });
+    }
+
+    return results;
+  },
+
+  getModernFormatInfo: async (format) => {
+    const response = await fetch(getApiUrl('modern') + `/format-info/${format}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch modern format info for ${format}`);
+    }
+    return await response.json();
+  },
+
+  compareModernFormats: async (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+
+    const response = await fetch(getApiUrl('modern') + '/compare-formats', {
+      method: 'POST',
+      body: formData
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.success === false) {
+      throw new Error(payload?.details || payload?.error || 'Format comparison failed');
+    }
+
+    return payload;
   },
 
   // Enhanced GIF creation methods

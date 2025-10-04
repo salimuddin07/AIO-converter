@@ -1,1 +1,0 @@
-// Legacy test harness removed. Intentionally left blank.

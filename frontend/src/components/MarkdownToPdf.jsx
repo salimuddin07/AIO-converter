@@ -243,7 +243,7 @@ export default function MarkdownToPdf() {
         .md-to-pdf {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 32px 20px 80px;
+          padding: 0 auto;
           display: flex;
           flex-direction: column;
           gap: 24px;

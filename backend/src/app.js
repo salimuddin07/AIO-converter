@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import errorHandler from './middleware/ErrorHandler.js';
-import { ensureDirectories } from './utils/FilePathUtils.js';
+import { ensureDirectories, outputDir } from './utils/FilePathUtils.js';
 
 // Import routes
 import convertRouter from './routes/ConversionRoutes.js';
@@ -85,8 +85,7 @@ app.use('/api/modern', modernFormatRouter);
 // Serve converted files statically
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-app.use('/api/files', express.static(path.join(__dirname, 'output')));
-app.use('/api/output', express.static(path.join(__dirname, 'output')));
+app.use('/api/output', express.static(outputDir));
 
 // Multer error handler (e.g., file size)
 // eslint-disable-next-line no-unused-vars

@@ -17,6 +17,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { v4 as uuid } from 'uuid';
 import { outputDir, tempDir } from '../utils/FilePathUtils.js';
+import { imageMagickService } from './index.js';
 
 export class ModernFormatProcessor {
   constructor() {
@@ -181,33 +182,60 @@ export class ModernFormatProcessor {
    * Create APNG (Animated PNG) from images sequence
    * Note: This is a simplified implementation using Sharp
    */
-  async createAPNG(imagePaths, options = {}) {
+  async createAPNG(imagePaths = [], options = {}) {
     const {
-      fps = 10,
-      loop = true,
+      fps = 12,
+      loop = 0,
       resize = null
     } = options;
 
-    // For now, we'll create a regular PNG and note APNG limitation
-    // Full APNG support would require a specialized library
-    
+    const frames = Array.isArray(imagePaths)
+      ? imagePaths.filter(Boolean)
+      : [imagePaths].filter(Boolean);
+
+    if (frames.length === 0) {
+      throw new Error('At least one frame is required to build an APNG');
+    }
+
     const outputId = uuid();
     const outputName = `apng_${outputId}.png`;
     const outputPath = path.join(outputDir, outputName);
 
-    try {
-      // Use the first image as base for now
-      // In a full implementation, you'd create actual APNG frames
-      let pipeline = sharp(imagePaths[0]);
+    const cleanupPaths = [];
 
-      if (resize && resize.width && resize.height) {
-        pipeline = pipeline.resize(resize.width, resize.height, {
-          fit: resize.fit || 'contain',
-          background: resize.background || { r: 255, g: 255, b: 255, alpha: 0 }
-        });
+    try {
+      const processedFrames = [];
+
+      for (const framePath of frames) {
+        if (resize && resize.width && resize.height) {
+          const resizedPath = path.join(tempDir, `apng_frame_${uuid()}.png`);
+          await sharp(framePath)
+            .resize(resize.width, resize.height, {
+              fit: resize.fit || 'contain',
+              background: resize.background || { r: 0, g: 0, b: 0, alpha: 0 }
+            })
+            .png()
+            .toFile(resizedPath);
+          processedFrames.push(resizedPath);
+          cleanupPaths.push(resizedPath);
+        } else {
+          processedFrames.push(framePath);
+        }
       }
 
-      await pipeline.png().toFile(outputPath);
+      const delay = Math.max(1, Math.round(100 / Math.max(1, fps)));
+      const loopValue = typeof loop === 'number' ? loop : (loop ? 0 : 1);
+
+      const convertArgs = [
+        ...processedFrames,
+        '-delay',
+        `${delay}`,
+        '-loop',
+        `${loopValue}`,
+        outputPath
+      ];
+
+      await imageMagickService.convert(convertArgs);
 
       const stats = await fs.stat(outputPath);
       return {
@@ -217,11 +245,86 @@ export class ModernFormatProcessor {
         size: stats.size,
         format: 'apng',
         downloadUrl: `/api/output/${outputName}`,
-        note: 'APNG creation is limited - currently outputs static PNG. Full APNG support coming soon.'
+        frameCount: processedFrames.length,
+        note: loopValue === 0 ? 'Loops infinitely' : `Loops ${loopValue} time(s)`
       };
 
     } catch (error) {
       throw new Error(`APNG creation failed: ${error.message}`);
+    } finally {
+      for (const tempPath of cleanupPaths) {
+        try {
+          await fs.unlink(tempPath);
+        } catch (cleanupError) {
+          // Ignore cleanup errors
+        }
+      }
+    }
+  }
+
+  async toJXL(inputPath, options = {}) {
+    const {
+      quality = 90,
+      effort = 7,
+      lossless = false,
+      resize = null
+    } = options;
+
+    const outputId = uuid();
+    const outputName = `jxl_${outputId}.jxl`;
+    const outputPath = path.join(outputDir, outputName);
+
+    const cleanupPaths = [];
+
+    try {
+      let workingPath = inputPath;
+
+      if (resize && resize.width && resize.height) {
+        const resizedPath = path.join(tempDir, `jxl_resized_${uuid()}.png`);
+        await sharp(inputPath)
+          .resize(resize.width, resize.height, {
+            fit: resize.fit || 'contain',
+            background: resize.background || { r: 0, g: 0, b: 0, alpha: 0 }
+          })
+          .png()
+          .toFile(resizedPath);
+        workingPath = resizedPath;
+        cleanupPaths.push(resizedPath);
+      }
+
+      const convertArgs = [workingPath];
+
+      if (lossless) {
+        convertArgs.push('-define', 'jxl:distance=0');
+      } else {
+        convertArgs.push('-quality', `${quality}`);
+      }
+
+      convertArgs.push('-define', `jxl:effort=${Math.min(9, Math.max(1, effort))}`);
+      convertArgs.push(outputPath);
+
+      await imageMagickService.convert(convertArgs);
+
+      const stats = await fs.stat(outputPath);
+      return {
+        success: true,
+        outputName,
+        outputPath,
+        size: stats.size,
+        format: 'jxl',
+        downloadUrl: `/api/output/${outputName}`
+      };
+
+    } catch (error) {
+      throw new Error(`JXL conversion failed: ${error.message}`);
+    } finally {
+      for (const tempPath of cleanupPaths) {
+        try {
+          await fs.unlink(tempPath);
+        } catch (cleanupError) {
+          // Ignore cleanup errors
+        }
+      }
     }
   }
 
@@ -312,7 +415,8 @@ export class ModernFormatProcessor {
       'webp': this.toWebP,
       'avif': this.toAVIF,
       'heif': this.toHEIF,
-      'apng': this.createAPNG
+      'apng': this.createAPNG,
+      'jxl': this.toJXL
     };
 
     return formatMap[format.toLowerCase()];
@@ -343,6 +447,13 @@ export class ModernFormatProcessor {
         supports: ['static', 'sequences', 'transparency'],
         browserSupport: 'Limited (Safari)',
         advantages: ['50% smaller than JPEG', 'Better quality', 'Metadata support']
+      },
+      jxl: {
+        name: 'JPEG XL',
+        description: 'Cutting-edge JPEG replacement with superior compression',
+        supports: ['static', 'animation', 'high dynamic range'],
+        browserSupport: 'In progress (Chrome flag, tools support growing)',
+        advantages: ['Better quality at lower bitrates', 'Lossless and lossy modes', 'Progressive decoding']
       },
       apng: {
         name: 'Animated PNG',
