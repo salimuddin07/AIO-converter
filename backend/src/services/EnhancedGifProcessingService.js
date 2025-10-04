@@ -185,25 +185,32 @@ export class EnhancedGifProcessor {
     const outputName = `gif_${outputId}.gif`;
     const outputPath = path.join(outputDir, outputName);
 
-    // Process and resize images if needed
+    const referenceMetadata = await sharp(imagePaths[0]).metadata();
+    const baseWidth = typeof width === 'number' && width > 0 ? width : referenceMetadata.width;
+    const baseHeight = typeof height === 'number' && height > 0 ? height : referenceMetadata.height;
+    const fitOption = ['cover', 'fill'].includes(fit) ? fit : 'contain';
+    const resizeOptions = {
+      fit: fitOption
+    };
+
+    if (fitOption === 'contain') {
+      resizeOptions.background = { r: 255, g: 255, b: 255, alpha: 0 };
+    }
+
+    const resizeWidth = Number.isFinite(baseWidth) ? Math.max(1, Math.round(baseWidth)) : null;
+    const resizeHeight = Number.isFinite(baseHeight) ? Math.max(1, Math.round(baseHeight)) : null;
+    const shouldResize = resizeWidth !== null || resizeHeight !== null;
+
+    // Process and resize images to maintain consistent frame dimensions
     const processedFrames = [];
     for (const imagePath of imagePaths) {
-      let pipeline = sharp(imagePath);
+      let pipeline = sharp(imagePath).rotate();
 
-      if (width || height) {
-        const fitOption = ['cover', 'fill'].includes(fit) ? fit : 'contain';
-        const resizeOptions = {
-          fit: fitOption
-        };
-
-        if (fitOption === 'contain') {
-          resizeOptions.background = { r: 255, g: 255, b: 255, alpha: 0 };
-        }
-
-        pipeline = pipeline.resize(width || null, height || null, resizeOptions);
+      if (shouldResize) {
+        pipeline = pipeline.resize(resizeWidth, resizeHeight, resizeOptions);
       }
 
-      const buffer = await pipeline.png().toBuffer();
+      const buffer = await pipeline.ensureAlpha().png().toBuffer();
       processedFrames.push(buffer);
     }
 
