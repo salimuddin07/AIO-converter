@@ -9,6 +9,7 @@
 import ImageProcessor, { imageProcessor } from './ImageProcessingService.js';
 import VideoProcessor, { videoProcessor } from './VideoProcessingService.js';
 import GifProcessor, { gifProcessor } from './GifProcessingService.js';
+import SplitService, { splitService } from './SplitService.js';
 
 // Legacy services (for backward compatibility and specialized use cases)
 import FFmpegService from './FfmpegService.js';
@@ -57,6 +58,7 @@ const webPService = new WebPService();
 const mediaAnalysisService = new MediaAnalysisService();
 const canvasGraphicsService = new CanvasGraphicsService();
 const videoJSService = new VideoJSService();
+const splitProcessingService = splitService || new SplitService();
 
 // ============================================================================
 // SERVICE RECOMMENDATIONS & SELECTION LOGIC
@@ -110,6 +112,7 @@ class ServiceFactory {
       gifService: gifService,
       imageMagick: imageMagickService,
       enhancedJimp: enhancedJimpService,
+  split: splitProcessingService,
       webp: webPService,
       mediaAnalysis: mediaAnalysisService,
       canvas: canvasGraphicsService,

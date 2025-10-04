@@ -9,6 +9,7 @@ const VideoResults = ({ result, onBack }) => {
   
   const [isConverting, setIsConverting] = useState(false);
   const [convertResult, setConvertResult] = useState(null);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [settings, setSettings] = useState({
     startTime: 0,
     endTime: 5,
@@ -80,11 +81,39 @@ const VideoResults = ({ result, onBack }) => {
     setSettings(prev => ({ ...prev, endTime: Number(currentTime.toFixed(2)) }));
   };
 
-  const handleDownload = (gifPath, filename) => {
-    const link = document.createElement('a');
-    link.href = getApiUrl(`/api/video/download/${gifPath}`);
-    link.download = filename;
-    link.click();
+  const resolveApiPath = (path, fallback) => {
+    if (!path) {
+      return getApiUrl(fallback);
+    }
+    return path.startsWith('http') ? path : getApiUrl(path);
+  };
+
+  const handleDownload = async (gifPath, filename, directUrl) => {
+    const endpoint = directUrl || `/api/video/download/${gifPath}`;
+    const url = resolveApiPath(endpoint, `/api/video/download/${gifPath}`);
+
+    try {
+      setIsDownloading(true);
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Download failed:', error);
+      alert('Download failed. Please make sure the backend is running and try again.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const getMaxDuration = (fps) => {
@@ -125,14 +154,14 @@ const VideoResults = ({ result, onBack }) => {
         <div className="result-container">
           <div className="gif-preview">
             <img 
-              src={getApiUrl(`/api/video/gif-preview/${convertResult.gifPath}`)} 
+              src={resolveApiPath(convertResult.previewUrl, `/api/video/gif-preview/${convertResult.gifPath}`)} 
               alt="Converted GIF" 
               style={{ maxWidth: '100%', height: 'auto' }}
             />
           </div>
           
           <div className="result-info">
-            <p><strong>File size:</strong> {convertResult.fileSize}</p>
+            <p><strong>File size:</strong> {convertResult.fileSize || `${(convertResult.fileSizeBytes / (1024 * 1024)).toFixed(2)} MB`}</p>
             <p><strong>Dimensions:</strong> {convertResult.width}×{convertResult.height}</p>
             <p><strong>Duration:</strong> {convertResult.duration}s</p>
             <p><strong>Frame rate:</strong> {convertResult.fps} fps</p>
@@ -142,9 +171,14 @@ const VideoResults = ({ result, onBack }) => {
           <div className="download-section">
             <button 
               className="btn primary large"
-              onClick={() => handleDownload(convertResult.gifPath, `converted-${Date.now()}.gif`)}
+              onClick={() => handleDownload(
+                convertResult.gifPath,
+                `converted-${Date.now()}.gif`,
+                convertResult.downloadUrl
+              )}
+              disabled={isDownloading}
             >
-              Download GIF
+              {isDownloading ? 'Preparing download...' : 'Download GIF'}
             </button>
             
             <div className="additional-tools">

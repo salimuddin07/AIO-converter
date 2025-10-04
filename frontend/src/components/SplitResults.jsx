@@ -1,26 +1,45 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { getApiUrl } from '../utils/apiConfig.js';
 
 export default function SplitResults({ frames, onEditAnimation, onDownloadZip }) {
   if (!frames || frames.length === 0) return null;
 
+  const normalizedFrames = useMemo(() => frames.map((frame) => {
+    const preview = frame.previewUrl || frame.url;
+    const download = frame.downloadUrl || frame.url;
+    const toAbsolute = (path) => {
+      if (!path) return null;
+      return path.startsWith('http') ? path : getApiUrl(path);
+    };
+
+    return {
+      ...frame,
+      previewUrl: toAbsolute(preview),
+      downloadUrl: toAbsolute(download)
+    };
+  }), [frames]);
+
   return (
     <div className="split-results">
-      <h2>Extracted Frames ({frames.length} frames)</h2>
+      <h2>Extracted Frames ({normalizedFrames.length} frames)</h2>
       
-      <div className="action-buttons" style={{ marginBottom: '20px' }}>
-        <button 
-          className="btn primary" 
-          onClick={onDownloadZip}
-          style={{ marginRight: '10px' }}
-        >
-          Download frames as ZIP archive
-        </button>
-        <button 
-          className="btn secondary" 
-          onClick={onEditAnimation}
-        >
-          Edit animation
-        </button>
+      <div className="action-buttons" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        {onDownloadZip && (
+          <button 
+            className="btn primary" 
+            onClick={onDownloadZip}
+          >
+            Download frames as ZIP archive
+          </button>
+        )}
+        {onEditAnimation && (
+          <button 
+            className="btn secondary" 
+            onClick={onEditAnimation}
+          >
+            Edit animation
+          </button>
+        )}
       </div>
       
       <div className="frames-grid" style={{
@@ -29,7 +48,7 @@ export default function SplitResults({ frames, onEditAnimation, onDownloadZip })
         gap: '15px',
         marginTop: '20px'
       }}>
-        {frames.map((frame, index) => (
+        {normalizedFrames.map((frame, index) => (
           <div key={index} className="frame-item" style={{
             border: '1px solid #ddd',
             borderRadius: '5px',
@@ -47,7 +66,7 @@ export default function SplitResults({ frames, onEditAnimation, onDownloadZip })
             </div>
             
             <img 
-              src={frame.url} 
+              src={frame.previewUrl} 
               alt={`Frame ${index + 1}`}
               style={{
                 maxWidth: '100%',
@@ -65,13 +84,13 @@ export default function SplitResults({ frames, onEditAnimation, onDownloadZip })
               color: '#888',
               marginTop: '5px'
             }}>
-              {frame.delay}ms delay<br/>
-              {frame.width}×{frame.height}px
+              {frame.delay ? `${frame.delay}ms delay` : 'Frame extracted'}<br/>
+              {frame.width && frame.height ? `${frame.width}×${frame.height}px` : null}
             </div>
             
             <div className="frame-actions" style={{ marginTop: '5px' }}>
               <a 
-                href={frame.url} 
+                href={frame.downloadUrl || frame.previewUrl} 
                 download={frame.filename}
                 className="btn small"
                 style={{

@@ -14,7 +14,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { EventEmitter } from 'events';
 import { v4 as uuid } from 'uuid';
-import { outputDir, tempDir } from '../utils/FilePathUtils.js';
+import { outputDir, tempDir, formatFileSize } from '../utils/FilePathUtils.js';
 
 // Configure ffmpeg paths
 ffmpeg.setFfmpegPath(ffmpegPath);
@@ -286,31 +286,112 @@ export class VideoProcessor extends EventEmitter {
    * Extract frames from video
    */
   async extractFrames(inputPath, options = {}) {
-    const { fps = 1, format = 'png', quality = 90 } = options;
+    const {
+      fps = 1,
+      format = 'png',
+      quality = 90,
+      width,
+      height,
+      startTime = 0,
+      endTime,
+      outputDirectory = path.join(outputDir, `video_split_${uuid()}`)
+    } = options;
+
     const jobId = uuid();
-    const outputPattern = path.join(outputDir, `frame_${uuid()}_%03d.${format}`);
+    const frameToken = uuid().replace(/-/g, '');
+    const fileExtension = format.replace(/^\./, '').toLowerCase();
+    const framePattern = `frame_${frameToken}_%04d.${fileExtension}`;
+    const outputPattern = path.join(outputDirectory, framePattern);
+
+    await fs.mkdir(outputDirectory, { recursive: true });
 
     return new Promise((resolve, reject) => {
-      ffmpeg(inputPath)
-        .fps(fps)
+      let command = ffmpeg(inputPath)
+        .fps(fps);
+
+      if (startTime) {
+        command = command.seekInput(startTime);
+      }
+
+      if (endTime && endTime > startTime) {
+        command = command.duration(endTime - startTime);
+      }
+
+      const filters = [];
+      if (width && height) {
+        filters.push(`scale=${Math.round(width)}:${Math.round(height)}:flags=lanczos`);
+      } else if (width) {
+        filters.push(`scale=${Math.round(width)}:-1:flags=lanczos`);
+      } else if (height) {
+        filters.push(`scale=-1:${Math.round(height)}:flags=lanczos`);
+      }
+
+      if (filters.length) {
+        command = command.videoFilters(filters.join(','));
+      }
+
+      // Adjust quality for jpeg outputs
+      if (['jpg', 'jpeg'].includes(fileExtension)) {
+        const qscale = Math.max(2, Math.min(31, Math.round((100 - quality) / 3)));
+        command = command.outputOptions(['-qscale:v', String(qscale)]);
+      }
+
+      command
         .output(outputPattern)
         .on('end', async () => {
           try {
-            const files = await fs.readdir(outputDir);
-            const frameFiles = files.filter(f => f.includes(uuid().split('-')[0]));
-            
-            const results = frameFiles.map(file => ({
-              outputPath: path.join(outputDir, file),
-              outputName: file,
-              frameNumber: parseInt(file.match(/_(\d+)\./)?.[1] || '0')
+            const files = await fs.readdir(outputDirectory);
+            const frameFiles = files
+              .filter((file) => file.startsWith(`frame_${frameToken}_`))
+              .sort();
+
+            const frames = await Promise.all(
+              frameFiles.map(async (filename, index) => {
+                const framePath = path.join(outputDirectory, filename);
+                const stats = await fs.stat(framePath);
+                return {
+                  filename,
+                  path: framePath,
+                  frameNumber: index + 1,
+                  size: stats.size
+                };
+              })
+            );
+
+            let metadata = null;
+            try {
+              metadata = await this.getVideoInfo(inputPath);
+            } catch (metaError) {
+              console.warn('Failed to collect video metadata for split frames:', metaError.message);
+            }
+
+            const inferredWidth = metadata?.video?.width || (width ? Number(width) : null);
+            const inferredHeight = metadata?.video?.height || (height ? Number(height) : null);
+
+            const framesWithDimensions = frames.map((frame) => ({
+              ...frame,
+              width: inferredWidth,
+              height: inferredHeight,
+              delay: null
             }));
+
+            const duration = endTime && endTime > startTime
+              ? endTime - startTime
+              : metadata?.duration || null;
 
             const jobResult = {
               jobId,
-              total: results.length,
-              results,
+              success: true,
+              frames: framesWithDimensions,
+              totalFrames: framesWithDimensions.length,
+              outputDirectory,
               fps,
-              format
+              format: fileExtension,
+              startTime,
+              endTime: endTime || null,
+              duration,
+              width: inferredWidth,
+              height: inferredHeight
             };
 
             this.activeJobs.set(jobId, {
@@ -324,7 +405,13 @@ export class VideoProcessor extends EventEmitter {
             reject(error);
           }
         })
-        .on('error', reject)
+        .on('error', (error) => {
+          this.activeJobs.set(jobId, {
+            status: 'failed',
+            error: error.message
+          });
+          reject(error);
+        })
         .run();
     });
   }
@@ -498,44 +585,139 @@ export class VideoProcessor extends EventEmitter {
 
     this.videoStore = this.videoStore || new Map();
     const videoData = this.videoStore.get(videoId);
-    
+
     if (!videoData) {
       throw new Error('Video not found');
     }
 
+    if (method && method !== 'ffmpeg') {
+      console.warn(`Unsupported GIF conversion method "${method}" requested. Falling back to ffmpeg.`);
+    }
+
+    const clampNumber = (value, min, max, fallback) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) {
+        return fallback;
+      }
+      return Math.min(max, Math.max(min, numeric));
+    };
+
+    const sanitizeDimension = (value) => {
+      if (!Number.isFinite(value) || value <= 0) {
+        return undefined;
+      }
+      const rounded = Math.max(2, Math.round(value));
+      return rounded % 2 === 0 ? rounded : rounded - 1;
+    };
+
+    const startTimeValue = clampNumber(startTime, 0, Number.MAX_SAFE_INTEGER, 0);
+    const endTimeValue = clampNumber(endTime, startTimeValue + 0.1, Number.MAX_SAFE_INTEGER, startTimeValue + 5);
+    const durationSeconds = Math.max(0.1, endTimeValue - startTimeValue);
+    const fpsValue = clampNumber(fps, 1, 60, 10);
+    const normalizedQuality = clampNumber(quality, 10, 100, 90);
+    const targetWidth = sanitizeDimension(Number(width));
+    const targetHeight = sanitizeDimension(Number(height));
+
+    const filters = [`fps=${fpsValue}`];
+    if (targetWidth && targetHeight) {
+      filters.push(`scale=${targetWidth}:${targetHeight}:flags=lanczos`);
+    } else if (targetWidth) {
+      filters.push(`scale=${targetWidth}:-1:flags=lanczos`);
+    } else if (targetHeight) {
+      filters.push(`scale=-1:${targetHeight}:flags=lanczos`);
+    }
+
+    const filterBase = filters.join(',');
+    const paletteMode = normalizedQuality >= 85 ? 'full' : 'diff';
+    const ditherType = normalizedQuality >= 90 ? 'floyd_steinberg' : 'bayer';
+    const bayerScale = normalizedQuality >= 90 ? 1 : normalizedQuality >= 75 ? 3 : 5;
+
     const outputName = `gif_${uuid()}.gif`;
     const outputPath = path.join(outputDir, outputName);
+    const palettePath = path.join(tempDir, `palette_${uuid()}.png`);
 
-    return new Promise((resolve, reject) => {
-      let command = ffmpeg(videoData.filePath)
-        .seekInput(startTime)
-        .duration(endTime - startTime)
-        .fps(fps);
+    const runCommand = (command) => new Promise((resolve, reject) => {
+      command
+        .on('end', resolve)
+        .on('error', reject)
+        .run();
+    });
 
-      // Apply size if specified
-      if (width && height) {
-        command = command.size(`${width}x${height}`);
-      }
+    try {
+      // Step 1: generate palette for high-quality colors
+      await runCommand(
+        ffmpeg(videoData.filePath)
+          .seekInput(startTimeValue)
+          .duration(durationSeconds)
+          .outputOptions([
+            '-vf', `${filterBase},palettegen=stats_mode=${paletteMode}`,
+            '-y'
+          ])
+          .output(palettePath)
+      );
 
-      // GIF-specific optimizations
-      command = command
-        .outputOptions([
-          '-vf', 'palettegen=stats_mode=diff',
-          '-y'
-        ])
-        .output(outputPath)
-        .on('end', () => {
-          resolve({
-            success: true,
-            gifPath: outputName,
-            downloadUrl: `/api/video/download/${outputName}`,
-            outputPath
+      const ditherOptions = ditherType === 'bayer'
+        ? `dither=bayer:bayer_scale=${bayerScale}`
+        : `dither=${ditherType}`;
+      const filterComplex = `[0:v]${filterBase}[x];[x][1:v]paletteuse=${ditherOptions}`;
+
+      // Step 2: render GIF using the generated palette
+      await runCommand(
+        ffmpeg(videoData.filePath)
+          .seekInput(startTimeValue)
+          .duration(durationSeconds)
+          .addInput(palettePath)
+          .complexFilter(filterComplex)
+          .outputOptions([
+            '-loop', '0',
+            '-y'
+          ])
+          .output(outputPath)
+      );
+
+      const [stats, metadata] = await Promise.all([
+        fs.stat(outputPath),
+        new Promise((resolve) => {
+          ffmpeg.ffprobe(outputPath, (err, probeData) => {
+            if (err) {
+              resolve(null);
+              return;
+            }
+            const stream = probeData.streams?.find((s) => s.codec_type === 'video');
+            resolve({
+              width: stream?.width,
+              height: stream?.height,
+              frames: stream?.nb_frames ? parseInt(stream.nb_frames, 10) : null,
+              duration: probeData.format?.duration ? parseFloat(probeData.format.duration) : null
+            });
           });
         })
-        .on('error', reject);
+      ]);
 
-      command.run();
-    });
+      const inferredWidth = metadata?.width || targetWidth || videoData.video?.width;
+      const inferredHeight = metadata?.height || targetHeight || videoData.video?.height;
+      const inferredDuration = metadata?.duration || durationSeconds;
+      const frameCount = metadata?.frames || Math.round(inferredDuration * fpsValue);
+
+      return {
+        success: true,
+        gifPath: outputName,
+        downloadUrl: `/api/video/download/${outputName}`,
+        previewUrl: `/api/video/gif-preview/${outputName}`,
+        outputPath,
+        fileSize: formatFileSize(stats.size),
+        fileSizeBytes: stats.size,
+        width: inferredWidth,
+        height: inferredHeight,
+        fps: fpsValue,
+        duration: Number(inferredDuration.toFixed(2)),
+        frames: frameCount,
+        palette: paletteMode,
+        dither: ditherType
+      };
+    } finally {
+      await fs.unlink(palettePath).catch(() => {});
+    }
   }
 
   /**
