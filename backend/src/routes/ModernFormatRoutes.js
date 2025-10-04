@@ -189,6 +189,83 @@ router.post('/to-avif', upload.single('image'), async (req, res) => {
 });
 
 /**
+ * Create animated PNG from image sequence
+ * POST /api/modern/create-apng
+ */
+router.post('/create-apng', upload.array('images', 60), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No image files uploaded' });
+    }
+
+    const {
+      fps = 12,
+      loop = 0
+    } = req.body;
+
+    let resize = null;
+    if (req.body.resize) {
+      try {
+        resize = JSON.parse(req.body.resize);
+      } catch (e) {
+        console.warn('Invalid resize JSON:', req.body.resize);
+      }
+    }
+
+    const loopValue = typeof loop === 'string'
+      ? (loop === 'true' ? true : loop === 'false' ? false : Number(loop))
+      : loop;
+
+    console.log(`Creating APNG from ${req.files.length} frames`);
+
+    const imagePaths = req.files.map((file) => file.path);
+    const result = await modernFormatProcessor.createAPNG(imagePaths, {
+      fps: parseInt(fps),
+      loop: Number.isNaN(loopValue) ? 0 : loopValue,
+      resize
+    });
+
+    for (const file of req.files) {
+      try {
+        await fs.unlink(file.path);
+      } catch (cleanupError) {
+        console.warn('Failed to clean up uploaded file:', cleanupError.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'APNG built successfully',
+      result: {
+        ...result,
+        frameSources: req.files.map((file) => ({
+          originalName: file.originalname,
+          size: file.size
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('APNG creation error:', error);
+
+    if (req.files) {
+      for (const file of req.files) {
+        try {
+          await fs.unlink(file.path);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }
+    }
+
+    res.status(500).json({
+      error: 'Failed to create APNG sequence',
+      details: error.message
+    });
+  }
+});
+
+/**
  * Convert image to HEIF
  * POST /api/modern/to-heif
  */
@@ -251,6 +328,75 @@ router.post('/to-heif', upload.single('image'), async (req, res) => {
 
     res.status(500).json({
       error: 'Failed to convert to HEIF',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Convert image to JPEG XL
+ * POST /api/modern/to-jxl
+ */
+router.post('/to-jxl', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file uploaded' });
+    }
+
+    const {
+      quality = 90,
+      effort = 7,
+      lossless = false
+    } = req.body;
+
+    let resize = null;
+    if (req.body.resize) {
+      try {
+        resize = JSON.parse(req.body.resize);
+      } catch (e) {
+        console.warn('Invalid resize JSON:', req.body.resize);
+      }
+    }
+
+    console.log(`Converting to JXL: ${req.file.originalname}`);
+
+    const result = await modernFormatProcessor.toJXL(req.file.path, {
+      quality: parseInt(quality),
+      effort: parseInt(effort),
+      lossless: lossless === 'true' || lossless === true,
+      resize
+    });
+
+    try {
+      await fs.unlink(req.file.path);
+    } catch (e) {
+      console.warn('Failed to clean up uploaded file:', e.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Image converted to JXL successfully',
+      result: {
+        ...result,
+        originalName: req.file.originalname,
+        originalSize: req.file.size,
+        compression: `${((req.file.size - result.size) / req.file.size * 100).toFixed(1)}%`
+      }
+    });
+
+  } catch (error) {
+    console.error('JXL conversion error:', error);
+
+    if (req.file) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
+
+    res.status(500).json({
+      error: 'Failed to convert to JXL',
       details: error.message
     });
   }

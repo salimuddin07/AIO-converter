@@ -1,1 +1,0 @@
-// Legacy demo removed. Intentionally left blank.

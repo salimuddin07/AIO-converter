@@ -46,6 +46,7 @@ const formatBytes = (bytes) => {
 
 const resolveUrl = (path) => {
   if (!path) return '';
+  if (path.startsWith('data:')) return path;
   return path.startsWith('http') ? path : getApiUrl(path);
 };
 
@@ -341,9 +342,15 @@ export default function ImageGifMaker() {
 
   const downloadResult = () => {
     if (!result?.result) return;
+    const { dataUrl, downloadUrl, url, filename } = result.result;
+    const targetUrl = dataUrl || downloadUrl || url;
+    if (!targetUrl) {
+      NotificationService.toast('No downloadable result is available yet.', 'info');
+      return;
+    }
+
     const link = document.createElement('a');
-    const { downloadUrl, filename, url } = result.result;
-    link.href = resolveUrl(downloadUrl || url || '');
+    link.href = resolveUrl(targetUrl);
     link.download = filename || 'image-sequence.gif';
     document.body.appendChild(link);
     link.click();
@@ -355,6 +362,16 @@ export default function ImageGifMaker() {
       <div className="hero">
         <h1>🖼️ GIF Maker</h1>
         <p>Create animated GIFs by combining multiple images in the order you choose.</p>
+      </div>
+
+      <div className="tool-usage-card">
+        <h3>How this GIF maker works</h3>
+        <ol>
+          <li>Drop your images or use Select Images to load frames in the order you want.</li>
+          <li>Adjust individual frame delays, toggle frames on/off, and drag to reorder.</li>
+          <li>Fine-tune global speed, size, and fit options in the settings panel.</li>
+          <li>Click Create GIF to process everything locally and download the final animation.</li>
+        </ol>
       </div>
 
       <section
@@ -629,7 +646,7 @@ export default function ImageGifMaker() {
           <h2>Your GIF is ready!</h2>
           <div className="preview">
             <img
-              src={resolveUrl(result.result.previewUrl || result.result.downloadUrl || result.result.url || '')}
+              src={resolveUrl(result.result.dataUrl || result.result.previewUrl || result.result.downloadUrl || result.result.url || '')}
               alt="Generated GIF preview"
             />
           </div>

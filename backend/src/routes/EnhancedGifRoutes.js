@@ -206,6 +206,27 @@ router.post('/images-to-gif', upload.array('images', 50), async (req, res) => {
       fit: sanitizedFit
     });
 
+    let dataUrl = null;
+    try {
+      if (result.outputPath) {
+        const buffer = await fs.readFile(result.outputPath);
+        const base64 = buffer.toString('base64');
+        dataUrl = `data:image/gif;base64,${base64}`;
+      }
+    } finally {
+      if (result.outputPath) {
+        try {
+          await fs.unlink(result.outputPath);
+        } catch (cleanupError) {
+          console.warn('Failed to remove temporary GIF output:', cleanupError.message);
+        }
+      }
+    }
+
+    if (!dataUrl) {
+      throw new Error('Unable to prepare GIF data for download.');
+    }
+
     // Clean up uploaded files
     for (const file of req.files) {
       try {
@@ -221,8 +242,8 @@ router.post('/images-to-gif', upload.array('images', 50), async (req, res) => {
       result: {
         filename: result.outputName,
         size: result.size,
-        downloadUrl: result.downloadUrl,
-        frameCount: req.files.length
+        frameCount: req.files.length,
+        dataUrl
       }
     });
 

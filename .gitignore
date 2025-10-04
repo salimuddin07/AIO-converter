@@ -4,6 +4,9 @@ coverage/
 *.log
 backend/src/temp/
 backend/src/output/
+output/
+temp/
+uploads/
 .DS_Store
 frontend/dist/
 .env

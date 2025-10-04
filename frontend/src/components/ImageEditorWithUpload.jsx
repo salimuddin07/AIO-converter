@@ -226,41 +226,26 @@ const ImageEditorWithUpload = ({ tool = 'edit' }) => {
       </div>
     );
 
+    let editorNode = (
+      <ImageEditor
+        imageUrl={imageUrl}
+        onSave={handleSave}
+        defaultTool={tool === 'effects' ? 'filters' : 'text'}
+      />
+    );
+
     if (tool === 'resize') {
-      return (
-        <>
-          {header}
-          <ImageResizeTool imageUrl={imageUrl} onExport={handleSave} />
-        </>
-      );
-    }
-
-    if (tool === 'rotate') {
-      return (
-        <>
-          {header}
-          <ImageRotateTool imageUrl={imageUrl} onExport={handleSave} />
-        </>
-      );
-    }
-
-    if (tool === 'crop') {
-      return (
-        <>
-          {header}
-          <ImageCropTool imageUrl={imageUrl} onExport={handleSave} />
-        </>
-      );
+      editorNode = <ImageResizeTool imageUrl={imageUrl} onExport={handleSave} />;
+    } else if (tool === 'rotate') {
+      editorNode = <ImageRotateTool imageUrl={imageUrl} onExport={handleSave} />;
+    } else if (tool === 'crop') {
+      editorNode = <ImageCropTool imageUrl={imageUrl} onExport={handleSave} />;
     }
 
     return (
       <>
         {header}
-        <ImageEditor
-          imageUrl={imageUrl}
-          onSave={handleSave}
-          defaultTool={tool === 'effects' ? 'filters' : 'text'}
-        />
+        {editorNode}
       </>
     );
   };
