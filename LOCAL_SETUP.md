@@ -1,7 +1,7 @@
 # Local Backend Setup Guide
 
 ## Overview
-This project has been configured to run the backend locally instead of using Railway hosting to avoid server errors.
+This project now runs exclusively on the local backend. Railway hosting was retired on 2025-10-04 to avoid server errors and simplify the workflow.
 
 ## Backend Setup
 
@@ -30,9 +30,8 @@ npm run dev
 The frontend will run on `http://localhost:3000` (or the port Vite assigns)
 
 ### 2. Environment Configuration
-The frontend is configured to use:
-- **Local Backend**: `http://localhost:5000` (Active)
-- **Railway Backend**: `https://gif-backend-production.up.railway.app` (Commented out)
+The frontend is configured to use the local backend at `http://localhost:5000`.
+> Railway hosting has been removed; no external backend is configured by default.
 
 ## Modified Files
 
@@ -42,31 +41,14 @@ The frontend is configured to use:
 - `frontend/src/components/VideoResults.jsx` - Video processing results
 
 ### Environment Files Updated:
-- `frontend/.env.production` - Set to use localhost:5000
-
-## Switching Back to Railway (If Needed)
-
-To switch back to Railway backend:
-
-1. In each component file, uncomment the Railway backend code
-2. Comment out the Local backend code
-3. Update `frontend/.env.production`:
-   ```bash
-   # VITE_BACKEND_URL=http://localhost:5000
-   VITE_BACKEND_URL=https://gif-backend-production.up.railway.app
-   ```
+- `frontend/.env.production` - Points to the local backend by default
 
 ## Code Structure
 
 Each component now has clearly marked sections:
 
 ```javascript
-// === Old Railway backend (commented out) ===
-/*
-const base = 'https://gif-backend-production.up.railway.app';
-*/
-
-// === New Local backend (active) ===
+// Local backend (active)
 const base = 'http://localhost:5000';
 ```
 

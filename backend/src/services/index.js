@@ -10,6 +10,7 @@ import ImageProcessor, { imageProcessor } from './ImageProcessingService.js';
 import VideoProcessor, { videoProcessor } from './VideoProcessingService.js';
 import GifProcessor, { gifProcessor } from './GifProcessingService.js';
 import SplitService, { splitService } from './SplitService.js';
+import VideoSplitterService from './VideoSplitterService.js';
 
 // Legacy services (for backward compatibility and specialized use cases)
 import FFmpegService from './FfmpegService.js';
@@ -58,6 +59,7 @@ const webPService = new WebPService();
 const mediaAnalysisService = new MediaAnalysisService();
 const canvasGraphicsService = new CanvasGraphicsService();
 const videoJSService = new VideoJSService();
+const videoSplitterService = new VideoSplitterService();
 const splitProcessingService = splitService || new SplitService();
 
 // ============================================================================
@@ -112,11 +114,12 @@ class ServiceFactory {
       gifService: gifService,
       imageMagick: imageMagickService,
       enhancedJimp: enhancedJimpService,
-  split: splitProcessingService,
+      split: splitProcessingService,
       webp: webPService,
       mediaAnalysis: mediaAnalysisService,
       canvas: canvasGraphicsService,
       videoJS: videoJSService,
+      videoSplitter: videoSplitterService,
       enhancedConversion: enhancedConversionService
     };
     this.utilityServices = {
@@ -219,6 +222,7 @@ class ServiceFactory {
         this.primaryServices.video,
         this.legacyServices.ffmpeg,
         this.legacyServices.videoJS,
+        videoSplitterService,
         this.legacyServices.mediaAnalysis
       ],
       'animation': [
@@ -463,6 +467,7 @@ export {
   MediaAnalysisService,
   CanvasGraphicsService,
   VideoJSService,
+  VideoSplitterService,
   
   // Utility classes
   ServiceFactory,
@@ -488,7 +493,8 @@ export {
   webPService,
   mediaAnalysisService,
   canvasGraphicsService,
-  videoJSService
+  videoJSService,
+  videoSplitterService
 };
 
 // Export utility service instances

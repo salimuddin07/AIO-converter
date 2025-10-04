@@ -51,31 +51,15 @@ vercel --prod
 ## 🔧 After Frontend Deployment
 
 1. **Copy your Vercel URL** (e.g., `https://gif-converter-frontend.vercel.app`)
+2. **Configure your backend host** (Render, self-managed server, etc.) and make sure CORS allows the Vercel domain.
+3. **Update frontend environment variables** with your backend URL (`VITE_API_BASE_URL=https://your-backend.example.com`).
 
-2. **For Railway backend deployment, update CORS:**
-   ```
-   CORS_ORIGIN=https://your-vercel-app.vercel.app
-   ```
-
-3. **Update frontend environment after backend is deployed:**
-   ```
-   VITE_API_BASE_URL=https://your-railway-backend.railway.app
-   ```
-
-## 🚨 Railway Backend Fix
-
-For your Railway deployment error, the issue was that Railway detected the render.yaml file. I've:
-- ✅ Renamed `render.yaml` to `render.yaml.backup`
-- ✅ Created `.railwayignore` to ignore frontend files
-- ✅ Updated Dockerfile for proper backend deployment
-- ✅ Simplified railway.toml configuration
-
-Try deploying to Railway again - it should now use the Dockerfile properly.
+> Railway hosting was retired on 2025-10-04. Use your preferred Node.js hosting provider instead.
 
 ## 🎯 Next Steps
 
 1. **Deploy frontend to Vercel first** (using steps above)
-2. **Then deploy backend to Railway** (should work now with fixes)
+2. **Deploy the backend to your chosen host**
 3. **Update environment variables** to connect them
 4. **Test the full application**
 

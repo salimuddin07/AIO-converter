@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getApiUrl, realAPI } from '../utils/apiConfig.js';
 
 const VideoResults = ({ result, onBack }) => {
-  // === Old Railway backend (commented out) ===
-  // const base = 'https://gif-backend-production.up.railway.app';
-  
   // === Use API configuration ===
   
   const [isConverting, setIsConverting] = useState(false);

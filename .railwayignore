@@ -1,9 +1,0 @@
-# Ignore frontend for backend deployment
-frontend/
-render.yaml.backup
-README.md
-DEPLOYMENT.md
-DEPLOY-STEPS.md
-ARCHITECTURE.md
-.git/
-*.md
