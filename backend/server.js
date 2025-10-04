@@ -3,7 +3,6 @@ import { createServer } from 'http';
 import app from './src/app.js';
 import { scheduleCleanup } from './src/services/cleanupService.js';
 
-// Use port 3003 for local development, Railway will override with its own PORT
 const PORT = process.env.PORT || 3003;
 const server = createServer(app);
 scheduleCleanup();

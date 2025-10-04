@@ -411,20 +411,11 @@ npm run build
 vercel --prod
 ```
 
-#### **Backend → Railway/Render/DigitalOcean**
+#### **Backend → Render/DigitalOcean/Self-managed**
 
-**Option A: Railway (Recommended)**
-1. Connect your GitHub repo to Railway
-2. Railway will automatically detect the Node.js project
-3. Set environment variables:
-   ```env
-   NODE_ENV=production
-   PORT=8080
-   CORS_ORIGIN=https://your-frontend-url.vercel.app
-   ```
-4. Deploy with automatic builds
+> Railway deployment was retired on 2025-10-04. Use your preferred Node.js host instead.
 
-**Option B: Render**
+**Suggested host (Render)**
 1. Connect GitHub repo to Render
 2. Use Web Service deployment
 3. Build Command: `cd backend && npm install`
@@ -454,7 +445,7 @@ OPENAI_API_KEY=your_openai_key_here
 CORS_ORIGIN=http://localhost:3001
 ```
 
-**Production Environment (Railway/Render)**
+**Production Environment (Self-hosted)**
 ```env
 NODE_ENV=production
 PORT=8080
@@ -467,8 +458,8 @@ CORS_ORIGIN=https://your-frontend-url.vercel.app
 ### **Deployment Steps**
 
 1. **Deploy Backend First**:
-   - Push code to GitHub
-   - Connect to Railway/Render
+  - Push code to GitHub
+  - Connect to your hosting provider
    - Set environment variables
    - Get backend URL
 

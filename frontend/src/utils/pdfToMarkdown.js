@@ -1,32 +1,27 @@
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// pdf to md coverter is redy to run
+GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+// pdf to md converter is ready to run
 class LocalPdfProcessor {
   constructor() {
-    this.isReady = false;
-    this.initializePdfJs();
+    this.isReady = true;
   }
 
   async initializePdfJs() {
-    if (typeof pdfjsLib === 'undefined') {
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-      document.head.appendChild(script);
-      
-      await new Promise((resolve) => {
-        script.onload = resolve;
-      });
-      
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    if (!this.isReady) {
+      this.isReady = true;
     }
-    this.isReady = true;
+    return true;
   }
 
   async convertPdfToMarkdown(file, onProgress) {
     try {
-      await this.initializePdfJs();
-      
+  await this.initializePdfJs();
+
       const arrayBuffer = await this.fileToArrayBuffer(file);
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdf = await getDocument({ data: arrayBuffer }).promise;
       
       const totalPages = pdf.numPages;
       let markdownContent = '';

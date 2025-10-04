@@ -1,4 +1,4 @@
-# Railway Deployment for Backend
+# Backend Docker image (Railway deployment removed 2025-10-04)
 FROM node:18-alpine
 
 # Install system dependencies

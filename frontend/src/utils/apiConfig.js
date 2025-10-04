@@ -28,8 +28,47 @@
   }
 };
 
+const detectRuntimeBackendUrl = () => {
+  const globalWindow = typeof window !== 'undefined' ? window : undefined;
+  const globalOverride = globalWindow && (
+    globalWindow.__GIF_CONVERTER_BACKEND__ ||
+    globalWindow.__AIO_CONVERT_BACKEND__ ||
+    globalWindow.__APP_BACKEND_URL__
+  );
+
+  if (typeof globalOverride === 'string' && globalOverride.trim()) {
+    return globalOverride.trim();
+  }
+
+  const envValue = typeof import.meta !== 'undefined' && import.meta?.env?.VITE_BACKEND_URL
+    ? String(import.meta.env.VITE_BACKEND_URL)
+    : '';
+
+  if (envValue.trim()) {
+    return envValue.trim();
+  }
+
+  return 'http://localhost:3003';
+};
+
+const normalizeBaseUrl = (url) => {
+  if (!url || typeof url !== 'string') {
+    return 'http://localhost:3003';
+  }
+
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return 'http://localhost:3003';
+  }
+
+  return trimmed.replace(/\/+$/, '');
+};
+
+const API_BASE_URL = normalizeBaseUrl(detectRuntimeBackendUrl());
+const IS_LOCAL_BACKEND = /^https?:\/\/(localhost|127\.0\.0\.1)(:\\d+)?$/i.test(API_BASE_URL);
+
 export const API_CONFIG = {
-  baseUrl: "http://localhost:3003",
+  baseUrl: API_BASE_URL,
   endpoints: {
     // Conversion routes
     convert: "/api/convert",
@@ -76,13 +115,38 @@ export const API_CONFIG = {
     modern: "/api/modern"
   },
   local: LOCAL_CONFIG,
-  isLocal: true,
+  isLocal: IS_LOCAL_BACKEND,
   getLocalConfig: () => LOCAL_CONFIG
 };
 
 // Get API URL helper function
 export const getApiUrl = (endpoint) => {
-  return `${API_CONFIG.baseUrl}${API_CONFIG.endpoints[endpoint] || endpoint}`;
+  if (!endpoint) {
+    return API_CONFIG.baseUrl;
+  }
+
+  const mapped = API_CONFIG.endpoints[endpoint] || endpoint;
+
+  if (/^https?:\/\//i.test(mapped)) {
+    return mapped;
+  }
+
+  const normalizedPath = mapped.startsWith('/') ? mapped : `/${mapped}`;
+  return `${API_CONFIG.baseUrl}${normalizedPath}`;
+};
+
+const throwApiError = async (response, fallbackMessage) => {
+  let message = fallbackMessage;
+  try {
+    const data = await response.json();
+    if (data && (data.error || data.message)) {
+      message = data.error || data.message;
+    }
+  } catch (_error) {
+    // Ignore JSON parsing issues and fall back to the default message.
+  }
+
+  throw new Error(message);
 };
 
 export const validateFile = (file, type = "image") => {
@@ -243,7 +307,7 @@ export const realAPI = {
     });
     
     if (!response.ok) {
-      throw new Error(`GIF split failed: ${response.status}`);
+      await throwApiError(response, 'GIF split failed');
     }
     
     return await response.json();
@@ -265,7 +329,7 @@ export const realAPI = {
     });
     
     if (!response.ok) {
-      throw new Error(`GIF split from URL failed: ${response.status}`);
+      await throwApiError(response, 'GIF split from URL failed');
     }
     
     return await response.json();
@@ -290,7 +354,7 @@ export const realAPI = {
     });
 
     if (!response.ok) {
-      throw new Error(`Video split failed: ${response.status}`);
+      await throwApiError(response, 'Video split failed');
     }
 
     return await response.json();
@@ -312,7 +376,7 @@ export const realAPI = {
     });
 
     if (!response.ok) {
-      throw new Error(`Video split from URL failed: ${response.status}`);
+      await throwApiError(response, 'Video split from URL failed');
     }
 
     return await response.json();

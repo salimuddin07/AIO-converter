@@ -7,6 +7,7 @@
 
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 // Get current directory in ES modules
@@ -16,10 +17,13 @@ const __dirname = path.dirname(__filename);
 // Base directories
 export const rootDir = path.resolve(__dirname, '../../../');
 export const srcDir = path.resolve(__dirname, '../');
-export const tempDir = path.resolve(rootDir, 'temp');
-export const outputDir = path.resolve(rootDir, 'output');
-export const uploadsDir = path.resolve(rootDir, 'uploads');
-export const logsDir = path.resolve(rootDir, 'logs');
+
+// Runtime working directories (kept outside repository to avoid artifacts)
+const runtimeBaseDir = path.resolve(os.tmpdir(), 'gif-converter');
+export const tempDir = path.resolve(runtimeBaseDir, 'temp');
+export const outputDir = path.resolve(runtimeBaseDir, 'output');
+export const uploadsDir = path.resolve(runtimeBaseDir, 'uploads');
+export const logsDir = path.resolve(runtimeBaseDir, 'logs');
 
 // Public directories
 export const publicDir = path.resolve(rootDir, 'public');

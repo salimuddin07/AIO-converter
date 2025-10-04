@@ -32,6 +32,7 @@ class VideoSplitterService extends EventEmitter {
    */
   async splitVideo(inputPath, segments, options = {}) {
     const jobId = uuid();
+    const jobOutputDir = path.join(outputDir, `split_${jobId}`);
     
     try {
       const {
@@ -57,6 +58,7 @@ class VideoSplitterService extends EventEmitter {
         completedSegments: 0,
         startTime: Date.now(),
         inputFile: path.basename(inputPath),
+        outputDirectory: jobOutputDir,
         segments: []
       });
 
@@ -104,6 +106,7 @@ class VideoSplitterService extends EventEmitter {
         inputFile: path.basename(inputPath),
         totalSegments: outputSegments.length,
         segments: outputSegments,
+        outputDirectory: jobOutputDir,
         metadata: metadata,
         processingTime: Date.now() - this.activeJobs.get(jobId).startTime
       };
@@ -461,8 +464,8 @@ class VideoSplitterService extends EventEmitter {
       if (job.status === 'completed' && (now - job.startTime) > maxAge) {
         // Clean up output files
         try {
-          const outputDir = path.join(outputDir, `split_${jobId}`);
-          await fs.rm(outputDir, { recursive: true, force: true });
+          const jobOutputDir = path.join(outputDir, `split_${jobId}`);
+          await fs.rm(jobOutputDir, { recursive: true, force: true });
         } catch (error) {
           console.warn(`Failed to cleanup job ${jobId}:`, error.message);
         }

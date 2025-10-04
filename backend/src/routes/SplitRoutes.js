@@ -10,7 +10,7 @@ import fsPromises from 'fs/promises';
 import crypto from 'crypto';
 import archiver from 'archiver';
 
-import { videoProcessor } from '../services/index.js';
+import { videoSplitterService } from '../services/index.js';
 import { splitService } from '../services/SplitService.js';
 import { tempDir, outputDir, getSafeFilename, ensureDirectories } from '../utils/FilePathUtils.js';
 
@@ -127,17 +127,174 @@ async function createZipArchive(jobId, frames, destinationDir, prefix = 'frames'
   });
 }
 
-function sanitizeFrameForClient(frame, jobId, type) {
+function formatSeconds(value) {
+  if (!Number.isFinite(value)) return null;
+  const totalSeconds = Math.max(0, Math.floor(Number(value)));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds]
+    .map((unit) => unit.toString().padStart(2, '0'))
+    .join(':');
+}
+
+function sanitizeAssetForClient(type, asset, jobId) {
+  if (type === 'video') {
+    const filename = asset.filename || `${asset.name || 'segment'}_${jobId}.mp4`;
+    const encodedFilename = encodeURIComponent(filename);
+    const startTime = Number.isFinite(asset.startTime) ? asset.startTime : null;
+    const endTime = Number.isFinite(asset.endTime) ? asset.endTime : null;
+    const duration = Number.isFinite(asset.duration)
+      ? asset.duration
+      : startTime !== null && endTime !== null
+        ? endTime - startTime
+        : null;
+
+    return {
+      name: asset.name || path.parse(filename).name,
+      filename,
+      size: asset.size,
+      format: asset.format || path.extname(filename).replace('.', '') || 'mp4',
+      startTime,
+      endTime,
+      duration,
+      startTimeFormatted: formatSeconds(startTime),
+      endTimeFormatted: formatSeconds(endTime),
+      durationFormatted: formatSeconds(duration),
+      previewUrl: asset.previewUrl || `/api/split/video/preview/${jobId}/${encodedFilename}`,
+      downloadUrl: asset.downloadUrl || `/api/split/video/download/${jobId}/${encodedFilename}`
+    };
+  }
+
+  const filename = asset.filename;
+  const encodedFilename = encodeURIComponent(filename);
   return {
-    filename: frame.filename,
-    frameNumber: frame.frameNumber,
-    size: frame.size,
-    width: frame.width,
-    height: frame.height,
-    delay: frame.delay,
-    previewUrl: `/api/split/${type}/preview/${jobId}/${encodeURIComponent(frame.filename)}`,
-    downloadUrl: `/api/split/${type}/download/${jobId}/${encodeURIComponent(frame.filename)}`
+    filename,
+    frameNumber: asset.frameNumber ?? asset.index ?? null,
+    size: asset.size,
+    width: asset.width,
+    height: asset.height,
+    delay: asset.delay,
+    previewUrl: `/api/split/${type}/preview/${jobId}/${encodedFilename}`,
+    downloadUrl: `/api/split/${type}/download/${jobId}/${encodedFilename}`
   };
+}
+
+function parseTimeValue(value, label, segmentIndex) {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      return null;
+    }
+
+    if (/^\d+(\.\d+)?$/.test(trimmed)) {
+      return Number(trimmed);
+    }
+
+    const parts = trimmed.split(':').map((part) => Number(part));
+    if (parts.some((part) => Number.isNaN(part))) {
+      throw new Error(`Invalid ${label} provided for segment ${segmentIndex + 1}`);
+    }
+
+    if (parts.length === 3) {
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    if (parts.length === 2) {
+      return parts[0] * 60 + parts[1];
+    }
+    if (parts.length === 1) {
+      return parts[0];
+    }
+  }
+
+  throw new Error(`Invalid ${label} provided for segment ${segmentIndex + 1}`);
+}
+
+function normalizeSegments(rawSegments) {
+  if (!rawSegments) return [];
+
+  let segmentsPayload = rawSegments;
+  if (typeof segmentsPayload === 'string') {
+    segmentsPayload = JSON.parse(segmentsPayload);
+  }
+
+  if (!Array.isArray(segmentsPayload) || segmentsPayload.length === 0) {
+    return [];
+  }
+
+  return segmentsPayload.map((segment, index) => {
+    const name = segment.name || segment.label || `segment_${index + 1}`;
+    const startTime = parseTimeValue(segment.startTime ?? segment.start ?? segment.startSeconds, 'startTime', index);
+    const endTimeRaw = segment.endTime ?? segment.end ?? segment.stop ?? null;
+    const durationRaw = segment.duration ?? segment.length ?? null;
+
+    let endTime = endTimeRaw !== null ? parseTimeValue(endTimeRaw, 'endTime', index) : null;
+    const duration = durationRaw !== null ? parseTimeValue(durationRaw, 'duration', index) : null;
+
+    if (!Number.isFinite(startTime)) {
+      throw new Error(`Segment ${index + 1} is missing a valid start time`);
+    }
+
+    if (!Number.isFinite(endTime) && Number.isFinite(duration)) {
+      endTime = startTime + duration;
+    }
+
+    if (!Number.isFinite(endTime)) {
+      throw new Error(`Segment ${index + 1} requires an end time or duration`);
+    }
+
+    if (endTime <= startTime) {
+      throw new Error(`Segment ${index + 1} must end after it starts`);
+    }
+
+    return {
+      name,
+      startTime,
+      endTime,
+      duration: endTime - startTime
+    };
+  });
+}
+
+function buildSegmentsFromInterval(totalDuration, segmentDuration, prefix = 'segment') {
+  if (!Number.isFinite(segmentDuration) || segmentDuration <= 0) {
+    throw new Error('segmentDuration must be greater than zero');
+  }
+
+  const segments = [];
+  let index = 0;
+  let cursor = 0;
+
+  const safeTotalDuration = Number(totalDuration) || 0;
+
+  while (cursor < safeTotalDuration) {
+    const startTime = cursor;
+    const endTime = Math.min(safeTotalDuration, cursor + segmentDuration);
+
+    if (endTime - startTime < 0.1) {
+      break;
+    }
+
+    segments.push({
+      name: `${prefix}_${index + 1}`,
+      startTime,
+      endTime,
+      duration: endTime - startTime
+    });
+
+    cursor = endTime;
+    index += 1;
+  }
+
+  return segments;
 }
 
 router.get('/', (_req, res) => {
@@ -204,7 +361,7 @@ router.post('/gif', upload.single('gif'), async (req, res) => {
         height: splitResult.originalHeight,
         format: splitResult.originalFormat
       },
-      frames: splitResult.frames.map((frame) => sanitizeFrameForClient(frame, splitResult.jobId, 'gif')),
+  frames: splitResult.frames.map((frame) => sanitizeAssetForClient('gif', frame, splitResult.jobId)),
       zipUrl: splitResult.zipUrl || (createZip ? `/api/split/gif/download-zip/${splitResult.jobId}` : null)
     };
 
@@ -224,12 +381,12 @@ router.post('/gif', upload.single('gif'), async (req, res) => {
 
 router.post('/video', upload.single('video'), async (req, res) => {
   let inputPath = req.file?.path;
-  let shouldCleanupInput = false;
+  let downloadedRemote = false;
 
   try {
     if (!inputPath && req.body?.url) {
       inputPath = await downloadRemoteAsset(req.body.url);
-      shouldCleanupInput = true;
+      downloadedRemote = true;
     }
 
     if (!inputPath) {
@@ -239,61 +396,85 @@ router.post('/video', upload.single('video'), async (req, res) => {
       });
     }
 
-    const fps = req.body?.fps ? Number(req.body.fps) : 5;
-    const format = (req.body?.format || 'png').toLowerCase();
-    const width = req.body?.width ? Number(req.body.width) : undefined;
-    const height = req.body?.height ? Number(req.body.height) : undefined;
-    const startTime = req.body?.startTime ? Number(req.body.startTime) : 0;
-    const endTime = req.body?.endTime ? Number(req.body.endTime) : undefined;
     const createZip = parseBoolean(req.body?.createZip, true);
+    const outputFormat = (req.body?.outputFormat || req.body?.format || 'mp4').toLowerCase();
+    const quality = (req.body?.quality || 'medium').toLowerCase();
+    const preserveAudio = parseBoolean(req.body?.preserveAudio, true);
 
-    const outputDirectory = path.join(outputDir, `video_split_${crypto.randomBytes(8).toString('hex')}`);
+    let segmentDefinitions = [];
+    try {
+      segmentDefinitions = normalizeSegments(req.body?.segments);
+    } catch (parseError) {
+      return res.status(400).json({
+        success: false,
+        error: parseError.message
+      });
+    }
 
-    const extraction = await videoProcessor.extractFrames(inputPath, {
-      fps,
-      format,
-      width,
-      height,
-      startTime,
-      endTime,
-      outputDirectory
+    let segmentDuration = null;
+    if (req.body?.segmentDuration !== undefined) {
+      try {
+        segmentDuration = parseTimeValue(req.body.segmentDuration, 'segmentDuration', 0);
+      } catch (parseError) {
+        return res.status(400).json({ success: false, error: parseError.message });
+      }
+    }
+
+    let metadataForInterval = null;
+    if ((!segmentDefinitions || segmentDefinitions.length === 0) && Number.isFinite(segmentDuration)) {
+      metadataForInterval = await videoSplitterService.getVideoMetadata(inputPath);
+      segmentDefinitions = buildSegmentsFromInterval(metadataForInterval.duration, segmentDuration, 'clip');
+    }
+
+    if (!segmentDefinitions || segmentDefinitions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide segment definitions or a segmentDuration value.'
+      });
+    }
+
+    const splitResult = await videoSplitterService.splitVideo(inputPath, segmentDefinitions, {
+      outputFormat,
+      quality,
+      preserveAudio,
+      deleteOriginal: false
     });
 
+    const jobOutputDirectory = splitResult.outputDirectory || path.join(outputDir, `split_${splitResult.jobId}`);
+
     let zipPath = null;
-    if (createZip && extraction.frames.length) {
-      zipPath = await createZipArchive(extraction.jobId, extraction.frames, outputDirectory, 'video-frames');
+    if (createZip && splitResult.segments?.length) {
+      zipPath = await createZipArchive(splitResult.jobId, splitResult.segments, jobOutputDirectory, 'video-segments');
     }
 
     const jobData = {
       type: 'video',
-      outputDirectory,
-      frames: extraction.frames,
+  outputDirectory: jobOutputDirectory,
+      frames: splitResult.segments,
+      segments: splitResult.segments,
+      metadata: splitResult.metadata || metadataForInterval,
       zipPath,
       createdAt: Date.now()
     };
-    activeSplitJobs.set(extraction.jobId, jobData);
+    activeSplitJobs.set(splitResult.jobId, jobData);
 
-    const responsePayload = {
+    res.json({
       success: true,
-      jobId: extraction.jobId,
-      fps: extraction.fps,
-      totalFrames: extraction.totalFrames,
-      width: extraction.width,
-      height: extraction.height,
-      duration: extraction.duration,
-      frames: extraction.frames.map((frame) => sanitizeFrameForClient(frame, extraction.jobId, 'video')),
-      zipUrl: zipPath ? `/api/split/video/download-zip/${extraction.jobId}` : null
-    };
-
-    res.json(responsePayload);
+      jobId: splitResult.jobId,
+      totalSegments: splitResult.totalSegments,
+      metadata: splitResult.metadata || metadataForInterval,
+      segments: splitResult.segments.map((segment) => sanitizeAssetForClient('video', segment, splitResult.jobId)),
+      zipUrl: zipPath ? `/api/split/video/download-zip/${splitResult.jobId}` : null
+    });
   } catch (error) {
     console.error('Video split request error:', error);
-    res.status(500).json({
+    const statusCode = /segment|duration|start/i.test(error.message) ? 400 : 500;
+    res.status(statusCode).json({
       success: false,
       error: error.message
     });
   } finally {
-    if (shouldCleanupInput && inputPath) {
+    if (inputPath && (downloadedRemote || req.file)) {
       fsPromises.unlink(inputPath).catch(() => {});
     }
   }
@@ -315,6 +496,7 @@ router.get('/status/:jobId', (req, res) => {
     jobId,
     type: job.type,
     frames: job.frames?.length || 0,
+    segments: job.segments?.length || (job.type === 'video' ? job.frames?.length || 0 : 0),
     hasZip: Boolean(job.zipPath)
   });
 });
@@ -361,7 +543,8 @@ router.get('/:type/download-zip/:jobId', async (req, res) => {
 
   try {
     if (!job.zipPath || !(await fsPromises.stat(job.zipPath).catch(() => null))) {
-      job.zipPath = await createZipArchive(jobId, job.frames, job.outputDirectory, `${type}-frames`);
+      const zipPrefix = type === 'video' ? 'video-segments' : `${type}-frames`;
+      job.zipPath = await createZipArchive(jobId, job.frames, job.outputDirectory, zipPrefix);
       activeSplitJobs.set(jobId, job);
     }
 

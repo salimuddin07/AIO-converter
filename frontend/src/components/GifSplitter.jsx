@@ -4,6 +4,7 @@ import SplitResults from './SplitResults';
 
 const TOOL_GIF = 'gif';
 const TOOL_VIDEO = 'video';
+const MIN_SEGMENT_DURATION_SECONDS = 1;
 
 export default function GifSplitter() {
   const SUPPORTED_VIDEO_TYPES = useMemo(() => ['mp4', 'mov', 'avi', 'webm', 'mkv', 'flv', 'wmv', 'm4v'], []);
@@ -18,9 +19,15 @@ export default function GifSplitter() {
     createZip: true
   });
   const [videoOptions, setVideoOptions] = useState({
-    fps: 5,
-    createZip: true
+    createZip: true,
+    outputFormat: 'mp4',
+    quality: 'medium',
+    preserveAudio: true
   });
+  const [segmentMode, setSegmentMode] = useState('duration');
+  const [segmentMinutes, setSegmentMinutes] = useState('0');
+  const [segmentSeconds, setSegmentSeconds] = useState('30');
+  const [customSegmentsText, setCustomSegmentsText] = useState('0:00-0:30');
   const [dragging, setDragging] = useState(null);
   const [loadingTool, setLoadingTool] = useState(null);
   const [error, setError] = useState('');
@@ -135,22 +142,105 @@ export default function GifSplitter() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTool]);
 
+  const computeSegmentDurationSeconds = () => {
+    let minutes = Number(segmentMinutes) || 0;
+    let seconds = Number(segmentSeconds) || 0;
+
+    if (seconds >= 60) {
+      minutes += Math.floor(seconds / 60);
+      seconds = seconds % 60;
+    }
+
+    minutes = Math.max(0, minutes);
+    seconds = Math.max(0, seconds);
+
+    return minutes * 60 + seconds;
+  };
+
+  const parseTimestampToSeconds = (value, contextLabel) => {
+    if (value === undefined || value === null || value === '') {
+      throw new Error(`${contextLabel} is missing. Use a time like 0:30 or 00:00:30.`);
+    }
+
+    const raw = String(value).trim();
+    if (!raw) {
+      throw new Error(`${contextLabel} is missing. Use a time like 0:30 or 00:00:30.`);
+    }
+
+    if (/^\d+(\.\d+)?$/.test(raw)) {
+      return Number(raw);
+    }
+
+    const parts = raw.split(':').map((part) => part.trim());
+    if (parts.length === 0 || parts.length > 3) {
+      throw new Error(`${contextLabel} must use HH:MM:SS or MM:SS format.`);
+    }
+
+    const numbers = parts.map((part) => {
+      const numeric = Number(part);
+      if (!Number.isFinite(numeric)) {
+        throw new Error(`${contextLabel} contains an invalid number.`);
+      }
+      return numeric;
+    });
+
+    return numbers.reduce((total, current) => total * 60 + current, 0);
+  };
+
+  const parseCustomSegmentsInput = (input) => {
+    const lines = (input || '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    return lines.map((line, index) => {
+      const [rangePart, labelPart] = line.split('|').map((part) => part.trim());
+      const [start, end] = (rangePart || '').split('-').map((part) => part.trim());
+
+      if (!start || !end) {
+        throw new Error(`Line ${index + 1}: use START-END format like 0:30-1:00`);
+      }
+
+      const startSeconds = parseTimestampToSeconds(start, `Line ${index + 1} start time`);
+      const endSeconds = parseTimestampToSeconds(end, `Line ${index + 1} end time`);
+
+      if (endSeconds <= startSeconds) {
+        throw new Error(`Line ${index + 1}: end time must be after start time.`);
+      }
+
+      if (endSeconds - startSeconds < MIN_SEGMENT_DURATION_SECONDS) {
+        throw new Error(`Line ${index + 1}: each clip must be at least ${MIN_SEGMENT_DURATION_SECONDS} second long.`);
+      }
+
+      return {
+        name: labelPart || `segment_${index + 1}`,
+        startTime: start,
+        endTime: end,
+        duration: endSeconds - startSeconds
+      };
+    });
+  };
+
   const runSplit = async (tool, requestFn) => {
     try {
       setLoadingTool(tool);
       setError('');
       const splitResult = await requestFn();
 
+      const items = tool === TOOL_VIDEO
+        ? splitResult.segments || []
+        : splitResult.frames || [];
+
       setSplitData({
         type: tool,
         jobId: splitResult.jobId,
-        frames: splitResult.frames || [],
+        items,
         zipUrl: splitResult.zipUrl,
         meta: splitResult
       });
     } catch (err) {
       console.error('Split error:', err);
-      setError(`Split failed: ${err.message}`);
+      setError(err.message || 'Split failed');
     } finally {
       setLoadingTool(null);
     }
@@ -187,9 +277,25 @@ export default function GifSplitter() {
 
     await runSplit(TOOL_VIDEO, async () => {
       const options = {
-        fps: videoOptions.fps,
-        createZip: videoOptions.createZip
+        createZip: videoOptions.createZip,
+        outputFormat: videoOptions.outputFormat,
+        quality: videoOptions.quality,
+        preserveAudio: videoOptions.preserveAudio
       };
+
+      if (segmentMode === 'duration') {
+        const durationSeconds = computeSegmentDurationSeconds();
+        if (!Number.isFinite(durationSeconds) || durationSeconds < MIN_SEGMENT_DURATION_SECONDS) {
+          throw new Error('Segment length must be at least 1 second. Increase the minutes or seconds value.');
+        }
+        options.segmentDuration = durationSeconds;
+      } else {
+        const segments = parseCustomSegmentsInput(customSegmentsText);
+        if (!segments.length) {
+          throw new Error('Add at least one custom segment (format: start-end | optional name).');
+        }
+        options.segments = segments;
+      }
 
       if (videoFile) {
         return realAPI.splitVideo(videoFile, options);
@@ -316,14 +422,33 @@ export default function GifSplitter() {
           <legend>Video options</legend>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
             <label>
-              FPS (frames per second)
+              Output format
+              <select
+                value={videoOptions.outputFormat}
+                onChange={(event) => setVideoOptions((prev) => ({ ...prev, outputFormat: event.target.value }))}
+              >
+                <option value="mp4">MP4 (H.264)</option>
+                <option value="webm">WebM (VP9)</option>
+              </select>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <input
-                type="number"
-                min="1"
-                max="60"
-                value={videoOptions.fps}
-                onChange={(event) => setVideoOptions((prev) => ({ ...prev, fps: event.target.value }))}
+                type="checkbox"
+                checked={videoOptions.preserveAudio}
+                onChange={(event) => setVideoOptions((prev) => ({ ...prev, preserveAudio: event.target.checked }))}
               />
+              Keep original audio
+            </label>
+            <label>
+              Quality preset
+              <select
+                value={videoOptions.quality}
+                onChange={(event) => setVideoOptions((prev) => ({ ...prev, quality: event.target.value }))}
+              >
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <input
@@ -331,8 +456,75 @@ export default function GifSplitter() {
                 checked={videoOptions.createZip}
                 onChange={(event) => setVideoOptions((prev) => ({ ...prev, createZip: event.target.checked }))}
               />
-              Create ZIP archive when done
+              Bundle clips into a ZIP
             </label>
+          </div>
+        </fieldset>
+
+        <fieldset style={{ marginBottom: '1.5rem' }}>
+          <legend>Segment plan</legend>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                type="radio"
+                name="segment-mode"
+                value="duration"
+                checked={segmentMode === 'duration'}
+                onChange={() => setSegmentMode('duration')}
+              />
+              Split into equal-length clips
+            </label>
+
+            {segmentMode === 'duration' && (
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginLeft: '1.5rem' }}>
+                <label>
+                  Minutes
+                  <input
+                    type="number"
+                    min="0"
+                    value={segmentMinutes}
+                    onChange={(event) => setSegmentMinutes(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Seconds
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={segmentSeconds}
+                    onChange={(event) => setSegmentSeconds(event.target.value)}
+                  />
+                </label>
+              </div>
+            )}
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                type="radio"
+                name="segment-mode"
+                value="custom"
+                checked={segmentMode === 'custom'}
+                onChange={() => setSegmentMode('custom')}
+              />
+              Use custom timeline (start-end pairs)
+            </label>
+
+            {segmentMode === 'custom' && (
+              <div style={{ marginLeft: '1.5rem', width: '100%' }}>
+                <textarea
+                  value={customSegmentsText}
+                  onChange={(event) => setCustomSegmentsText(event.target.value)}
+                  rows={4}
+                  placeholder={'Example:\n0:00-0:30 | Intro\n0:30-1:00 | Main highlight'}
+                  style={{ width: '100%', fontFamily: 'inherit' }}
+                />
+                <p className="hint" style={{ marginTop: '0.5rem' }}>
+                  One segment per line. Use HH:MM:SS or MM:SS timestamps. Add an optional name after <code>|</code>.
+                </p>
+              </div>
+            )}
           </div>
         </fieldset>
 
@@ -346,7 +538,7 @@ export default function GifSplitter() {
         </p>
 
         <p className="hint">
-          Videos are removed automatically 1 hour after processing. Large files may take longer to split.
+          Source uploads and generated clips are automatically removed about an hour after processing finishes.
         </p>
       </fieldset>
     </form>
@@ -380,7 +572,7 @@ export default function GifSplitter() {
       </div>
 
       <p style={{ color: '#555', marginBottom: '1.5rem' }}>
-        Choose the workflow you need: extract frames from a GIF animation or pull stills from a video file. Each splitter has its own upload slot and options so you can work on GIFs and videos independently.
+        Choose the workflow you need: break an animation into ready-to-download frames or carve a video into shareable clips with precise timing. Each splitter has its own upload slot and options so you can work on GIFs and videos independently.
       </p>
 
       {activeTool === TOOL_GIF ? renderGifForm() : renderVideoForm()}
@@ -394,9 +586,11 @@ export default function GifSplitter() {
 
       {splitData && (
         <SplitResults
-          frames={splitData.frames}
+          type={splitData.type}
+          items={splitData.items}
+          meta={splitData.meta}
           onDownloadZip={splitData.zipUrl ? handleZipDownload : undefined}
-          onEditAnimation={() => alert('Animation editing coming soon!')}
+          onEditAnimation={splitData.type === TOOL_GIF ? () => alert('Animation editing coming soon!') : undefined}
         />
       )}
 
@@ -433,18 +627,18 @@ export default function GifSplitter() {
 
           <div style={{ background: '#f7f9fc', border: '1px solid #dbe4f3', borderRadius: '8px', padding: '1.25rem' }}>
             <h3 style={{ marginTop: 0 }}>Video splitter workflow</h3>
-            <p style={{ color: '#4a5668' }}>Extract stills from MP4, MOV, WEBM, AVI, MKV, and more.</p>
+            <p style={{ color: '#4a5668' }}>Cut MP4, MOV, WEBM, AVI, MKV, and more into back-to-back clips sized for reels, shorts, and stories.</p>
             <h4 style={{ marginBottom: '0.5rem' }}>How it works</h4>
             <ol style={{ paddingLeft: '1.25rem', marginBottom: '1rem', color: '#2c3748' }}>
               <li>Upload a video file or provide a direct streaming URL.</li>
-              <li>Select the frame rate you want and whether to package results into a ZIP.</li>
-              <li>We sample the video, generate image frames, and expose preview/download links.</li>
-              <li>Save individual stills or download them all at once.</li>
+              <li>Pick a uniform clip length (minutes/seconds) or define custom start-end pairs.</li>
+              <li>We render fresh video files for every segment and keep audio if you request it.</li>
+              <li>Preview clips instantly, download favorites, or grab the full ZIP export.</li>
             </ol>
             <h4 style={{ marginBottom: '0.5rem' }}>Pro tips</h4>
             <ul style={{ paddingLeft: '1.25rem', color: '#2c3748', margin: 0 }}>
-              <li>Higher FPS values capture more moments but generate larger downloads.</li>
-              <li>Trim longer clips beforehand if you only need a specific section.</li>
+              <li>Set 0:30 or 0:45 clip lengths to stay within Instagram Reel and TikTok limits.</li>
+              <li>Name segments (Intro, Hook, Outro) in the custom editor so the downloads stay organized.</li>
             </ul>
           </div>
         </div>
