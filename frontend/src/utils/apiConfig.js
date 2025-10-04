@@ -228,9 +228,14 @@ export const realAPI = {
   },
 
   // Split GIF
-  splitGif: async (gifFile) => {
+  splitGif: async (gifFile, options = {}) => {
     const formData = new FormData();
     formData.append('gif', gifFile);
+    Object.entries(options).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, value);
+      }
+    });
     
     const response = await fetch(getApiUrl('splitGif'), {
       method: 'POST',
@@ -245,9 +250,14 @@ export const realAPI = {
   },
 
   // Split GIF from URL
-  splitGifFromUrl: async (url) => {
+  splitGifFromUrl: async (url, options = {}) => {
     const formData = new FormData();
     formData.append('url', url);
+    Object.entries(options).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, value);
+      }
+    });
     
     const response = await fetch(getApiUrl('splitGif'), {
       method: 'POST',
@@ -258,6 +268,53 @@ export const realAPI = {
       throw new Error(`GIF split from URL failed: ${response.status}`);
     }
     
+    return await response.json();
+  },
+
+  // Split Video into frames
+  splitVideo: async (videoFile, options = {}) => {
+    const formData = new FormData();
+    if (videoFile) {
+      formData.append('video', videoFile);
+    }
+
+    Object.entries(options).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, value);
+      }
+    });
+
+    const response = await fetch(getApiUrl('splitVideo'), {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`Video split failed: ${response.status}`);
+    }
+
+    return await response.json();
+  },
+
+  splitVideoFromUrl: async (url, options = {}) => {
+    const formData = new FormData();
+    formData.append('url', url);
+
+    Object.entries(options).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        formData.append(key, value);
+      }
+    });
+
+    const response = await fetch(getApiUrl('splitVideo'), {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`Video split from URL failed: ${response.status}`);
+    }
+
     return await response.json();
   },
 

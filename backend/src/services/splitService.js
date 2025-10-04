@@ -474,3 +474,6 @@ export class SplitService extends EventEmitter {
     }
   }
 }
+
+export const splitService = new SplitService();
+export default SplitService;
