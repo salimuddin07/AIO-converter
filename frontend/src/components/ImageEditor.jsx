@@ -176,6 +176,8 @@ const ImageEditor = ({
   const [brushSize, setBrushSize] = useState(BRUSH_PRESETS.pencil.strokeWidth);
   const [brushColor, setBrushColor] = useState(BRUSH_PRESETS.pencil.color);
   const [brushOpacity, setBrushOpacity] = useState(BRUSH_PRESETS.pencil.opacity);
+  const [fillEnabled, setFillEnabled] = useState(false);
+  const [fillColor, setFillColor] = useState('#ff9800');
   const [textConfig, setTextConfig] = useState({
     text: 'Add your text',
     fontSize: 32,
@@ -220,6 +222,12 @@ const ImageEditor = ({
     }
     setBrushOpacity(preset.opacity);
   }, [brushMode]);
+
+  useEffect(() => {
+    if (brushMode === 'eraser' && fillEnabled) {
+      setFillEnabled(false);
+    }
+  }, [brushMode, fillEnabled]);
 
   useEffect(() => {
     if (!imageUrl) {
@@ -406,6 +414,38 @@ const ImageEditor = ({
     });
   }, [cleanupRemovedImages]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const handleKeydown = (event) => {
+      const target = event.target;
+      const isEditableElement = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      );
+
+      if ((event.ctrlKey || event.metaKey) && !event.altKey) {
+        const key = event.key.toLowerCase();
+
+        if (key === 'z' && !event.shiftKey) {
+          if (isEditableElement) return;
+          event.preventDefault();
+          if (canUndo) undo();
+        } else if ((key === 'y') || (key === 'z' && event.shiftKey)) {
+          if (isEditableElement) return;
+          event.preventDefault();
+          if (canRedo) redo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, [canUndo, canRedo, undo, redo]);
+
   const handleStageClick = (event) => {
     const stage = event.target.getStage();
     const clickedOnEmpty = event.target === stage;
@@ -523,21 +563,25 @@ const ImageEditor = ({
 
       captureHistorySnapshot();
 
+      const usesEraser = brushMode === 'eraser';
+      const shouldFill = fillEnabled && !usesEraser;
       const newLine = {
         id: `line-${Date.now()}`,
         type: 'line',
         points: [...pathRef.current],
-        stroke: brushMode === 'eraser' ? '#ffffff' : brushColor,
+        stroke: usesEraser ? '#ffffff' : brushColor,
         strokeWidth: brushSize,
-        opacity: brushMode === 'eraser' ? 1 : brushOpacity,
+        opacity: usesEraser ? 1 : brushOpacity,
         tension: currentBrushPreset.tension,
         lineCap: currentBrushPreset.lineCap,
         lineJoin: currentBrushPreset.lineJoin,
-        globalCompositeOperation: currentBrushPreset.composite,
+        globalCompositeOperation: usesEraser ? currentBrushPreset.composite : 'source-over',
+        fill: shouldFill ? fillColor : undefined,
+        closed: shouldFill,
         mode: brushMode
       };
 
-  updateElements((prev) => [...prev, newLine], { pushHistory: false });
+      updateElements((prev) => [...prev, newLine], { pushHistory: false });
       setCurrentPath([]);
       pathRef.current = [];
       setIsDrawing(false);
@@ -797,9 +841,84 @@ const ImageEditor = ({
                   }}
                 />
               </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '600', color: '#1a237e' }}>
+                <input
+                  type="checkbox"
+                  checked={fillEnabled}
+                  onChange={(e) => setFillEnabled(e.target.checked)}
+                  disabled={brushMode === 'eraser'}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                Use fill
+              </label>
+              <label style={{ fontSize: '12px', fontWeight: '600', color: '#1a237e', opacity: (!fillEnabled || brushMode === 'eraser') ? 0.5 : 1 }}>
+                Fill color
+                <input
+                  type="color"
+                  value={fillColor}
+                  onChange={(e) => setFillColor(e.target.value)}
+                  disabled={!fillEnabled || brushMode === 'eraser'}
+                  style={{
+                    marginLeft: '8px',
+                    width: '36px',
+                    height: '26px',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: (!fillEnabled || brushMode === 'eraser') ? 'not-allowed' : 'pointer',
+                    opacity: (!fillEnabled || brushMode === 'eraser') ? 0.5 : 1
+                  }}
+                />
+              </label>
             </div>
           </div>
         )}
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!canUndo}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid #c5cae9',
+              background: canUndo ? 'linear-gradient(135deg, #5c6bc0 0%, #3949ab 100%)' : '#e8eaf6',
+              color: canUndo ? '#ffffff' : '#9fa8da',
+              cursor: canUndo ? 'pointer' : 'not-allowed',
+              boxShadow: canUndo ? '0 4px 12px rgba(92,107,192,0.3)' : 'none',
+              transition: 'all 0.2s ease'
+            }}
+            aria-label="Undo"
+          >
+            <span style={{ fontSize: '14px' }}>↺</span>
+            <span style={{ fontSize: '12px', fontWeight: 600 }}>Undo</span>
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={!canRedo}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid #c8e6c9',
+              background: canRedo ? 'linear-gradient(135deg, #66bb6a 0%, #43a047 100%)' : '#e8f5e9',
+              color: canRedo ? '#ffffff' : '#a5d6a7',
+              cursor: canRedo ? 'pointer' : 'not-allowed',
+              boxShadow: canRedo ? '0 4px 12px rgba(102,187,106,0.3)' : 'none',
+              transition: 'all 0.2s ease'
+            }}
+            aria-label="Redo"
+          >
+            <span style={{ fontSize: '14px' }}>↻</span>
+            <span style={{ fontSize: '12px', fontWeight: 600 }}>Redo</span>
+          </button>
+        </div>
         
         {selectedTool === 'text' && (
           <div style={{
@@ -1190,7 +1309,9 @@ const ImageEditor = ({
                 tension={currentBrushPreset.tension}
                 lineCap={currentBrushPreset.lineCap}
                 lineJoin={currentBrushPreset.lineJoin}
-                globalCompositeOperation={currentBrushPreset.composite}
+                globalCompositeOperation={brushMode === 'eraser' ? currentBrushPreset.composite : 'source-over'}
+                fill={fillEnabled && brushMode !== 'eraser' ? fillColor : undefined}
+                closed={fillEnabled && brushMode !== 'eraser'}
                 listening={false}
               />
             )}

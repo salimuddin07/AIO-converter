@@ -54,7 +54,13 @@ const VideoResults = ({ result, onBack }) => {
       setConvertResult(convertedResult);
     } catch (error) {
       console.error('Conversion error:', error);
-      alert(`Conversion failed: ${error.message}`);
+      const isNetworkError = error instanceof TypeError && (
+        error.message === 'Failed to fetch' || error.message?.includes('NetworkError')
+      );
+      const message = isNetworkError
+        ? 'Cannot reach the conversion service. Please make sure the backend server is running on http://localhost:3003.'
+        : `Conversion failed: ${error.message}`;
+      alert(message);
     } finally {
       setIsConverting(false);
     }
@@ -67,11 +73,11 @@ const VideoResults = ({ result, onBack }) => {
   };
 
   const setStartTime = () => {
-    setSettings(prev => ({ ...prev, startTime: currentTime }));
+    setSettings(prev => ({ ...prev, startTime: Number(currentTime.toFixed(2)) }));
   };
 
   const setEndTime = () => {
-    setSettings(prev => ({ ...prev, endTime: currentTime }));
+    setSettings(prev => ({ ...prev, endTime: Number(currentTime.toFixed(2)) }));
   };
 
   const handleDownload = (gifPath, filename) => {
@@ -81,14 +87,35 @@ const VideoResults = ({ result, onBack }) => {
     link.click();
   };
 
-  const getMaxDuration = () => {
-    const fps = parseInt(settings.fps);
+  const getMaxDuration = (fps) => {
     if (fps <= 5) return 60;
     if (fps <= 10) return 30;
     if (fps <= 15) return 20;
     if (fps <= 20) return 15;
     return 10;
   };
+
+  const safeNumber = (value, fallback = 0) => {
+    if (value === '' || value === null || value === undefined) {
+      return fallback;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const fpsValue = safeNumber(settings.fps, 10);
+  const startTimeValue = safeNumber(settings.startTime, 0);
+  const endTimeValue = safeNumber(settings.endTime, startTimeValue);
+  const maxDurationAllowed = getMaxDuration(fpsValue);
+  const endTimeMax = videoInfo
+    ? Math.min(
+        Number.isFinite(videoInfo.duration) ? videoInfo.duration : Infinity,
+        startTimeValue + maxDurationAllowed
+      )
+    : startTimeValue + maxDurationAllowed;
+  const conversionDisabled =
+    isConverting || !Number.isFinite(endTimeValue) || endTimeValue <= startTimeValue;
 
   if (convertResult) {
     return (
@@ -174,9 +201,15 @@ const VideoResults = ({ result, onBack }) => {
                   type="number" 
                   step="0.1" 
                   min="0"
-                  max={videoInfo?.duration || 0}
-                  value={settings.startTime}
-                  onChange={(e) => setSettings(prev => ({ ...prev, startTime: parseFloat(e.target.value) }))}
+                  max={videoInfo?.duration ?? undefined}
+                  value={settings.startTime === '' ? '' : startTimeValue}
+                  onChange={(e) => {
+                    const { value } = e.target;
+                    setSettings(prev => ({
+                      ...prev,
+                      startTime: value === '' ? '' : Number(value)
+                    }));
+                  }}
                 />
                 <button className="btn small" onClick={setStartTime}>Set</button>
               </div>
@@ -188,10 +221,16 @@ const VideoResults = ({ result, onBack }) => {
                 <input 
                   type="number" 
                   step="0.1" 
-                  min={settings.startTime}
-                  max={Math.min(videoInfo?.duration || 0, settings.startTime + getMaxDuration())}
-                  value={settings.endTime}
-                  onChange={(e) => setSettings(prev => ({ ...prev, endTime: parseFloat(e.target.value) }))}
+                  min={startTimeValue}
+                  max={Number.isFinite(endTimeMax) ? endTimeMax : undefined}
+                  value={settings.endTime === '' ? '' : endTimeValue}
+                  onChange={(e) => {
+                    const { value } = e.target;
+                    setSettings(prev => ({
+                      ...prev,
+                      endTime: value === '' ? '' : Number(value)
+                    }));
+                  }}
                 />
                 <button className="btn small" onClick={setEndTime}>Set</button>
               </div>
@@ -220,7 +259,7 @@ const VideoResults = ({ result, onBack }) => {
             <div className="setting-group">
               <label>Frame rate (fps):</label>
               <select 
-                value={settings.fps}
+                value={String(settings.fps)}
                 onChange={(e) => setSettings(prev => ({ ...prev, fps: parseInt(e.target.value) }))}
               >
                 <option value="5">5 fps</option>
@@ -246,8 +285,8 @@ const VideoResults = ({ result, onBack }) => {
           
           <div className="duration-info">
             <p>
-              Selected duration: {(settings.endTime - settings.startTime).toFixed(2)}s 
-              (max {getMaxDuration()}s at {settings.fps} fps)
+              Selected duration: {(Math.max(0, endTimeValue - startTimeValue)).toFixed(2)}s 
+              (max {maxDurationAllowed}s at {fpsValue} fps)
             </p>
             {videoInfo && (
               <p>Video info: {videoInfo.duration?.toFixed(2)}s, {videoInfo.width}×{videoInfo.height}</p>
@@ -257,7 +296,7 @@ const VideoResults = ({ result, onBack }) => {
           <button 
             className="btn primary large"
             onClick={handleConvert}
-            disabled={isConverting || settings.endTime <= settings.startTime}
+            disabled={conversionDisabled}
           >
             {isConverting ? 'Converting...' : 'Convert to GIF!'}
           </button>
