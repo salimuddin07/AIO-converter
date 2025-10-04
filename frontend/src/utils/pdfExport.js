@@ -7,6 +7,8 @@ export const PAGE_SIZES_MM = {
 
 export const mmToPoints = (mm) => (mm / 25.4) * 72;
 
+export const mmToPixels = (mm) => (mm / 25.4) * 96;
+
 export const clampMargin = (value) => {
   const numeric = Number.isFinite(value) ? value : 10;
   return Math.min(60, Math.max(0, numeric));
@@ -22,6 +24,14 @@ export const pageSizeToPoints = (pageKey, orientation = 'portrait') => {
   }
 
   return { width, height };
+};
+
+export const getPageSizeMm = (pageKey, orientation = 'portrait') => {
+  const size = PAGE_SIZES_MM[pageKey] || PAGE_SIZES_MM.a4;
+  if (orientation === 'landscape') {
+    return { width: size.height, height: size.width };
+  }
+  return { width: size.width, height: size.height };
 };
 
 export const hexToRgbUnit = (hex) => {
