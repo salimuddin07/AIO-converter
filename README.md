@@ -215,7 +215,226 @@ Frontend libraries tested through browser component:
 ### Backend Setup
 ```bash
 cd backend
+# GIF Converter
+
+All-in-one media conversion toolkit powered by an Express (Node.js) backend and a Vite + React frontend. The application handles image, GIF, video, and document workflows with optimized processing pipelines and a modular service architecture.
+
+- **Live targets**: convert, compress, and split media assets, extract frames, generate GIFs, and transform PDFs to Markdown.
+- **Modern foundations**: FFmpeg, Sharp, Canvas, Jimp, and pdfjs-dist on the backend; React, Vite, and Tailwind-friendly styling on the frontend.
+- **Production ready**: includes CSP-aware deployment guidance, mixed-content protections, and background cleanup jobs.
+
+> Need more architectural depth? See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for service diagrams and routing details.
+
+---
+
+## ✨ Features
+
+| Category | Highlights |
+| --- | --- |
+| Image | Format conversion (JPEG/PNG/WebP/AVIF/JXL), resizing, optimization, overlays, batch jobs |
+| Video | Format conversion, video splitting, frame extraction, optimized presets for web delivery |
+| GIF | Create GIFs from videos or image sequences, split & edit frames, apply text and effects |
+| Documents | PDF → Markdown conversion, images → PDF bundling |
+| UX & Ops | Dynamic backend detection, progress visualisations, asset cleanup scheduler, CSP-safe frontend |
+
+---
+
+## 🧱 Tech Stack
+
+- **Frontend:** React 18, Vite 5, modern CSS (with room for Tailwind/utility layers), pdfjs-dist, GSAP + motion libraries
+- **Backend:** Node.js 18+, Express, Sharp, FFmpeg (via fluent-ffmpeg/ffmpeg-static), Canvas, Jimp, ImageMagick helpers
+- **Tooling:** npm workspaces, ESLint, Nodemon, Concurrent dev runners, Vercel-ready frontend build
+
+---
+
+## 🗺️ Architecture at a Glance
+
+- `backend/` exposes REST routes grouped by capability (conversion, split, AI, text, modern formats) backed by service modules.
+- `frontend/` provides a single-page application that detects the backend URL at runtime and wraps network calls with mixed-content guards.
+- A scheduled cleanup job purges temporary artifacts (`temp/`, `public/static/`) to keep disk usage predictable.
+- Environment-variable driven configuration allows the same code base to run locally, on-prem, or in the cloud.
+
+---
+
+## 📁 Repository Layout
+
+```
+gif-converter/
+├── backend/              # Express API and processing services
+│   ├── src/
+│   │   ├── controllers/  # Route handlers (e.g., WebP controller)
+│   │   ├── routes/       # REST endpoints grouped by feature
+│   │   ├── services/     # Image, video, GIF, AI, and utility services
+│   │   ├── middleware/   # Error handling, file validation
+│   │   ├── config/       # Centralised configuration helpers
+│   │   └── app.js        # Express app wiring
+│   ├── server.js         # HTTP server & cleanup scheduler
+│   └── package.json
+├── frontend/             # React application (Vite)
+│   ├── src/
+│   │   ├── components/   # Feature-specific UI modules
+│   │   ├── utils/        # API client, pdf helpers, formatting
+│   │   ├── App.jsx       # App shell
+│   │   └── main.jsx      # Vite entry
+│   ├── public/
+│   ├── index.html
+│   └── package.json
+├── public/static/        # Generated media outputs (served by backend)
+├── logs/                 # Text logs (rotated by cleanup job)
+├── Dockerfile            # Containerised build (optional)
+├── render.yaml           # Example Render.com spec (optional)
+├── README.md             # This document
+└── package.json          # Workspace & shared scripts
+```
+
+---
+
+## ✅ Prerequisites
+
+| Requirement | Notes |
+| --- | --- |
+| Node.js ≥ 18 & npm ≥ 8 | Required for both frontend and backend; npm 8+ enables workspace installs |
+| FFmpeg | Needed for video/GIF manipulation. Install via package manager (`choco install ffmpeg` on Windows, `brew install ffmpeg` on macOS) or download binaries from [ffmpeg.org](https://ffmpeg.org/). |
+| ImageMagick | Unlocks additional raster/vector conversions (`choco install imagemagick` or `brew install imagemagick`). |
+| Build tools (Windows) | Sharp/Canvas require native build tools. Install “Desktop development with C++” workload (Visual Studio Build Tools) and the Windows 10 SDK. |
+
+Optional services such as OpenAI require corresponding API keys (see environment variables below).
+
+---
+
+## 🚀 Quick Start
+
+```powershell
+# 1. Install all workspaces (root + backend + frontend)
 npm install
+
+# 2. Start both servers with hot reload
+npm run dev
+
+# Frontend: http://localhost:3001
+# Backend:  http://localhost:3003
+```
+
+> **Tip:** Run `npm run dev:backend` or `npm run dev:frontend` from the repository root if you want to start either stack individually.
+
+Stop the servers with `Ctrl+C`. Nodemon (backend) and Vite (frontend) automatically reload on file changes.
+
+---
+
+## 🔐 Environment Variables
+
+Create `.env` files in both the `backend/` and `frontend/` folders. The application provides sensible defaults but configuring these variables keeps behaviour predictable.
+
+### Backend (`backend/.env`)
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PORT` | `3003` | HTTP port for the Express API. |
+| `MAX_FILE_SIZE_GB` | `10` | Maximum upload size per file. |
+| `MAX_BATCH_COUNT` | `30` | Max items in a batch conversion request. |
+| `JPEG_QUALITY` | `80` | Default quality for JPEG outputs. |
+| `FILE_TTL_MINUTES` | `30` | Retention window for temporary assets before cleanup. |
+| `OPENAI_API_KEY` | *(unset)* | Enables AI-powered features when provided. |
+
+### Frontend (`frontend/.env`)
+
+| Variable | Description |
+| --- | --- |
+| `VITE_BACKEND_URL` | Preferred backend base URL (e.g., `http://localhost:3003` for local dev or `https://api.example.com` in production). |
+| `VITE_API_BASE_URL` / `VITE_BACKEND_BASE_URL` / `VITE_APP_BACKEND_URL` | Legacy aliases also honoured at runtime. |
+| `VITE_MAX_FILE_SIZE` | Optional UI limit (in MB) shown to users. |
+
+> When the frontend is hosted over HTTPS (e.g., on Vercel), the backend **must** be available over HTTPS. Otherwise the browser will block requests; the app now surfaces a mixed-content warning explaining how to fix it.
+
+---
+
+## 🧑‍💻 Development Scripts
+
+| Command | Location | Description |
+| --- | --- | --- |
+| `npm run dev` | root | Start backend (nodemon) + frontend (Vite) concurrently. |
+| `npm run dev:backend` | root | Start only the Express API. |
+| `npm run dev:frontend` | root | Start only the React SPA. |
+| `npm run lint` | root | Run ESLint for both workspaces. |
+| `npm run lint:fix` | root | Auto-fix lint issues. |
+| `npm run clean` | root | Remove all `node_modules` folders (useful before reinstalling deps). |
+
+Backend and frontend packages also expose their own `npm run lint`, `npm run build`, etc.
+
+---
+
+## 🏗️ Production Build & Deployment
+
+### Build artifacts locally
+
+```powershell
+# Frontend bundle (outputs to frontend/dist)
+cd frontend
+npm run build
+
+# Backend production start
+cd ../backend
+npm install --production
+npm start
+```
+
+### Deploying the frontend (Vercel or static hosting)
+
+1. Set `VITE_BACKEND_URL` (or `VITE_API_BASE_URL`) in the deployment environment to the HTTPS endpoint of your backend.
+2. Trigger a Vercel build; the production bundle lives in `frontend/dist`.
+3. Ensure your hosting configuration includes the CSP headers from `frontend/vercel.json`.
+
+### Deploying the backend
+
+The backend is a standard Node.js server; you can:
+
+- Deploy to services like Render, Railway, Fly.io, or a VPS (see `render.yaml` for a template).
+- Provide the same environment variables shown above.
+- Expose the server via HTTPS (use a reverse proxy such as Nginx or a managed certificate service).
+
+---
+
+## 🗂️ Storage & Housekeeping
+
+- **Temporary files** live in `temp/` and `public/static/`. A scheduled cleanup job removes stale assets based on `FILE_TTL_MINUTES`.
+- **Logs** are written to `logs/`. Rotate or prune them regularly if deploying long-term.
+- Use `npm run clean` (root) to delete workspace dependencies before reinstalling modules.
+- For manual cleanup, you can also empty `public/static` and `temp`—the app recreates them at startup if missing.
+
+---
+
+## 🛠️ Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+| --- | --- | --- |
+| `TypeError: Failed to fetch` with a mixed-content warning | Frontend served over HTTPS while backend uses HTTP | Host the backend behind HTTPS and update `VITE_BACKEND_URL`. |
+| `Error: spawn ffmpeg ENOENT` | FFmpeg binary missing | Install FFmpeg and ensure it is on your system PATH. |
+| `sharp`/`canvas` install failures (Windows) | Native build tools missing | Install Visual Studio Build Tools (C++ workload) and retry `npm install`. |
+| Large bundle warning during `npm run build` | Feature-rich frontend | Consider enabling code-splitting or lazy-loading if bundle size becomes an issue. |
+| Temp folders filling up | Long-running processing jobs | Lower `FILE_TTL_MINUTES` or run a periodic cleanup job (`CleanupService`). |
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository and create a feature branch.
+2. Follow the existing service/component patterns.
+3. Run `npm run lint` (and relevant builds) before submitting a pull request.
+
+Bug reports and feature suggestions are welcome via GitHub issues.
+
+---
+
+## 📄 License
+
+Distributed under the MIT License (see `package.json`).
+
+---
+
+### Maintainer
+
+Built and maintained by [Salimuddin](https://github.com/salimuddin07). Feel free to reach out for professional support or custom integrations.
+
 npm run dev    # Development server with hot reload
 npm start      # Production server
 ```
