@@ -1,5 +1,5 @@
 # Backend Docker image (Railway deployment removed 2025-10-04)
-FROM node:18-alpine
+FROM node:20-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -22,7 +22,7 @@ COPY backend/src ./src
 COPY backend/server.js ./
 
 # Install dependencies
-RUN npm install --only=production
+RUN npm install --omit=dev
 
 # Create necessary directories
 RUN mkdir -p uploads output temp logs

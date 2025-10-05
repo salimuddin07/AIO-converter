@@ -4,7 +4,8 @@ services:
     name: gif-converter-backend
     env: node
     region: ohio
-    buildCommand: cd backend && npm install
+    plan: free
+    buildCommand: cd backend && npm install --omit=dev
     startCommand: cd backend && npm start
     envVars:
       - key: NODE_ENV
