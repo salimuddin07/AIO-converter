@@ -1,0 +1,42 @@
+# Dockerignore for backend
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env
+.nyc_output
+coverage
+.eslintrc.js
+.prettierrc
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Frontend files (not needed in backend image)
+frontend/
+
+# Build artifacts
+dist/
+build/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+uploads/
+output/
+temp/
+public/static/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
