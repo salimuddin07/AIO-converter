@@ -11,7 +11,6 @@ import ImageEditorWithUpload from './components/ImageEditorWithUpload.jsx';
 import ImageOptimizer from './components/ImageOptimizer.jsx';
 import WebPConverter from './components/WebPConverter.jsx';
 import GifSplitter from './components/GifSplitter.jsx';
-import AddText from './components/AddText.jsx';
 import { ApngStudio, AvifStudio, JxlStudio } from './components/ModernFormatTool.jsx';
 import ToolInfoPanel from './components/ToolInfoPanel.jsx';
 import './aio-convert-style.css';
@@ -68,12 +67,6 @@ export default function App() {
             <p>Extract frames from GIFs</p>
           </div>
           
-          <div className="tool-card" onClick={() => setCurrentTool('add-text')}>
-            <div className="tool-icon">📝</div>
-            <h3>Add Text</h3>
-            <p>Add text overlays to images</p>
-          </div>
-          
           <div className="tool-card" onClick={() => setCurrentTool('webp-maker')}>
             <div className="tool-icon">🖼️</div>
             <h3>WebP Converter</h3>
@@ -127,8 +120,6 @@ export default function App() {
         return <ImageEditorWithUpload tool="effects" />;
       case 'split':
         return <GifSplitter />;
-      case 'add-text':
-        return <AddText />;
       case 'webp-maker':
         return <WebPConverter />;
       case 'apng-maker':
