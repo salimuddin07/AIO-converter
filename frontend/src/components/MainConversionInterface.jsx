@@ -142,14 +142,6 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
           case 'rotate':
             result = await realAPI.rotate(file, 90);
             break;
-          case 'add-text':
-            result = await realAPI.addText(file, 'Sample Text', {
-              fontSize: 30,
-              color: '#ffffff',
-              x: null, // center
-              y: null  // center
-            });
-            break;
           case 'video-to-gif':
             if (file.type.startsWith('video/')) {
               result = await realAPI.videoToGif(file, { frameCount: 10 });

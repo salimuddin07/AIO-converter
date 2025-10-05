@@ -30,42 +30,35 @@ export default function HomePage({ onNavigate }) {
     {
       icon: '🎬',
       title: 'Video to GIF',
-      description: 'Convert videos to high-quality animated GIFs with advanced controls',
+      description: 'Convert video clips into high-quality animated GIFs.',
       page: 'video-to-gif',
       color: colors.primary
     },
     {
-      icon: '✏️',
-      title: 'Add Text',
-      description: 'Add professional text overlays to your animated images',
-      page: 'add-text',
-      color: colors.secondary
-    },
-    {
       icon: '🎨',
       title: 'Image Editor',
-      description: 'Professional image editing with Konva.js canvas tools',
+      description: 'Professional image editing with Konva.js canvas tools.',
       page: 'image-editor',
       color: colors.info
     },
     {
       icon: '⚡',
       title: 'GIF Maker',
-      description: 'Create stunning animated GIFs from multiple images',
-      page: 'maker',
+      description: 'Create stunning animated GIFs from multiple images.',
+      page: 'gif-maker',
       color: colors.success
     },
     {
       icon: '✂️',
       title: 'GIF Splitter',
-      description: 'Extract individual frames from animated GIFs',
+      description: 'Extract individual frames from animated GIFs.',
       page: 'split',
       color: colors.warning
     },
     {
       icon: '🔧',
       title: 'Optimizer',
-      description: 'Reduce file size while maintaining quality',
+      description: 'Reduce file size while maintaining quality.',
       page: 'optimize',
       color: colors.error
     }
