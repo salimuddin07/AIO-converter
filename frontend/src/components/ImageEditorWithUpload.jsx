@@ -118,8 +118,6 @@ const ImageEditorWithUpload = ({ tool = 'edit' }) => {
         return 'Image Rotator';
       case 'effects':
         return 'Image Effects';
-      case 'add-text':
-        return 'Add Text to Images';
       default:
         return 'Image Editor';
     }
@@ -135,8 +133,6 @@ const ImageEditorWithUpload = ({ tool = 'edit' }) => {
         return 'Rotate, flip, or mirror your image before downloading the adjusted result.';
       case 'effects':
         return 'Apply filters and effects to your images instantly.';
-      case 'add-text':
-        return 'Upload an image and add text, drawings, or filters right in your browser.';
       default:
         return 'Edit and enhance your images';
     }
