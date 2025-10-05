@@ -28,6 +28,30 @@
   }
 };
 
+const PLACEHOLDER_BACKEND_FRAGMENTS = [
+  'your-backend.example.com',
+  'your-backend-url',
+  'backend-placeholder'
+];
+
+const isPlaceholderBackendUrl = (value) => {
+  if (!value || typeof value !== 'string') {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+
+  try {
+    const parsed = new URL(normalized.includes('://') ? normalized : `https://${normalized}`);
+    return PLACEHOLDER_BACKEND_FRAGMENTS.some((fragment) => parsed.hostname.includes(fragment));
+  } catch (_error) {
+    return PLACEHOLDER_BACKEND_FRAGMENTS.some((fragment) => normalized.includes(fragment));
+  }
+};
+
 const detectRuntimeBackendUrl = () => {
   const globalWindow = typeof window !== 'undefined' ? window : undefined;
   const globalOverride = globalWindow && (
@@ -36,7 +60,7 @@ const detectRuntimeBackendUrl = () => {
     globalWindow.__APP_BACKEND_URL__
   );
 
-  if (typeof globalOverride === 'string' && globalOverride.trim()) {
+  if (typeof globalOverride === 'string' && globalOverride.trim() && !isPlaceholderBackendUrl(globalOverride)) {
     return globalOverride.trim();
   }
 
@@ -48,7 +72,13 @@ const detectRuntimeBackendUrl = () => {
     importMetaEnv.VITE_APP_BACKEND_URL
   ];
 
-  const matchedEnv = envCandidates.find((value) => typeof value === 'string' && value.trim());
+  const matchedEnv = envCandidates.find((value) => {
+    if (typeof value !== 'string') {
+      return false;
+    }
+    const trimmed = value.trim();
+    return trimmed && !isPlaceholderBackendUrl(trimmed);
+  });
   if (matchedEnv) {
     return matchedEnv.trim();
   }
@@ -59,9 +89,25 @@ const detectRuntimeBackendUrl = () => {
       process.env.VITE_API_BASE_URL,
       process.env.BACKEND_URL
     ];
-    const matchedProcess = processCandidates.find((value) => typeof value === 'string' && value.trim());
+    const matchedProcess = processCandidates.find((value) => {
+      if (typeof value !== 'string') {
+        return false;
+      }
+      const trimmed = value.trim();
+      return trimmed && !isPlaceholderBackendUrl(trimmed);
+    });
     if (matchedProcess) {
       return matchedProcess.trim();
+    }
+  }
+
+  if (globalWindow && globalWindow.location) {
+    const { origin, hostname, protocol, port } = globalWindow.location;
+    const isLocalHostname = ['localhost', '127.0.0.1', '[::1]'].includes(hostname);
+    const devPorts = new Set(['3000', '3001', '3002', '3003', '4173', '5173']);
+    const isLikelyDevPort = port && devPorts.has(port);
+    if (origin && origin !== 'null' && protocol.startsWith('http') && !isLocalHostname && !isLikelyDevPort) {
+      return origin;
     }
   }
 
@@ -195,20 +241,42 @@ const throwApiError = async (response, fallbackMessage) => {
   throw new Error(message);
 };
 
-export const validateFile = (file, type = "image") => {
-  const appendFormOptions = (formData, options = {}) => {
-    Object.entries(options).forEach(([key, value]) => {
-      if (value === undefined || value === null) {
+const appendFormOptions = (formData, options = {}) => {
+  if (!options || typeof options !== 'object') {
+    return;
+  }
+
+  Object.entries(options).forEach(([key, value]) => {
+    if (value === undefined || value === null) {
+      return;
+    }
+
+    if (typeof value === 'string') {
+      if (value.trim() === '') {
         return;
       }
+      formData.append(key, value);
+      return;
+    }
 
-      if (typeof value === 'object' && !(value instanceof File) && !(value instanceof Blob)) {
-        formData.append(key, JSON.stringify(value));
-      } else {
-        formData.append(key, value);
-      }
-    });
-  };
+    const isFileInstance = typeof File !== 'undefined' && value instanceof File;
+    const isBlobInstance = typeof Blob !== 'undefined' && value instanceof Blob;
+
+    if (isFileInstance || isBlobInstance) {
+      formData.append(key, value);
+      return;
+    }
+
+    if (typeof value === 'object') {
+      formData.append(key, JSON.stringify(value));
+      return;
+    }
+
+    formData.append(key, value);
+  });
+};
+
+export const validateFile = (file, type = "image") => {
   if (file.type === "application/pdf") {
     type = "pdf";
   }
@@ -340,11 +408,7 @@ export const realAPI = {
   splitGif: async (gifFile, options = {}) => withNetworkGuard(async () => {
     const formData = new FormData();
     formData.append('gif', gifFile);
-    Object.entries(options).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        formData.append(key, value);
-      }
-    });
+    appendFormOptions(formData, options);
 
     const response = await fetch(getApiUrl('splitGif'), {
       method: 'POST',
@@ -362,11 +426,7 @@ export const realAPI = {
   splitGifFromUrl: async (url, options = {}) => withNetworkGuard(async () => {
     const formData = new FormData();
     formData.append('url', url);
-    Object.entries(options).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        formData.append(key, value);
-      }
-    });
+    appendFormOptions(formData, options);
 
     const response = await fetch(getApiUrl('splitGif'), {
       method: 'POST',
@@ -386,12 +446,7 @@ export const realAPI = {
     if (videoFile) {
       formData.append('video', videoFile);
     }
-
-    Object.entries(options).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        formData.append(key, value);
-      }
-    });
+    appendFormOptions(formData, options);
 
     const response = await fetch(getApiUrl('splitVideo'), {
       method: 'POST',
@@ -408,12 +463,7 @@ export const realAPI = {
   splitVideoFromUrl: async (url, options = {}) => withNetworkGuard(async () => {
     const formData = new FormData();
     formData.append('url', url);
-
-    Object.entries(options).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        formData.append(key, value);
-      }
-    });
+    appendFormOptions(formData, options);
 
     const response = await fetch(getApiUrl('splitVideo'), {
       method: 'POST',
@@ -654,12 +704,17 @@ export const realAPI = {
   },
 
   getModernFormatInfo: withNetworkGuard(async (format) => {
-    const response = await fetch(getApiUrl('modern') + `/format-info/${format}`);
+    if (typeof format !== 'string' || !format.trim()) {
+      throw new Error('Select a modern format before requesting detailed info.');
+    }
+
+    const normalizedFormat = encodeURIComponent(format.trim().toLowerCase());
+    const response = await fetch(getApiUrl('modern') + `/format-info/${normalizedFormat}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch modern format info for ${format}`);
     }
     return await response.json();
-  }),
+  }, DEFAULT_NETWORK_MESSAGE),
 
   compareModernFormats: async (file) => {
     const formData = new FormData();

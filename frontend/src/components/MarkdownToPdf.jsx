@@ -304,39 +304,50 @@ export default function MarkdownToPdf() {
       });
 
       const clampPage = (value) => clampValue(value, 1, totalPages);
-      let pageNumbers = Array.from({ length: totalPages }, (_, idx) => idx + 1);
-
-      if (exportMode === 'range') {
-        const start = clampPage(pageInputs.start || 1);
-        const end = clampPage(pageInputs.end || totalPages);
-        const [min, max] = start <= end ? [start, end] : [end, start];
-        pageNumbers = Array.from({ length: max - min + 1 }, (_, idx) => min + idx);
-      } else if (exportMode === 'custom') {
-        const normalized = Array.from(new Set(selectedPages
-          .map((page) => clampPage(Number(page) || 1)))).sort((a, b) => a - b);
-
-        if (!normalized.length) {
-          const message = 'Select at least one page before downloading.';
-          setPageSelectionError(message);
-          NotificationService.warning(message);
-          return;
+      const derivePageNumbers = () => {
+        if (exportMode === 'range') {
+          const start = clampPage(pageInputs.start || 1);
+          const end = clampPage(pageInputs.end || totalPages);
+          const [min, max] = start <= end ? [start, end] : [end, start];
+          return Array.from({ length: max - min + 1 }, (_, idx) => min + idx);
         }
 
-        pageNumbers = normalized;
+        if (exportMode === 'custom') {
+          const normalized = Array.from(new Set(selectedPages
+            .map((page) => clampPage(Number(page) || 1)))).sort((a, b) => a - b);
+
+          if (!normalized.length) {
+            const message = 'Select at least one page before downloading.';
+            setPageSelectionError(message);
+            NotificationService.warning(message);
+            return null;
+          }
+
+          return normalized;
+        }
+
+        return Array.from({ length: totalPages }, (_, idx) => idx + 1);
+      };
+
+      const pageNumbers = derivePageNumbers();
+      if (!pageNumbers || !pageNumbers.length) {
+        return;
       }
 
-      const pageIndexes = pageNumbers.map((page) => clampPage(page) - 1);
+      const uniqueIndexes = Array.from(new Set(pageNumbers.map((page) => clampPage(page) - 1))).sort((a, b) => a - b);
+      const shouldSubset = exportMode !== 'all' && uniqueIndexes.length < totalPages;
 
-      let outputBytes;
-
-      if (pageIndexes.length === totalPages) {
-        outputBytes = await pdfDoc.save();
-      } else {
-        const subsetDoc = await PDFDocument.create();
-        const copiedPages = await subsetDoc.copyPages(pdfDoc, pageIndexes);
-        copiedPages.forEach((page) => subsetDoc.addPage(page));
-        outputBytes = await subsetDoc.save();
+      if (shouldSubset) {
+        const keepSet = new Set(uniqueIndexes);
+        for (let index = totalPages - 1; index >= 0; index -= 1) {
+          if (!keepSet.has(index)) {
+            pdfDoc.removePage(index);
+          }
+        }
       }
+
+      const outputBytes = await pdfDoc.save();
+      const exportedCount = shouldSubset ? uniqueIndexes.length : totalPages;
 
       const blob = new Blob([outputBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -348,7 +359,7 @@ export default function MarkdownToPdf() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      NotificationService.success('PDF downloaded successfully');
+      NotificationService.success(`PDF downloaded successfully (${exportedCount} page${exportedCount === 1 ? '' : 's'})`);
     } catch (conversionError) {
       console.error('Markdown to PDF error:', conversionError);
       const message = conversionError?.message || 'PDF generation failed';
