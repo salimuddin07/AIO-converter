@@ -35,13 +35,6 @@ export default function HomePage({ onNavigate }) {
       color: colors.primary
     },
     {
-      icon: '✏️',
-      title: 'Add Text',
-      description: 'Add professional text overlays to your animated images',
-      page: 'add-text',
-      color: colors.secondary
-    },
-    {
       icon: '🎨',
       title: 'Image Editor',
       description: 'Professional image editing with Konva.js canvas tools',
