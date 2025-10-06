@@ -91,6 +91,12 @@ const ModernFormatTool = ({ format }) => {
   }, [format]);
 
   useEffect(() => {
+    // Only fetch format info if format is valid
+    if (!format || typeof format !== 'string' || !format.trim()) {
+      setFormatInfo(null);
+      return;
+    }
+
     let cancelled = false;
     realAPI
       .getModernFormatInfo(format)
