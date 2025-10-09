@@ -13,6 +13,7 @@ import WebPConverter from './components/WebPConverter.jsx';
 import GifSplitter from './components/GifSplitter.jsx';
 import { ApngStudio, AvifStudio, JxlStudio } from './components/ModernFormatTool.jsx';
 import ToolInfoPanel from './components/ToolInfoPanel.jsx';
+import BuyMeCoffee from './components/BuyMeCoffee.jsx';
 import './aio-convert-style.css';
 
 export default function App() {
@@ -72,6 +73,12 @@ export default function App() {
             <h3>WebP Converter</h3>
             <p>Convert to/from WebP format</p>
           </div>
+          
+          <div className="tool-card coffee-card" onClick={() => setCurrentTool('buy-me-coffee')}>
+            <div className="tool-icon">☕</div>
+            <h3>Support Us</h3>
+            <p>Buy us a coffee to keep improving!</p>
+          </div>
         </div>
         
         <div className="features-highlight">
@@ -128,6 +135,8 @@ export default function App() {
         return <AvifStudio />;
       case 'jxl-converter':
         return <JxlStudio />;
+      case 'buy-me-coffee':
+        return <BuyMeCoffee />;
       case 'home':
       default:
         return renderHome();
@@ -246,6 +255,25 @@ export default function App() {
         .tool-card p {
           color: #718096;
           font-size: 1rem;
+        }
+        
+        .coffee-card {
+          background: linear-gradient(135deg, #FFDD00 0%, #FFA500 100%);
+          border: 2px solid #FFB347;
+        }
+        
+        .coffee-card:hover {
+          background: linear-gradient(135deg, #FFE55C 0%, #FFB347 100%);
+          transform: translateY(-5px) scale(1.02);
+        }
+        
+        .coffee-card h3,
+        .coffee-card p {
+          color: #2d3748;
+        }
+        
+        .coffee-card .tool-icon {
+          filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.2));
         }
         
         .features-highlight {
