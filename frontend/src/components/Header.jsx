@@ -42,6 +42,7 @@ export default function Header({ currentTool, setCurrentTool }) {
           <li><a href="#" className={`nav-link apng ${currentTool === 'apng-maker' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'apng-maker')}>APNG</a></li>
           <li><a href="#" className={`nav-link avif ${currentTool === 'avif-converter' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'avif-converter')}>AVIF</a></li>
           <li><a href="#" className={`nav-link jxl ${currentTool === 'jxl-converter' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'jxl-converter')}>JXL</a></li>
+          <li><a href="#" className={`nav-link coffee ${currentTool === 'buy-me-coffee' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'buy-me-coffee')}>☕ Support</a></li>
         </ul>
       </nav>
 
