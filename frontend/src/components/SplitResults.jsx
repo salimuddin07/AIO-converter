@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { resolveDisplayUrl } from '../utils/unifiedAPI.js';
+import { resolveDisplayUrl, api } from '../utils/unifiedAPI.js';
 
 const toAbsoluteUrl = (path) => {
   if (!path) return null;
@@ -34,6 +34,151 @@ const formatFileSize = (bytes) => {
   }
   const precision = value < 10 && unitIndex > 0 ? 1 : 0;
   return `${value.toFixed(precision)} ${units[unitIndex]}`;
+};
+
+// Editable name component for renaming segments
+const EditableName = ({ initialName, segment, onNameChange }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(initialName);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (editName.trim() === '' || editName === initialName) {
+      setIsEditing(false);
+      setEditName(initialName);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Call backend to rename the file
+      if (typeof window !== 'undefined' && window.electronAPI) {
+        const result = await window.electronAPI.renameFile({
+          oldPath: segment.path,
+          newName: editName.trim()
+        });
+        
+        if (result.success) {
+          onNameChange(segment, editName.trim(), result.newPath);
+          setIsEditing(false);
+        } else {
+          alert('Failed to rename file: ' + result.error);
+          setEditName(initialName);
+        }
+      }
+    } catch (error) {
+      console.error('Error renaming file:', error);
+      alert('Error renaming file: ' + error.message);
+      setEditName(initialName);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditName(initialName);
+    setIsEditing(false);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+        <input
+          type="text"
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          onKeyPress={handleKeyPress}
+          onBlur={handleSave}
+          autoFocus
+          disabled={isSaving}
+          style={{
+            fontSize: '14px',
+            padding: '2px 5px',
+            border: '1px solid #ccc',
+            borderRadius: '3px',
+            flex: 1,
+            minWidth: '100px'
+          }}
+        />
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          style={{
+            fontSize: '10px',
+            padding: '2px 6px',
+            backgroundColor: '#28a745',
+            color: 'white',
+            border: 'none',
+            borderRadius: '3px',
+            cursor: isSaving ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {isSaving ? '...' : '✓'}
+        </button>
+        <button
+          onClick={handleCancel}
+          disabled={isSaving}
+          style={{
+            fontSize: '10px',
+            padding: '2px 6px',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '3px',
+            cursor: isSaving ? 'not-allowed' : 'pointer'
+          }}
+        >
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      onClick={() => setIsEditing(true)}
+      style={{ 
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '5px',
+        marginBottom: '10px',
+        padding: '5px 8px',
+        borderRadius: '4px',
+        backgroundColor: '#f8f9fa',
+        border: '1px solid transparent',
+        transition: 'all 0.2s ease'
+      }}
+      title="Click to rename this video segment"
+      onMouseEnter={(e) => {
+        e.target.style.backgroundColor = '#e9ecef';
+        e.target.style.borderColor = '#dee2e6';
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.backgroundColor = '#f8f9fa';
+        e.target.style.borderColor = 'transparent';
+      }}
+    >
+      <strong style={{ color: '#243b53', flex: 1, fontSize: '14px' }}>{initialName}</strong>
+      <span style={{ 
+        fontSize: '12px', 
+        color: '#6c757d',
+        backgroundColor: '#dee2e6',
+        padding: '2px 5px',
+        borderRadius: '3px'
+      }}>
+        ✏️ rename
+      </span>
+    </div>
+  );
 };
 
 // Secure video component for Electron
@@ -211,9 +356,33 @@ const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation }) => (
 );
 
 const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
+  const [segmentList, setSegmentList] = useState(segments);
   const videoMeta = meta?.metadata?.video || {};
   const audioMeta = meta?.metadata?.audio;
   const totalDuration = meta?.metadata?.duration ?? segments.reduce((acc, segment) => acc + (segment.duration || 0), 0);
+
+  // Update segments when prop changes
+  useEffect(() => {
+    setSegmentList(segments);
+  }, [segments]);
+
+  const handleNameChange = (segment, newName, newPath) => {
+    setSegmentList(prevSegments => 
+      prevSegments.map(seg => 
+        seg.path === segment.path 
+          ? { 
+              ...seg, 
+              name: newName,
+              filename: newName + '.mp4',
+              path: newPath,
+              url: newPath.replace(/\\/g, '/').startsWith('/') ? `file://${newPath.replace(/\\/g, '/')}` : `file:///${newPath.replace(/\\/g, '/')}`,
+              previewUrl: newPath.replace(/\\/g, '/').startsWith('/') ? `file://${newPath.replace(/\\/g, '/')}` : `file:///${newPath.replace(/\\/g, '/')}`,
+              downloadUrl: newPath.replace(/\\/g, '/').startsWith('/') ? `file://${newPath.replace(/\\/g, '/')}` : `file:///${newPath.replace(/\\/g, '/')}`
+            }
+          : seg
+      )
+    );
+  };
 
   return (
     <div className="split-results">
@@ -247,6 +416,7 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
           </li>
           <li>Video codec: {videoMeta.codec || 'Auto-detected'}</li>
           <li>Audio: {audioMeta ? `${audioMeta.codec || 'preserved'} (${audioMeta.channels || 2} ch)` : 'Muted'}</li>
+          <li><strong>💡 Tip:</strong> Click on any segment name to rename it for better organization</li>
         </ul>
       </div>
 
@@ -258,7 +428,7 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
           gap: '18px'
         }}
       >
-        {segments.map((segment, index) => (
+        {segmentList.map((segment, index) => (
           <div
             key={segment.filename || index}
             style={{
@@ -268,9 +438,11 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
               backgroundColor: '#f7faff'
             }}
           >
-            <header style={{ marginBottom: '10px' }}>
-              <strong style={{ color: '#243b53' }}>{segment.name || `Clip ${index + 1}`}</strong>
-            </header>
+            <EditableName
+              initialName={segment.name || `Clip ${index + 1}`}
+              segment={segment}
+              onNameChange={handleNameChange}
+            />
 
             <video
               controls
@@ -333,7 +505,8 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
         <h3>Tips</h3>
         <ul>
           <li>Use the clip summary to keep reels under time limits like 60 seconds.</li>
-          <li>Rename clips in the custom segment editor to keep exports organized.</li>
+          <li><strong>Click any segment name to rename it</strong> - great for organizing clips like "Intro", "Hook", "Outro".</li>
+          <li>Right-click video previews and select "Save video as..." for quick saving.</li>
           <li>Segments are hosted temporarily—download or move them to cloud storage soon after processing.</li>
         </ul>
       </div>

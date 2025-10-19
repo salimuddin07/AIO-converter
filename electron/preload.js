@@ -37,6 +37,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Video serving for preview
   serveVideo: (filePath) => ipcRenderer.invoke('serve-video', filePath),
   
+  // File renaming
+  renameFile: (data) => ipcRenderer.invoke('rename-file', data),
+  
   // Events
   onFilesSelected: (callback) => {
     ipcRenderer.on('files-selected', (event, files) => callback(files));
