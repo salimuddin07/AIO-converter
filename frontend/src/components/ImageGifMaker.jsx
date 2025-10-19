@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
-import { realAPI, getApiUrl } from '../utils/apiConfig.js';
+import { api as realAPI, getApiUrl } from '../utils/unifiedAPI.js';
 
 const SPEED_PRESETS = {
   slow: { label: 'Slow', delay: 140 },
@@ -47,7 +47,15 @@ const formatBytes = (bytes) => {
 const resolveUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('data:')) return path;
-  return path.startsWith('http') ? path : getApiUrl(path);
+  if (path.startsWith('file://')) return path;
+  if (path.startsWith('http')) return path;
+  
+  // In Electron mode, if we have a full file path, convert to file:// URL
+  if (realAPI.isElectron && (path.includes('\\') || path.includes('/')) && !path.startsWith('blob:')) {
+    return `file://${path.replace(/\\/g, '/')}`;
+  }
+  
+  return getApiUrl(path);
 };
 
 export default function ImageGifMaker() {
@@ -326,8 +334,21 @@ export default function ImageGifMaker() {
         throw new Error(response?.error || 'GIF creation did not complete');
       }
 
+      console.log('🎯 GIF Creation Response:', response);
+
       progressToast.update({ title: 'Wrapping up…', message: 'Preparing download link', progress: 90 });
-      setResult(response);
+      
+      // Wrap response in the expected structure
+      setResult({ 
+        success: true,
+        result: response  // The component expects result.result
+      });
+      
+      console.log('✅ Result set successfully:', { 
+        success: true,
+        result: response
+      });
+      
       NotificationService.success('GIF created successfully!');
     } catch (error) {
       console.error('Image GIF maker error:', error);
@@ -340,21 +361,47 @@ export default function ImageGifMaker() {
     }
   };
 
-  const downloadResult = () => {
+  const downloadResult = async () => {
     if (!result?.result) return;
-    const { dataUrl, downloadUrl, url, filename } = result.result;
+    const { dataUrl, downloadUrl, url, filename, outputPath } = result.result;
     const targetUrl = dataUrl || downloadUrl || url;
+    
     if (!targetUrl) {
       NotificationService.toast('No downloadable result is available yet.', 'info');
       return;
     }
 
-    const link = document.createElement('a');
-    link.href = resolveUrl(targetUrl);
-    link.download = filename || 'image-sequence.gif';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      if (realAPI.isElectron && outputPath) {
+        // In Electron mode, use the save dialog via unified API
+        const options = {
+          defaultPath: filename || 'image-sequence.gif',
+          filters: [
+            { name: 'GIF Images', extensions: ['gif'] },
+            { name: 'All Files', extensions: ['*'] }
+          ]
+        };
+        
+        const saveResult = await window.electronAPI.saveDialog(options);
+        
+        if (!saveResult.canceled && saveResult.filePath) {
+          // Copy the file to the chosen location
+          await realAPI.copyFile(outputPath, saveResult.filePath);
+          NotificationService.success('GIF saved successfully!');
+        }
+      } else {
+        // Browser mode - use regular download
+        const link = document.createElement('a');
+        link.href = resolveUrl(targetUrl);
+        link.download = filename || 'image-sequence.gif';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      NotificationService.error(`Download failed: ${error.message}`);
+    }
   };
 
   return (
@@ -641,6 +688,8 @@ export default function ImageGifMaker() {
         </section>
       )}
 
+      {console.log('🔍 Debug - Current result state:', result)}
+
       {result?.result && (
         <section className="result">
           <h2>Your GIF is ready!</h2>
@@ -648,6 +697,8 @@ export default function ImageGifMaker() {
             <img
               src={resolveUrl(result.result.dataUrl || result.result.previewUrl || result.result.downloadUrl || result.result.url || '')}
               alt="Generated GIF preview"
+              onLoad={() => console.log('✅ Image loaded successfully')}
+              onError={(e) => console.error('❌ Image failed to load:', e.target.src)}
             />
           </div>
           <div className="result-actions">

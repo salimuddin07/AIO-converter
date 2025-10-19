@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { getApiUrl } from '../utils/apiConfig.js';
+import { getApiUrl } from '../utils/unifiedAPI.js';
 
 const toAbsoluteUrl = (path) => {
   if (!path) return null;

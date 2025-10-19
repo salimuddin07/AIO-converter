@@ -1,67 +1,47 @@
 /**
- * Electron Preload Script
- * Exposes safe IPC APIs to the renderer process with context isolation
+ * SIMPLE PRELOAD SCRIPT
+ * Exposes direct file processing APIs
  */
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-/**
- * Expose protected methods that allow the renderer process to use
- * the ipcRenderer without exposing the entire object
- */
 contextBridge.exposeInMainWorld('electronAPI', {
   // File operations
-  dialog: {
-    openFile: (options) => ipcRenderer.invoke('dialog:openFile', options),
-    saveFile: (options) => ipcRenderer.invoke('dialog:saveFile', options),
+  getFileInfo: (filePath) => ipcRenderer.invoke('get-file-info', filePath),
+  readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
+  writeFile: (data) => ipcRenderer.invoke('write-file', data),
+  copyFile: (data) => ipcRenderer.invoke('copy-file', data),
+  
+  // Image conversion
+  convertImage: (data) => ipcRenderer.invoke('convert-image', data),
+  createGifFromImages: (data) => ipcRenderer.invoke('create-gif-from-images', data),
+  
+  // Video conversion
+  convertVideo: (data) => ipcRenderer.invoke('convert-video', data),
+  
+  // Splitting operations
+  splitGif: (data) => ipcRenderer.invoke('split-gif', data),
+  splitVideo: (data) => ipcRenderer.invoke('split-video', data),
+  
+  // Dialogs
+  openDialog: (options) => ipcRenderer.invoke('dialog:open', options),
+  saveDialog: (options) => ipcRenderer.invoke('dialog:save', options),
+  showMessage: (options) => ipcRenderer.invoke('dialog:message', options),
+  
+  // Shell
+  openPath: (path) => ipcRenderer.invoke('shell:open', path),
+  
+  // App info
+  getAppInfo: () => ipcRenderer.invoke('app:info'),
+  
+  // Events
+  onFilesSelected: (callback) => {
+    ipcRenderer.on('files-selected', (event, files) => callback(files));
   },
-
-  file: {
-    save: (data) => ipcRenderer.invoke('file:save', data),
-  },
-
-  // Shell operations
-  shell: {
-    openPath: (path) => ipcRenderer.invoke('shell:openPath', path),
-    openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
-  },
-
-  // App information
-  app: {
-    getInfo: () => ipcRenderer.invoke('app:getInfo'),
-  },
-
-  // Notifications
-  notification: {
-    show: (options) => ipcRenderer.invoke('notification:show', options),
-    onShow: (callback) => {
-      ipcRenderer.on('notification', (event, data) => callback(data));
-    },
-  },
-
-  // Theme management
-  theme: {
-    get: () => ipcRenderer.invoke('theme:get'),
-    set: (theme) => ipcRenderer.invoke('theme:set', theme),
-  },
-
-  // Platform detection
+  
+  // Platform
   platform: process.platform,
-  isElectron: true,
+  isElectron: true
 });
 
-/**
- * Expose node process info (read-only)
- */
-contextBridge.exposeInMainWorld('nodeProcess', {
-  platform: process.platform,
-  arch: process.arch,
-  versions: {
-    node: process.versions.node,
-    chrome: process.versions.chrome,
-    electron: process.versions.electron,
-  },
-});
-
-// Console log for debugging
-console.log('Preload script loaded successfully');
+console.log('✅ Preload script loaded - Pure desktop mode');

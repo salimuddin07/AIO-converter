@@ -1,6 +1,28 @@
 import { useState, useRef } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
-import { API_CONFIG, validateFile, realAPI, downloadFile } from '../utils/apiConfig.js';
+import { api as realAPI, getApiUrl } from '../utils/unifiedAPI.js';
+
+// Legacy compatibility for downloadFile and validateFile
+const downloadFile = async (data, filename) => {
+  return await realAPI.saveFile(data, filename);
+};
+
+const validateFile = (file) => {
+  // Basic file validation
+  if (!file) return { isValid: false, error: 'No file provided' };
+  if (file.size > 100 * 1024 * 1024) return { isValid: false, error: 'File too large (max 100MB)' };
+  return { isValid: true };
+};
+
+const API_CONFIG = {
+  processing: {
+    maxFileSize: { image: 25, video: 100, pdf: 25 },
+    supportedFormats: {
+      input: ["jpg", "jpeg", "png", "gif", "bmp", "webp", "mp4", "avi", "mov", "wmv", "pdf"],
+      output: ["jpg", "jpeg", "png", "gif", "webp", "pdf", "md"]
+    }
+  }
+};
 
 export default function MainConversionInterface({ currentTool, setCurrentTool, loading, setLoading, error, setError }) {
   const [selectedFiles, setSelectedFiles] = useState([]);

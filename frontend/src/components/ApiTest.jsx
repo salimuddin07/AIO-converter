@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiUrl } from '../utils/apiConfig.js';
+import { getApiUrl } from '../utils/unifiedAPI.js';
 
 export default function ApiTest() {
   const [testResults, setTestResults] = useState([]);

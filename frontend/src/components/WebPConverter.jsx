@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { NotificationService } from '../utils/NotificationService.js';
-import { realAPI, downloadFile } from '../utils/apiConfig';
+import { api as realAPI } from '../utils/unifiedAPI.js';
 import '../aio-convert-style.css';
 
 const WebPConverter = () => {
