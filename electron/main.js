@@ -456,11 +456,20 @@ ipcMain.handle('create-gif-from-images', async (event, { inputPaths, outputPath,
       
       console.log('✅ GIF creation completed successfully using Sharp + GIF Encoder');
       
+      // Create proper file:// URL for Windows/cross-platform compatibility
+      const normalizedPath = outputFilePath.replace(/\\/g, '/');
+      const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+      
+      console.log('📁 GIF file created at:', outputFilePath);
+      console.log('🔗 File URL:', fileUrl);
+      
       return {
         success: true,
         outputPath: outputFilePath,
         url: outputFilePath,
-        dataUrl: `file://${outputFilePath}`,
+        dataUrl: fileUrl,
+        previewUrl: fileUrl,
+        downloadUrl: fileUrl,
         filename: path.basename(outputFilePath),
         frameCount: inputPaths.length,
         message: 'GIF created successfully using Sharp + GIF Encoder'
@@ -484,13 +493,13 @@ ipcMain.handle('split-gif', async (event, { inputPath, options = {} }) => {
     
     const inputFilePath = path.isAbsolute(inputPath) ? inputPath : path.join(tempDir, inputPath);
     
-    if (!fs.existsSync(inputFilePath)) {
+    if (!fsSync.existsSync(inputFilePath)) {
       throw new Error(`Input GIF file not found: ${inputFilePath}`);
     }
     
     // Create output directory for frames
     const outputDir = path.join(tempDir, `gif_frames_${Date.now()}`);
-    await fs.promises.mkdir(outputDir, { recursive: true });
+    await fs.mkdir(outputDir, { recursive: true });
     
     // Use Sharp to extract frames from GIF
     const outputPattern = path.join(outputDir, 'frame_%03d.png');
@@ -510,6 +519,33 @@ ipcMain.handle('split-gif', async (event, { inputPath, options = {} }) => {
   }
 });
 
+// Helper function to parse time string to seconds
+function parseTimeToSeconds(timeString) {
+  if (typeof timeString === 'number') {
+    return timeString; // Already in seconds
+  }
+  
+  if (typeof timeString !== 'string') {
+    return NaN;
+  }
+  
+  // Handle formats like "0:30", "1:23", "00:01:30"
+  const parts = timeString.split(':').map(part => parseInt(part.trim(), 10));
+  
+  if (parts.length === 1) {
+    // Just seconds: "30"
+    return parts[0];
+  } else if (parts.length === 2) {
+    // Minutes:seconds: "1:30"
+    return parts[0] * 60 + parts[1];
+  } else if (parts.length === 3) {
+    // Hours:minutes:seconds: "01:30:00"
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  
+  return NaN;
+}
+
 // Split video into segments
 ipcMain.handle('split-video', async (event, { inputPath, options = {} }) => {
   try {
@@ -517,28 +553,277 @@ ipcMain.handle('split-video', async (event, { inputPath, options = {} }) => {
     
     const inputFilePath = path.isAbsolute(inputPath) ? inputPath : path.join(tempDir, inputPath);
     
-    if (!fs.existsSync(inputFilePath)) {
+    if (!fsSync.existsSync(inputFilePath)) {
       throw new Error(`Input video file not found: ${inputFilePath}`);
     }
     
     // Create output directory for segments
     const outputDir = path.join(tempDir, `video_segments_${Date.now()}`);
-    await fs.promises.mkdir(outputDir, { recursive: true });
+    await fs.mkdir(outputDir, { recursive: true });
     
-    // For now, return a placeholder result
-    // TODO: Implement actual video splitting logic using FFmpeg
-    return {
-      success: true,
-      segments: [],
-      outputDir: outputDir,
-      message: 'Video splitting feature coming soon in desktop mode'
+    console.log('📁 Output directory created:', outputDir);
+    
+    // Parse segment options - handle both segmentDuration and custom segments
+    let segmentDuration = 30; // Default to 30 seconds (not 10!)
+    let customSegments = null;
+    
+    // Check if custom segments are provided
+    if (options.segments && Array.isArray(options.segments) && options.segments.length > 0) {
+      customSegments = options.segments;
+      console.log('📋 Using custom segments:', customSegments.length, 'segments');
+    } else if (options.segmentDuration) {
+      // Use provided segment duration
+      segmentDuration = Number(options.segmentDuration);
+      if (!Number.isFinite(segmentDuration) || segmentDuration <= 0) {
+        segmentDuration = 30; // fallback
+      }
+      console.log('⏱️ Using segment duration:', segmentDuration, 'seconds');
+    }
+    
+    // Default options for video splitting
+    const splitOptions = {
+      segmentDuration,
+      customSegments,
+      format: options.format || 'mp4',
+      quality: options.quality || 'medium'
     };
+    
+    console.log('⚙️ Split options:', splitOptions);
+    
+    // Use FFmpeg to split the video
+    if (!ffmpeg) {
+      throw new Error('FFmpeg is not available for video splitting');
+    }
+    
+    return new Promise(async (resolve, reject) => {
+      try {
+        const segments = [];
+        
+        console.log('🎬 Starting FFmpeg video splitting...');
+        
+        if (splitOptions.customSegments) {
+          // Handle custom segments with specific start/end times
+          console.log('📋 Processing custom segments...');
+          
+          for (let i = 0; i < splitOptions.customSegments.length; i++) {
+            const segment = splitOptions.customSegments[i];
+            const outputFileName = `${segment.name || `segment_${i + 1}`}.mp4`;
+            const outputPath = path.join(outputDir, outputFileName);
+            
+            console.log(`📹 Creating segment ${i + 1}:`, segment.name || `segment_${i + 1}`, 
+                       `(${segment.startTime}s to ${segment.endTime}s)`);
+            
+            await new Promise((resolveSegment, rejectSegment) => {
+              // Validate and parse segment data
+              const startTime = parseTimeToSeconds(segment.startTime);
+              const endTime = parseTimeToSeconds(segment.endTime);
+              
+              if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
+                rejectSegment(new Error(`Invalid segment times: start=${segment.startTime} (parsed: ${startTime}), end=${segment.endTime} (parsed: ${endTime})`));
+                return;
+              }
+              
+              const duration = endTime - startTime;
+              
+              if (duration <= 0) {
+                rejectSegment(new Error(`Invalid segment duration: ${duration} seconds (start: ${startTime}s, end: ${endTime}s)`));
+                return;
+              }
+              
+              console.log(`📹 Validated segment ${i + 1}: ${startTime}s to ${endTime}s (${duration}s duration)`);
+              
+              ffmpeg(inputFilePath)
+                .seekInput(startTime)
+                .duration(duration)
+                .outputOptions([
+                  '-c', 'copy', // Copy without re-encoding for speed
+                  '-avoid_negative_ts', 'make_zero'
+                ])
+                .output(outputPath)
+                .on('start', (commandLine) => {
+                  console.log(`🚀 FFmpeg command for segment ${i + 1}:`, commandLine);
+                })
+                .on('end', async () => {
+                  try {
+                    const stats = await fs.stat(outputPath);
+                    const normalizedPath = outputPath.replace(/\\/g, '/');
+                    const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+                    
+                    segments.push({
+                      name: segment.name || `segment_${i + 1}`,
+                      filename: outputFileName,
+                      path: outputPath,
+                      url: fileUrl,
+                      dataUrl: fileUrl,
+                      previewUrl: fileUrl,
+                      downloadUrl: fileUrl,
+                      size: stats.size,
+                      startTime: startTime,
+                      endTime: endTime,
+                      duration: duration
+                    });
+                    
+                    console.log(`✅ Completed segment ${i + 1}: ${outputFileName}`);
+                    resolveSegment();
+                  } catch (error) {
+                    rejectSegment(new Error(`Failed to get segment stats: ${error.message}`));
+                  }
+                })
+                .on('error', (error) => {
+                  console.error(`❌ Error creating segment ${i + 1}:`, error);
+                  rejectSegment(new Error(`FFmpeg error for segment ${i + 1}: ${error.message}`));
+                })
+                .run();
+            });
+          }
+          
+          console.log('✅ All custom segments completed!');
+          
+        } else {
+          // Handle duration-based splitting (equal-length segments)
+          console.log('⏱️ Processing duration-based segments...');
+          
+          const command = ffmpeg(inputFilePath)
+            .outputOptions([
+              '-c', 'copy', // Copy without re-encoding for speed
+              '-map', '0',
+              '-segment_time', splitOptions.segmentDuration.toString(),
+              '-f', 'segment',
+              '-reset_timestamps', '1'
+            ])
+            .output(path.join(outputDir, 'segment_%03d.mp4'))
+            .on('start', (commandLine) => {
+              console.log('🚀 FFmpeg command:', commandLine);
+            })
+            .on('progress', (progress) => {
+              console.log('📊 Processing: ' + Math.round(progress.percent || 0) + '% done');
+            })
+            .on('stderr', (stderrLine) => {
+              console.log('📄 FFmpeg log:', stderrLine);
+            })
+            .on('end', async () => {
+              console.log('✅ Video splitting completed!');
+              
+              try {
+                // Read the output directory to get actual segment files
+                const files = await fs.readdir(outputDir);
+                const segmentFiles = files
+                  .filter(file => file.startsWith('segment_') && file.endsWith('.mp4'))
+                  .sort();
+                
+                console.log('📁 Created segments:', segmentFiles);
+                
+                // Build segment info
+                for (let i = 0; i < segmentFiles.length; i++) {
+                  const file = segmentFiles[i];
+                  const segmentPath = path.join(outputDir, file);
+                  const stats = await fs.stat(segmentPath);
+                  
+                  // Create proper file:// URL
+                  const normalizedPath = segmentPath.replace(/\\/g, '/');
+                  const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+                  
+                  segments.push({
+                    name: `segment_${i + 1}`,
+                    filename: file,
+                    path: segmentPath,
+                    url: fileUrl,
+                    dataUrl: fileUrl,
+                    previewUrl: fileUrl,
+                    downloadUrl: fileUrl,
+                    size: stats.size,
+                    startTime: i * splitOptions.segmentDuration,
+                    endTime: (i + 1) * splitOptions.segmentDuration,
+                    duration: splitOptions.segmentDuration // approximate
+                  });
+                }
+              } catch (readError) {
+                throw new Error(`Failed to read split segments: ${readError.message}`);
+              }
+            })
+            .on('error', (err) => {
+              console.error('❌ FFmpeg error:', err);
+              reject(new Error(`Video splitting failed: ${err.message}`));
+            });
+          
+          // Start the FFmpeg process
+          command.run();
+          
+          // Wait for completion before resolving
+          await new Promise((resolveCommand, rejectCommand) => {
+            command.on('end', resolveCommand);
+            command.on('error', rejectCommand);
+          });
+        }
+        
+        resolve({
+          success: true,
+          segments: segments,
+          outputDir: outputDir,
+          segmentCount: segments.length,
+          message: `Video successfully split into ${segments.length} segments`
+        });
+        
+      } catch (error) {
+        console.error('❌ Error in video splitting:', error);
+        reject(new Error(`Video splitting failed: ${error.message}`));
+      }
+    });
     
   } catch (error) {
     console.error('❌ Video splitting failed:', error);
     throw new Error(`Video splitting failed: ${error.message}`);
   }
 });
+
+/**
+ * File cleanup function
+ */
+async function cleanupOldFiles() {
+  const CLEANUP_TIME_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
+  
+  try {
+    console.log('🧹 Starting file cleanup...');
+    const now = Date.now();
+    
+    // Read temp directory
+    const files = await fs.readdir(tempDir);
+    let cleanedCount = 0;
+    
+    for (const file of files) {
+      const filePath = path.join(tempDir, file);
+      
+      try {
+        const stats = await fs.stat(filePath);
+        const fileAge = now - stats.mtimeMs;
+        
+        if (fileAge > CLEANUP_TIME_MS) {
+          if (stats.isDirectory()) {
+            // Remove directory recursively
+            await fs.rmdir(filePath, { recursive: true });
+          } else {
+            // Remove file
+            await fs.unlink(filePath);
+          }
+          cleanedCount++;
+          console.log(`🗑️ Cleaned up: ${file} (${Math.round(fileAge / 60000)} minutes old)`);
+        }
+      } catch (error) {
+        // Ignore errors for individual files (might be in use)
+        console.log(`⚠️ Could not clean ${file}:`, error.message);
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      console.log(`✅ Cleanup completed: ${cleanedCount} files/folders removed`);
+    } else {
+      console.log('✅ Cleanup completed: No old files to remove');
+    }
+    
+  } catch (error) {
+    console.error('❌ Cleanup failed:', error);
+  }
+}
 
 // Get app info
 ipcMain.handle('app:info', () => {
@@ -561,6 +846,14 @@ app.whenReady().then(async () => {
   } catch (error) {
     console.error('❌ Failed to create temp directory:', error);
   }
+  
+  // Schedule periodic cleanup every 5 minutes
+  setInterval(cleanupOldFiles, 5 * 60 * 1000); // Run cleanup every 5 minutes
+  
+  // Run initial cleanup
+  setTimeout(cleanupOldFiles, 10000); // Run first cleanup after 10 seconds
+  
+  console.log('🧹 File cleanup scheduled: every 5 minutes, removing files older than 10 minutes');
   
   createWindow();
 

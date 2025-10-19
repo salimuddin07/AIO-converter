@@ -938,7 +938,48 @@ export const api = {
 
 // Export legacy compatibility
 export const realAPI = api;
-export const getApiUrl = (endpoint) => isElectron() ? 'electron-ipc' : `${HTTP_API_BASE}${endpoint}`;
+
+/**
+ * Get API URL - Updated to handle Electron mode properly
+ */
+export const getApiUrl = (endpoint) => {
+  if (isElectron()) {
+    // In Electron mode, most API endpoints don't make sense as URLs
+    // Return empty string to prevent trying to fetch them
+    console.warn('⚠️ getApiUrl called in Electron mode with endpoint:', endpoint);
+    return '';
+  }
+  return `${HTTP_API_BASE}${endpoint}`;
+};
+
+/**
+ * Resolve URL for display purposes (images, videos, etc.)
+ */
+export const resolveDisplayUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('data:')) return path;
+  if (path.startsWith('file://')) return path;
+  if (path.startsWith('http')) return path;
+  
+  // In Electron mode, handle file paths properly
+  if (isElectron()) {
+    // If it's a full file path (contains \ or /), convert to file:// URL
+    if ((path.includes('\\') || path.includes('/')) && !path.startsWith('blob:')) {
+      // Normalize path separators and ensure proper file:// format
+      const normalizedPath = path.replace(/\\/g, '/');
+      if (!normalizedPath.startsWith('/')) {
+        return `file:///${normalizedPath}`;
+      } else {
+        return `file://${normalizedPath}`;
+      }
+    }
+    
+    // If it's an API endpoint path, return empty string
+    return '';
+  }
+  
+  return `${HTTP_API_BASE}${path}`;
+};
 
 // Export individual functions for convenience
 export const {

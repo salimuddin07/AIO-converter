@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
-import { api as realAPI, getApiUrl } from '../utils/unifiedAPI.js';
+import { api as realAPI } from '../utils/unifiedAPI.js';
 
 // Legacy compatibility for downloadFile and validateFile
 const downloadFile = async (data, filename) => {

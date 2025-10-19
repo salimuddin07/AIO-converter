@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { getApiUrl } from '../utils/unifiedAPI.js';
+import { resolveDisplayUrl } from '../utils/unifiedAPI.js';
 
 const toAbsoluteUrl = (path) => {
   if (!path) return null;
-  return path.startsWith('http') ? path : getApiUrl(path);
+  return resolveDisplayUrl(path);
 };
 
 const formatSeconds = (value) => {

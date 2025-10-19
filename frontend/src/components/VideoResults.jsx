@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getApiUrl, api as realAPI } from '../utils/unifiedAPI.js';
+import { resolveDisplayUrl, api as realAPI } from '../utils/unifiedAPI.js';
 
 const VideoResults = ({ result, onBack }) => {
   // === Use API configuration ===
@@ -80,9 +80,9 @@ const VideoResults = ({ result, onBack }) => {
 
   const resolveApiPath = (path, fallback) => {
     if (!path) {
-      return getApiUrl(fallback);
+      return resolveDisplayUrl(fallback);
     }
-    return path.startsWith('http') ? path : getApiUrl(path);
+    return resolveDisplayUrl(path);
   };
 
   const handleDownload = async (gifPath, filename, directUrl) => {
@@ -223,7 +223,7 @@ const VideoResults = ({ result, onBack }) => {
         <div className="video-preview">
           <video 
             ref={videoRef}
-            src={getApiUrl(`/api/video/preview/${result.videoId}`)}
+            src={result.videoUrl || result.url || resolveDisplayUrl(`/api/video/preview/${result.videoId}`)}
             controls
             style={{ width: '100%', maxWidth: '600px' }}
             onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)}
