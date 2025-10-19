@@ -54,7 +54,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: true,
+      webSecurity: false, // Temporarily disable for local file access
     },
     backgroundColor: '#1a1a2e',
     show: false,
@@ -605,6 +605,21 @@ ipcMain.handle('split-video', async (event, { inputPath, options = {} }) => {
           // Handle custom segments with specific start/end times
           console.log('📋 Processing custom segments...');
           
+          // Check if user wants auto-segmentation (single large segment that should be split)
+          if (splitOptions.customSegments.length === 1) {
+            const singleSegment = splitOptions.customSegments[0];
+            const startTime = parseTimeToSeconds(singleSegment.startTime);
+            const endTime = parseTimeToSeconds(singleSegment.endTime);
+            const totalDuration = endTime - startTime;
+            
+            // If the segment is longer than the default duration, auto-split it
+            const autoSegmentDuration = splitOptions.segmentDuration || 30;
+            if (totalDuration > autoSegmentDuration) {
+              console.log(`📏 Large segment detected: ${totalDuration}s duration`);
+              console.log(`Large segment detected - use equal-length splitting instead`);
+            }
+          }
+          
           for (let i = 0; i < splitOptions.customSegments.length; i++) {
             const segment = splitOptions.customSegments[i];
             const outputFileName = `${segment.name || `segment_${i + 1}`}.mp4`;
@@ -636,7 +651,8 @@ ipcMain.handle('split-video', async (event, { inputPath, options = {} }) => {
                 .seekInput(startTime)
                 .duration(duration)
                 .outputOptions([
-                  '-c', 'copy', // Copy without re-encoding for speed
+                  '-c:v', 'copy', // Copy video without re-encoding
+                  '-c:a', 'aac', // Re-encode audio to ensure compatibility
                   '-avoid_negative_ts', 'make_zero'
                 ])
                 .output(outputPath)
@@ -683,86 +699,93 @@ ipcMain.handle('split-video', async (event, { inputPath, options = {} }) => {
           // Handle duration-based splitting (equal-length segments)
           console.log('⏱️ Processing duration-based segments...');
           
-          const command = ffmpeg(inputFilePath)
-            .outputOptions([
-              '-c', 'copy', // Copy without re-encoding for speed
-              '-map', '0',
-              '-segment_time', splitOptions.segmentDuration.toString(),
-              '-f', 'segment',
-              '-reset_timestamps', '1'
-            ])
-            .output(path.join(outputDir, 'segment_%03d.mp4'))
-            .on('start', (commandLine) => {
-              console.log('🚀 FFmpeg command:', commandLine);
-            })
-            .on('progress', (progress) => {
-              console.log('📊 Processing: ' + Math.round(progress.percent || 0) + '% done');
-            })
-            .on('stderr', (stderrLine) => {
-              console.log('📄 FFmpeg log:', stderrLine);
-            })
-            .on('end', async () => {
-              console.log('✅ Video splitting completed!');
-              
-              try {
-                // Read the output directory to get actual segment files
-                const files = await fs.readdir(outputDir);
-                const segmentFiles = files
-                  .filter(file => file.startsWith('segment_') && file.endsWith('.mp4'))
-                  .sort();
+          await new Promise((resolveFFmpeg, rejectFFmpeg) => {
+            const command = ffmpeg(inputFilePath)
+              .outputOptions([
+                '-c:v', 'copy', // Copy video without re-encoding for speed
+                '-c:a', 'aac', // Re-encode audio to ensure compatibility
+                '-map', '0',
+                '-segment_time', splitOptions.segmentDuration.toString(),
+                '-f', 'segment',
+                '-reset_timestamps', '1'
+              ])
+              .output(path.join(outputDir, 'segment_%03d.mp4'))
+              .on('start', (commandLine) => {
+                console.log('🚀 FFmpeg command:', commandLine);
+              })
+              .on('progress', (progress) => {
+                console.log('📊 Processing: ' + Math.round(progress.percent || 0) + '% done');
+              })
+              .on('stderr', (stderrLine) => {
+                console.log('📄 FFmpeg log:', stderrLine);
+              })
+              .on('end', async () => {
+                console.log('✅ Video splitting completed!');
                 
-                console.log('📁 Created segments:', segmentFiles);
-                
-                // Build segment info
-                for (let i = 0; i < segmentFiles.length; i++) {
-                  const file = segmentFiles[i];
-                  const segmentPath = path.join(outputDir, file);
-                  const stats = await fs.stat(segmentPath);
+                try {
+                  // Read the output directory to get actual segment files
+                  const files = await fs.readdir(outputDir);
+                  const segmentFiles = files
+                    .filter(file => file.startsWith('segment_') && file.endsWith('.mp4'))
+                    .sort();
                   
-                  // Create proper file:// URL
-                  const normalizedPath = segmentPath.replace(/\\/g, '/');
-                  const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+                  console.log('📁 Created segments:', segmentFiles);
                   
-                  segments.push({
-                    name: `segment_${i + 1}`,
-                    filename: file,
-                    path: segmentPath,
-                    url: fileUrl,
-                    dataUrl: fileUrl,
-                    previewUrl: fileUrl,
-                    downloadUrl: fileUrl,
-                    size: stats.size,
-                    startTime: i * splitOptions.segmentDuration,
-                    endTime: (i + 1) * splitOptions.segmentDuration,
-                    duration: splitOptions.segmentDuration // approximate
-                  });
+                  // Build segment info
+                  for (let i = 0; i < segmentFiles.length; i++) {
+                    const file = segmentFiles[i];
+                    const segmentPath = path.join(outputDir, file);
+                    const stats = await fs.stat(segmentPath);
+                    
+                    // Create proper file:// URL
+                    const normalizedPath = segmentPath.replace(/\\/g, '/');
+                    const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+                    
+                    segments.push({
+                      name: `segment_${i + 1}`,
+                      filename: file,
+                      path: segmentPath,
+                      url: fileUrl,
+                      dataUrl: fileUrl,
+                      previewUrl: fileUrl,
+                      downloadUrl: fileUrl,
+                      size: stats.size,
+                      startTime: i * splitOptions.segmentDuration,
+                      endTime: (i + 1) * splitOptions.segmentDuration,
+                      duration: splitOptions.segmentDuration // approximate
+                    });
+                  }
+                  
+                  console.log('📊 Final segments array:', segments.length, 'items');
+                  console.log('📊 Sample segment:', segments[0]);
+                  
+                  // Resolve the FFmpeg promise after building segments
+                  resolveFFmpeg();
+                  
+                } catch (readError) {
+                  rejectFFmpeg(new Error(`Failed to read split segments: ${readError.message}`));
                 }
-              } catch (readError) {
-                throw new Error(`Failed to read split segments: ${readError.message}`);
-              }
-            })
-            .on('error', (err) => {
-              console.error('❌ FFmpeg error:', err);
-              reject(new Error(`Video splitting failed: ${err.message}`));
-            });
-          
-          // Start the FFmpeg process
-          command.run();
-          
-          // Wait for completion before resolving
-          await new Promise((resolveCommand, rejectCommand) => {
-            command.on('end', resolveCommand);
-            command.on('error', rejectCommand);
+              })
+              .on('error', (err) => {
+                console.error('❌ FFmpeg error:', err);
+                rejectFFmpeg(new Error(`Video splitting failed: ${err.message}`));
+              })
+              .run(); // Start the FFmpeg process
           });
         }
         
-        resolve({
+        const result = {
           success: true,
           segments: segments,
           outputDir: outputDir,
           segmentCount: segments.length,
           message: `Video successfully split into ${segments.length} segments`
-        });
+        };
+        
+        console.log('📤 Returning result with', segments.length, 'segments');
+        console.log('📤 Sample segment structure:', segments[0]);
+        console.log('📤 All segment files exist:', segments.map(s => ({ name: s.name, exists: require('fs').existsSync(s.path) })));
+        resolve(result);
         
       } catch (error) {
         console.error('❌ Error in video splitting:', error);
@@ -832,6 +855,40 @@ ipcMain.handle('app:info', () => {
     version: app.getVersion(),
     platform: process.platform
   };
+});
+
+// Serve video file for preview
+ipcMain.handle('serve-video', async (event, filePath) => {
+  try {
+    console.log('🎥 Serving video file:', filePath);
+    
+    // Check if file exists
+    const stats = await fs.stat(filePath);
+    if (!stats.isFile()) {
+      throw new Error('File not found');
+    }
+    
+    // Return file data as buffer for secure access
+    const buffer = await fs.readFile(filePath);
+    const mimeType = 'video/mp4'; // Assume MP4 for now
+    
+    // Create data URL for secure preview
+    const base64Data = buffer.toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64Data}`;
+    
+    return {
+      success: true,
+      dataUrl: dataUrl,
+      size: stats.size,
+      mimeType: mimeType
+    };
+  } catch (error) {
+    console.error('❌ Error serving video:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
 });
 
 /**

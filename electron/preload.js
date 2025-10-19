@@ -34,6 +34,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // App info
   getAppInfo: () => ipcRenderer.invoke('app:info'),
   
+  // Video serving for preview
+  serveVideo: (filePath) => ipcRenderer.invoke('serve-video', filePath),
+  
   // Events
   onFilesSelected: (callback) => {
     ipcRenderer.on('files-selected', (event, files) => callback(files));

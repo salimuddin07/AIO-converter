@@ -708,10 +708,14 @@ export const api = {
       }
       
       // Call Electron API to split video
+      console.log('🎬 Calling electron splitVideo with options:', options);
       const result = await window.electronAPI.splitVideo({
         inputPath: tempResult.filePath,
         options: options
       });
+      
+      console.log('🎬 Electron splitVideo result:', result);
+      console.log('🎬 Result segments count:', result?.segments?.length || 0);
       
       return result;
     } else {
@@ -956,9 +960,14 @@ export const getApiUrl = (endpoint) => {
  * Resolve URL for display purposes (images, videos, etc.)
  */
 export const resolveDisplayUrl = (path) => {
+  console.log('🔗 resolveDisplayUrl called with:', path);
+  
   if (!path) return '';
   if (path.startsWith('data:')) return path;
-  if (path.startsWith('file://')) return path;
+  if (path.startsWith('file://')) {
+    console.log('🔗 Already file:// URL:', path);
+    return path;
+  }
   if (path.startsWith('http')) return path;
   
   // In Electron mode, handle file paths properly
@@ -967,11 +976,16 @@ export const resolveDisplayUrl = (path) => {
     if ((path.includes('\\') || path.includes('/')) && !path.startsWith('blob:')) {
       // Normalize path separators and ensure proper file:// format
       const normalizedPath = path.replace(/\\/g, '/');
+      let fileUrl;
+      
       if (!normalizedPath.startsWith('/')) {
-        return `file:///${normalizedPath}`;
+        fileUrl = `file:///${normalizedPath}`;
       } else {
-        return `file://${normalizedPath}`;
+        fileUrl = `file://${normalizedPath}`;
       }
+      
+      console.log('🔗 Converted to file URL:', path, '→', fileUrl);
+      return fileUrl;
     }
     
     // If it's an API endpoint path, return empty string
