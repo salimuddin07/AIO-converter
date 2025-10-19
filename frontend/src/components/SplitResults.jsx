@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { resolveDisplayUrl } from '../utils/unifiedAPI.js';
 
 const toAbsoluteUrl = (path) => {
@@ -34,6 +34,84 @@ const formatFileSize = (bytes) => {
   }
   const precision = value < 10 && unitIndex > 0 ? 1 : 0;
   return `${value.toFixed(precision)} ${units[unitIndex]}`;
+};
+
+// Secure video component for Electron
+const SecureVideo = ({ filePath, ...props }) => {
+  const [videoUrl, setVideoUrl] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!filePath) return;
+    
+    // Check if we're in Electron and need secure video loading
+    if (typeof window !== 'undefined' && window.electronAPI && filePath.match(/\.(mp4|webm|avi|mov|mkv)$/i)) {
+      console.log('🎥 Loading video securely:', filePath);
+      
+      window.electronAPI.serveVideo(filePath)
+        .then(result => {
+          if (result.success) {
+            console.log('✅ Video loaded securely');
+            setVideoUrl(result.dataUrl);
+          } else {
+            console.error('❌ Failed to load video:', result.error);
+            setError(result.error);
+          }
+        })
+        .catch(err => {
+          console.error('❌ Error loading video:', err);
+          setError(err.message);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      // Use direct URL for non-Electron or non-video files
+      setVideoUrl(filePath);
+      setLoading(false);
+    }
+  }, [filePath]);
+
+  if (loading) {
+    return (
+      <div style={{ 
+        width: '100%', 
+        height: '120px', 
+        backgroundColor: '#f0f0f0', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        borderRadius: '6px'
+      }}>
+        Loading video...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ 
+        width: '100%', 
+        height: '120px', 
+        backgroundColor: '#ffe6e6', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        borderRadius: '6px',
+        color: '#d63031'
+      }}>
+        Error loading video: {error}
+      </div>
+    );
+  }
+
+  return (
+    <video
+      {...props}
+      src={videoUrl}
+    />
+  );
 };
 
 const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation }) => (
@@ -202,6 +280,15 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
                 borderRadius: '6px',
                 backgroundColor: '#000'
               }}
+              onError={(e) => {
+                console.error('❌ Video load error:', e.target.error, 'for URL:', e.target.src);
+              }}
+              onLoadStart={() => {
+                console.log('🎥 Video load started for:', segment.name);
+              }}
+              onLoadedMetadata={() => {
+                console.log('✅ Video metadata loaded for:', segment.name);
+              }}
             />
 
             <div style={{ fontSize: '12px', color: '#486581', marginTop: '10px', lineHeight: 1.5 }}>
@@ -255,18 +342,33 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
 };
 
 export default function SplitResults({ type, items, meta, onEditAnimation, onDownloadZip }) {
+  console.log('🔍 SplitResults received:', { type, items: items?.length || 0, meta });
+  console.log('🔍 Raw items:', items);
+  
   const normalizedItems = useMemo(
     () =>
-      (items || []).map((item) => ({
-        ...item,
-        previewUrl: toAbsoluteUrl(item.previewUrl || item.url),
-        downloadUrl: toAbsoluteUrl(item.downloadUrl || item.url)
-      })),
+      (items || []).map((item, index) => {
+        const normalized = {
+          ...item,
+          previewUrl: toAbsoluteUrl(item.previewUrl || item.url),
+          downloadUrl: toAbsoluteUrl(item.downloadUrl || item.url)
+        };
+        console.log(`🔍 Normalized item ${index}:`, item, '→', normalized);
+        return normalized;
+      }),
     [items]
   );
 
+  console.log('🔍 Normalized items count:', normalizedItems.length);
+
   if (!normalizedItems.length) {
-    return null;
+    console.log('🔍 SplitResults returning null - no items');
+    return (
+      <div style={{ margin: '20px 0', padding: '15px', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '5px' }}>
+        <p>⚠️ No results to display. Check console for debugging information.</p>
+        <p><small>Received {items?.length || 0} items, type: {type}</small></p>
+      </div>
+    );
   }
 
   if (type === 'video') {

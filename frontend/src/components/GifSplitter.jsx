@@ -231,13 +231,20 @@ export default function GifSplitter() {
         ? splitResult.segments || []
         : splitResult.frames || [];
 
-      setSplitData({
+      console.log('🔍 Split result received:', splitResult);
+      console.log('🔍 Items extracted:', items);
+      console.log('🔍 Setting split data with type:', tool, 'and', items.length, 'items');
+      
+      const splitDataToSet = {
         type: tool,
         jobId: splitResult.jobId,
         items,
         zipUrl: splitResult.zipUrl,
         meta: splitResult
-      });
+      };
+      
+      console.log('🔍 Final split data:', splitDataToSet);
+      setSplitData(splitDataToSet);
     } catch (err) {
       console.error('Split error:', err);
       setError(err.message || 'Split failed');
@@ -519,11 +526,12 @@ export default function GifSplitter() {
                   value={customSegmentsText}
                   onChange={(event) => setCustomSegmentsText(event.target.value)}
                   rows={4}
-                  placeholder={'Example:\n0:00-0:30 | Intro\n0:30-1:00 | Main highlight'}
+                  placeholder={'For multiple segments, add one per line:\n0:00-0:30 | First part\n0:30-1:00 | Second part\n1:00-1:30 | Third part\n\nFor auto-split, use equal-length mode instead.'}
                   style={{ width: '100%', fontFamily: 'inherit' }}
                 />
                 <p className="hint" style={{ marginTop: '0.5rem' }}>
-                  One segment per line. Use HH:MM:SS or MM:SS timestamps. Add an optional name after <code>|</code>.
+                  <strong>Multiple segments:</strong> Add one segment per line. Use HH:MM:SS or MM:SS timestamps. Add an optional name after <code>|</code>.<br/>
+                  <strong>Equal segments:</strong> Use "Split into equal-length clips" option above for automatic splitting.
                 </p>
               </div>
             )}
@@ -586,15 +594,25 @@ export default function GifSplitter() {
         </div>
       )}
 
-      {splitData && (
-        <SplitResults
-          type={splitData.type}
-          items={splitData.items}
-          meta={splitData.meta}
-          onDownloadZip={splitData.zipUrl ? handleZipDownload : undefined}
-          onEditAnimation={splitData.type === TOOL_GIF ? () => alert('Animation editing coming soon!') : undefined}
-        />
-      )}
+      {(() => {
+        console.log('🔍 Render check: splitData exists?', !!splitData);
+        if (splitData) {
+          console.log('🔍 Rendering SplitResults with:', { 
+            type: splitData.type, 
+            itemCount: splitData.items?.length || 0,
+            hasZipUrl: !!splitData.zipUrl
+          });
+        }
+        return splitData && (
+          <SplitResults
+            type={splitData.type}
+            items={splitData.items}
+            meta={splitData.meta}
+            onDownloadZip={splitData.zipUrl ? handleZipDownload : undefined}
+            onEditAnimation={splitData.type === TOOL_GIF ? () => alert('Animation editing coming soon!') : undefined}
+          />
+        );
+      })()}
 
       <div className="txt" style={{ marginTop: '2.5rem' }}>
         <h2>Splitter workflows at a glance</h2>
