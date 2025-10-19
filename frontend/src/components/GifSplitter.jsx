@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { getApiUrl, api as realAPI } from '../utils/unifiedAPI.js';
+import { resolveDisplayUrl, api as realAPI } from '../utils/unifiedAPI.js';
 import SplitResults from './SplitResults';
 
 const TOOL_GIF = 'gif';
@@ -214,8 +214,8 @@ export default function GifSplitter() {
 
       return {
         name: labelPart || `segment_${index + 1}`,
-        startTime: start,
-        endTime: end,
+        startTime: startSeconds,
+        endTime: endSeconds,
         duration: endSeconds - startSeconds
       };
     });
@@ -306,8 +306,10 @@ export default function GifSplitter() {
 
   const handleZipDownload = () => {
     if (!splitData?.zipUrl) return;
-    const url = splitData.zipUrl.startsWith('http') ? splitData.zipUrl : getApiUrl(splitData.zipUrl);
-    window.open(url, '_blank', 'noopener');
+    const url = resolveDisplayUrl(splitData.zipUrl);
+    if (url) {
+      window.open(url, '_blank', 'noopener');
+    }
   };
 
   const renderGifForm = () => (

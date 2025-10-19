@@ -1,6 +1,6 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
-import { api as realAPI, getApiUrl } from '../utils/unifiedAPI.js';
+import { api as realAPI, resolveDisplayUrl } from '../utils/unifiedAPI.js';
 
 const SPEED_PRESETS = {
   slow: { label: 'Slow', delay: 140 },
@@ -44,19 +44,7 @@ const formatBytes = (bytes) => {
   return `${value.toFixed(exponent === 0 ? 0 : 1)} ${units[exponent]}`;
 };
 
-const resolveUrl = (path) => {
-  if (!path) return '';
-  if (path.startsWith('data:')) return path;
-  if (path.startsWith('file://')) return path;
-  if (path.startsWith('http')) return path;
-  
-  // In Electron mode, if we have a full file path, convert to file:// URL
-  if (realAPI.isElectron && (path.includes('\\') || path.includes('/')) && !path.startsWith('blob:')) {
-    return `file://${path.replace(/\\/g, '/')}`;
-  }
-  
-  return getApiUrl(path);
-};
+const resolveUrl = resolveDisplayUrl;
 
 export default function ImageGifMaker() {
   const [frames, setFrames] = useState([]);
