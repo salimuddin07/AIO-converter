@@ -1,20 +1,44 @@
 /**
- * Electron Main Process
- * Handles window management, IPC communication, and native OS features
+ * SIMPLE ELECTRON MAIN PROCESS
+ * Pure desktop app - NO backend server, NO Express
+ * All processing happens directly in Electron main process
  */
 
-const { app, BrowserWindow, ipcMain, dialog, Menu, Tray, shell, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
 const fs = require('fs').promises;
-const http = require('http');
+const fsSync = require('fs');
 
-// Keep a global reference to prevent garbage collection
+// Import processing libraries directly
+let sharp, ffmpeg, Canvas;
+
+// Try to load libraries (with fallbacks)
+try {
+  sharp = require('sharp');
+} catch (e) {
+  console.log('Sharp not available:', e.message);
+}
+
+try {
+  const ffmpegPath = require('ffmpeg-static');
+  const ffmpeg_lib = require('fluent-ffmpeg');
+  ffmpeg_lib.setFfmpegPath(ffmpegPath);
+  ffmpeg = ffmpeg_lib;
+} catch (e) {
+  console.log('FFmpeg not available:', e.message);
+}
+
+try {
+  Canvas = require('canvas');
+} catch (e) {
+  console.log('Canvas not available:', e.message);
+}
+
+// Define temp directory for file operations
+const tempDir = path.join(__dirname, '../temp');
+
 let mainWindow = null;
-let backendProcess = null;
-let tray = null;
-const BACKEND_PORT = 3003;
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV === 'development'; // Normal dev mode detection
 
 /**
  * Create the main application window
@@ -25,21 +49,19 @@ function createWindow() {
     height: 900,
     minWidth: 800,
     minHeight: 600,
-    icon: path.join(__dirname, '../public/icon.png'),
+    icon: path.join(__dirname, '../build/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      enableRemoteModule: false,
-      sandbox: true,
+      webSecurity: true,
     },
     backgroundColor: '#1a1a2e',
-    show: false, // Don't show until ready
-    frame: true,
-    titleBarStyle: 'default',
+    show: false,
+    autoHideMenuBar: false,
   });
 
-  // Show window when ready to prevent visual flash
+  // Show window when ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     if (isDev) {
@@ -47,19 +69,11 @@ function createWindow() {
     }
   });
 
-  // Load the app
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:3001');
-    
-    // Hot reload for development
-    mainWindow.webContents.on('did-fail-load', () => {
-      setTimeout(() => {
-        mainWindow.loadURL('http://localhost:3001');
-      }, 1000);
-    });
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '../frontend/dist/index.html'));
-  }
+  // Load the app - ALWAYS use built version for desktop app
+  const startURL = `file://${path.join(__dirname, '../frontend/dist/index.html')}`;
+  
+  console.log('Loading app from:', startURL);
+  mainWindow.loadURL(startURL);
 
   // Handle external links
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -67,19 +81,10 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Create application menu
   createMenu();
 
   mainWindow.on('closed', () => {
     mainWindow = null;
-  });
-
-  // Handle minimize to tray (optional)
-  mainWindow.on('minimize', (event) => {
-    if (process.platform === 'win32') {
-      event.preventDefault();
-      mainWindow.hide();
-    }
   });
 }
 
@@ -94,18 +99,22 @@ function createMenu() {
         {
           label: 'Open Files',
           accelerator: 'CmdOrCtrl+O',
-          click: () => {
-            selectFiles();
+          click: async () => {
+            const result = await dialog.showOpenDialog(mainWindow, {
+              properties: ['openFile', 'multiSelections'],
+              filters: [
+                { name: 'All Files', extensions: ['*'] },
+                { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'] },
+                { name: 'Videos', extensions: ['mp4', 'avi', 'mov', 'webm', 'mkv'] }
+              ]
+            });
+            if (!result.canceled) {
+              mainWindow.webContents.send('files-selected', result.filePaths);
+            }
           }
         },
         { type: 'separator' },
-        {
-          label: 'Exit',
-          accelerator: 'CmdOrCtrl+Q',
-          click: () => {
-            app.quit();
-          }
-        }
+        { role: 'quit' }
       ]
     },
     {
@@ -116,52 +125,23 @@ function createMenu() {
         { type: 'separator' },
         { role: 'cut' },
         { role: 'copy' },
-        { role: 'paste' },
-        { role: 'delete' },
-        { type: 'separator' },
-        { role: 'selectAll' }
+        { role: 'paste' }
       ]
     },
     {
       label: 'View',
       submenu: [
         { role: 'reload' },
-        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
         { type: 'separator' },
         { role: 'resetZoom' },
         { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' },
-        { type: 'separator' },
-        { role: 'toggleDevTools' }
-      ]
-    },
-    {
-      label: 'Window',
-      submenu: [
-        { role: 'minimize' },
-        { role: 'zoom' },
-        { type: 'separator' },
-        { role: 'close' }
+        { role: 'zoomOut' }
       ]
     },
     {
       label: 'Help',
       submenu: [
-        {
-          label: 'Documentation',
-          click: () => {
-            shell.openExternal('https://github.com/salimuddin07/GIF-converter');
-          }
-        },
-        {
-          label: 'Report Issue',
-          click: () => {
-            shell.openExternal('https://github.com/salimuddin07/GIF-converter/issues');
-          }
-        },
-        { type: 'separator' },
         {
           label: 'About',
           click: () => {
@@ -169,8 +149,7 @@ function createMenu() {
               type: 'info',
               title: 'About AIO Converter',
               message: 'AIO Converter',
-              detail: `Version: ${app.getVersion()}\nA comprehensive media conversion tool\n\nCreated by Salimuddin\nhttps://github.com/salimuddin07`,
-              buttons: ['OK']
+              detail: `Version: ${app.getVersion()}\n\nA local media converter\nCreated by Salimuddin`
             });
           }
         }
@@ -178,296 +157,429 @@ function createMenu() {
     }
   ];
 
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 /**
- * Create system tray icon (Windows)
- */
-function createTray() {
-  if (process.platform !== 'win32') return;
-
-  const iconPath = path.join(__dirname, '../public/icon.png');
-  tray = new Tray(iconPath);
-
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Show App',
-      click: () => {
-        if (mainWindow) {
-          mainWindow.show();
-        }
-      }
-    },
-    {
-      label: 'Quit',
-      click: () => {
-        app.quit();
-      }
-    }
-  ]);
-
-  tray.setToolTip('AIO Converter');
-  tray.setContextMenu(contextMenu);
-
-  tray.on('click', () => {
-    if (mainWindow) {
-      mainWindow.show();
-    }
-  });
-}
-
-/**
- * Start the backend server
- */
-async function startBackend() {
-  return new Promise((resolve, reject) => {
-    const backendPath = isDev
-      ? path.join(__dirname, '../backend/server.js')
-      : path.join(process.resourcesPath, 'backend/server.js');
-
-    const env = {
-      ...process.env,
-      PORT: BACKEND_PORT.toString(),
-      NODE_ENV: isDev ? 'development' : 'production',
-      ELECTRON_MODE: 'true',
-      // Set paths for resources in production
-      FFMPEG_PATH: isDev
-        ? undefined
-        : path.join(process.resourcesPath, 'ffmpeg', 'ffmpeg.exe'),
-      FFPROBE_PATH: isDev
-        ? undefined
-        : path.join(process.resourcesPath, 'ffmpeg', 'ffprobe.exe'),
-    };
-
-    backendProcess = spawn('node', [backendPath], {
-      env,
-      stdio: 'inherit',
-      windowsHide: true,
-    });
-
-    backendProcess.on('error', (err) => {
-      console.error('Failed to start backend:', err);
-      reject(err);
-    });
-
-    backendProcess.on('exit', (code) => {
-      console.log(`Backend process exited with code ${code}`);
-      backendProcess = null;
-    });
-
-    // Wait for backend to be ready
-    const checkBackend = setInterval(() => {
-      http
-        .get(`http://localhost:${BACKEND_PORT}/health`, (res) => {
-          if (res.statusCode === 200) {
-            clearInterval(checkBackend);
-            console.log('Backend server is ready');
-            resolve();
-          }
-        })
-        .on('error', () => {
-          // Keep checking
-        });
-    }, 500);
-
-    // Timeout after 30 seconds
-    setTimeout(() => {
-      clearInterval(checkBackend);
-      reject(new Error('Backend failed to start within 30 seconds'));
-    }, 30000);
-  });
-}
-
-/**
- * Stop the backend server
- */
-function stopBackend() {
-  if (backendProcess) {
-    backendProcess.kill();
-    backendProcess = null;
-  }
-}
-
-/**
- * IPC Handlers
+ * IPC HANDLERS - Direct file processing
  */
 
-// File selection dialog
-ipcMain.handle('dialog:openFile', async (event, options = {}) => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openFile', 'multiSelections'],
-    filters: options.filters || [
-      { name: 'All Files', extensions: ['*'] },
-      { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'] },
-      { name: 'Videos', extensions: ['mp4', 'avi', 'mov', 'webm', 'mkv'] },
-      { name: 'Documents', extensions: ['pdf', 'md'] }
-    ]
-  });
-
-  if (!result.canceled && result.filePaths.length > 0) {
-    // Read file contents and return as base64
-    const files = await Promise.all(
-      result.filePaths.map(async (filePath) => {
-        const buffer = await fs.readFile(filePath);
-        const name = path.basename(filePath);
-        const ext = path.extname(filePath).toLowerCase();
-        
-        return {
-          name,
-          path: filePath,
-          data: buffer.toString('base64'),
-          size: buffer.length,
-          type: getMimeType(ext)
-        };
-      })
-    );
+// Get file info
+ipcMain.handle('get-file-info', async (event, filePath) => {
+  try {
+    const stats = await fs.stat(filePath);
+    const ext = path.extname(filePath).toLowerCase();
     
-    return { canceled: false, files };
+    return {
+      name: path.basename(filePath),
+      size: stats.size,
+      path: filePath,
+      ext: ext
+    };
+  } catch (error) {
+    throw new Error(`Failed to get file info: ${error.message}`);
   }
-
-  return { canceled: true, files: [] };
 });
 
-// Save file dialog
-ipcMain.handle('dialog:saveFile', async (event, options = {}) => {
-  const result = await dialog.showSaveDialog(mainWindow, {
-    defaultPath: options.defaultPath || 'converted-file',
-    filters: options.filters || [
-      { name: 'All Files', extensions: ['*'] }
-    ]
-  });
+// Read file
+ipcMain.handle('read-file', async (event, filePath) => {
+  try {
+    const buffer = await fs.readFile(filePath);
+    return buffer.toString('base64');
+  } catch (error) {
+    throw new Error(`Failed to read file: ${error.message}`);
+  }
+});
 
+// Write file
+ipcMain.handle('write-file', async (event, { filePath, data, encoding = 'base64' }) => {
+  try {
+    console.log('💾 Writing file:', filePath);
+    
+    // Ensure the file path is safe and in a writable location
+    const safeFilePath = path.resolve(process.cwd(), 'temp', path.basename(filePath));
+    
+    // Create temp directory if it doesn't exist
+    const tempDir = path.dirname(safeFilePath);
+    await fs.mkdir(tempDir, { recursive: true });
+    
+    // Handle different data types
+    let buffer;
+    if (data instanceof ArrayBuffer) {
+      buffer = Buffer.from(data);
+    } else if (Buffer.isBuffer(data)) {
+      buffer = data;
+    } else if (typeof data === 'string') {
+      buffer = Buffer.from(data, encoding);
+    } else {
+      // Assume it's already a buffer-like object
+      buffer = Buffer.from(data);
+    }
+    
+    await fs.writeFile(safeFilePath, buffer);
+    
+    console.log('✅ File written successfully:', safeFilePath);
+    return { 
+      success: true, 
+      filePath: safeFilePath,
+      size: buffer.length 
+    };
+  } catch (error) {
+    console.error('❌ File write failed:', error);
+    throw new Error(`Failed to write file: ${error.message}`);
+  }
+});
+
+// Copy file
+ipcMain.handle('copy-file', async (event, { sourcePath, destPath }) => {
+  try {
+    console.log('📁 Copying file from:', sourcePath, 'to:', destPath);
+    
+    // Check if source file exists
+    const sourceExists = fsSync.existsSync(sourcePath);
+    if (!sourceExists) {
+      throw new Error(`Source file does not exist: ${sourcePath}`);
+    }
+    
+    // Ensure destination directory exists
+    const destDir = path.dirname(destPath);
+    await fs.mkdir(destDir, { recursive: true });
+    
+    // Copy the file
+    await fs.copyFile(sourcePath, destPath);
+    
+    console.log('✅ File copied successfully to:', destPath);
+    return { 
+      success: true, 
+      sourcePath: sourcePath,
+      destPath: destPath 
+    };
+  } catch (error) {
+    console.error('❌ File copy failed:', error);
+    throw new Error(`Failed to copy file: ${error.message}`);
+  }
+});
+
+// Convert image using Sharp
+ipcMain.handle('convert-image', async (event, { inputPath, outputPath, format, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp library not available');
+  }
+
+  try {
+    let pipeline = sharp(inputPath);
+
+    // Resize if specified
+    if (options.width || options.height) {
+      pipeline = pipeline.resize(options.width, options.height, {
+        fit: options.fit || 'inside',
+        withoutEnlargement: true
+      });
+    }
+
+    // Convert to target format
+    switch (format.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+        pipeline = pipeline.jpeg({ quality: options.quality || 80 });
+        break;
+      case 'png':
+        pipeline = pipeline.png({ compressionLevel: options.compression || 6 });
+        break;
+      case 'webp':
+        pipeline = pipeline.webp({ quality: options.quality || 80 });
+        break;
+      case 'gif':
+        pipeline = pipeline.gif();
+        break;
+      default:
+        pipeline = pipeline.toFormat(format);
+    }
+
+    await pipeline.toFile(outputPath);
+
+    return {
+      success: true,
+      outputPath: outputPath,
+      message: 'Image converted successfully'
+    };
+  } catch (error) {
+    throw new Error(`Image conversion failed: ${error.message}`);
+  }
+});
+
+// Convert video using FFmpeg
+ipcMain.handle('convert-video', async (event, { inputPath, outputPath, format, options = {} }) => {
+  if (!ffmpeg) {
+    throw new Error('FFmpeg not available');
+  }
+
+  return new Promise((resolve, reject) => {
+    let command = ffmpeg(inputPath);
+
+    // Set output format
+    command = command.toFormat(format);
+
+    // Apply options
+    if (options.videoBitrate) {
+      command = command.videoBitrate(options.videoBitrate);
+    }
+    if (options.size) {
+      command = command.size(options.size);
+    }
+
+    command
+      .on('end', () => {
+        resolve({
+          success: true,
+          outputPath: outputPath,
+          message: 'Video converted successfully'
+        });
+      })
+      .on('error', (err) => {
+        reject(new Error(`Video conversion failed: ${err.message}`));
+      })
+      .save(outputPath);
+  });
+});
+
+// Open file dialog
+ipcMain.handle('dialog:open', async (event, options) => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile', 'multiSelections'],
+    ...options
+  });
   return result;
 });
 
-// Save file with content
-ipcMain.handle('file:save', async (event, { filePath, data, encoding = 'base64' }) => {
+// Save file dialog
+ipcMain.handle('dialog:save', async (event, options) => {
+  const result = await dialog.showSaveDialog(mainWindow, options);
+  return result;
+});
+
+// Show message
+ipcMain.handle('dialog:message', async (event, options) => {
+  const result = await dialog.showMessageBox(mainWindow, options);
+  return result;
+});
+
+// Open in default app
+ipcMain.handle('shell:open', async (event, path) => {
+  await shell.openPath(path);
+  return { success: true };
+});
+
+// Create GIF from multiple images
+ipcMain.handle('create-gif-from-images', async (event, { inputPaths, outputPath, options = {} }) => {
+  console.log('🎬 GIF Creation Request:', { inputPaths, outputPath, options });
+  
   try {
-    const buffer = Buffer.from(data, encoding);
-    await fs.writeFile(filePath, buffer);
-    return { success: true, path: filePath };
+    console.log('🎬 Creating GIF from', inputPaths?.length || 0, 'images');
+    
+    if (!inputPaths || inputPaths.length === 0) {
+      throw new Error('No input images provided');
+    }
+
+    // Validate input paths
+    for (const imagePath of inputPaths) {
+      if (!imagePath || typeof imagePath !== 'string') {
+        throw new Error(`Invalid input path: ${imagePath}`);
+      }
+      
+      // Check if file exists
+      const exists = fsSync.existsSync(imagePath);
+      if (!exists) {
+        throw new Error(`File does not exist: ${imagePath}`);
+      }
+    }
+
+    // Create output path
+    const outputFilePath = path.isAbsolute(outputPath) ? outputPath : path.join(tempDir, outputPath);
+    
+    // Ensure output directory exists
+    const outputDir = path.dirname(outputFilePath);
+    await fs.mkdir(outputDir, { recursive: true });
+
+    console.log('🎬 Using Sharp + GIF Encoder for reliable GIF creation...');
+    
+    try {
+      // Load GIF encoder
+      const GIFEncoder = require('gif-encoder-2');
+      
+      // Create GIF encoder with specified dimensions
+      const width = options.width || 500;
+      const height = options.height || 300;
+      const encoder = new GIFEncoder(width, height);
+      
+      // Set GIF options
+      encoder.setRepeat(options.loop !== false ? 0 : -1); // 0 = infinite loop
+      encoder.setDelay(Math.round(1000 / (options.fps || 2))); // delay in ms
+      encoder.setQuality(10); // lower is better quality
+      
+      // Start encoding
+      encoder.start();
+      
+      // Process each image
+      for (let i = 0; i < inputPaths.length; i++) {
+        const imagePath = inputPaths[i];
+        console.log(`🖼️ Processing image ${i + 1}/${inputPaths.length}: ${path.basename(imagePath)}`);
+        
+        try {
+          // Use Sharp to resize and convert to buffer
+          const imageBuffer = await sharp(imagePath)
+            .resize(width, height, {
+              fit: 'inside',
+              background: { r: 255, g: 255, b: 255, alpha: 1 }
+            })
+            .raw()
+            .ensureAlpha()
+            .toBuffer({ resolveWithObject: true });
+          
+          // Add frame to GIF
+          encoder.addFrame(imageBuffer.data);
+          
+        } catch (err) {
+          console.error(`❌ Error processing image ${imagePath}:`, err.message);
+          throw new Error(`Failed to process image ${path.basename(imagePath)}: ${err.message}`);
+        }
+      }
+      
+      // Finish encoding
+      encoder.finish();
+      
+      // Get the GIF buffer
+      const gifBuffer = encoder.out.getData();
+      
+      // Write to output file
+      await fs.writeFile(outputFilePath, gifBuffer);
+      
+      console.log('✅ GIF creation completed successfully using Sharp + GIF Encoder');
+      
+      return {
+        success: true,
+        outputPath: outputFilePath,
+        url: outputFilePath,
+        dataUrl: `file://${outputFilePath}`,
+        filename: path.basename(outputFilePath),
+        frameCount: inputPaths.length,
+        message: 'GIF created successfully using Sharp + GIF Encoder'
+      };
+      
+    } catch (innerError) {
+      console.error('❌ GIF encoding failed:', innerError);
+      throw new Error(`GIF creation failed: ${innerError.message}`);
+    }
+
   } catch (error) {
-    console.error('Error saving file:', error);
-    return { success: false, error: error.message };
+    console.error('❌ GIF creation failed:', error);
+    throw new Error(`GIF creation failed: ${error.message}`);
   }
 });
 
-// Open file in system default app
-ipcMain.handle('shell:openPath', async (event, filePath) => {
-  const error = await shell.openPath(filePath);
-  return { success: !error, error };
+// Split GIF into frames
+ipcMain.handle('split-gif', async (event, { inputPath, options = {} }) => {
+  try {
+    console.log('✂️ Splitting GIF:', inputPath);
+    
+    const inputFilePath = path.isAbsolute(inputPath) ? inputPath : path.join(tempDir, inputPath);
+    
+    if (!fs.existsSync(inputFilePath)) {
+      throw new Error(`Input GIF file not found: ${inputFilePath}`);
+    }
+    
+    // Create output directory for frames
+    const outputDir = path.join(tempDir, `gif_frames_${Date.now()}`);
+    await fs.promises.mkdir(outputDir, { recursive: true });
+    
+    // Use Sharp to extract frames from GIF
+    const outputPattern = path.join(outputDir, 'frame_%03d.png');
+    
+    // For now, return a placeholder result
+    // TODO: Implement actual GIF splitting logic
+    return {
+      success: true,
+      frames: [],
+      outputDir: outputDir,
+      message: 'GIF splitting feature coming soon in desktop mode'
+    };
+    
+  } catch (error) {
+    console.error('❌ GIF splitting failed:', error);
+    throw new Error(`GIF splitting failed: ${error.message}`);
+  }
 });
 
-// Open external URL
-ipcMain.handle('shell:openExternal', async (event, url) => {
-  await shell.openExternal(url);
-  return { success: true };
+// Split video into segments
+ipcMain.handle('split-video', async (event, { inputPath, options = {} }) => {
+  try {
+    console.log('✂️ Splitting video:', inputPath);
+    
+    const inputFilePath = path.isAbsolute(inputPath) ? inputPath : path.join(tempDir, inputPath);
+    
+    if (!fs.existsSync(inputFilePath)) {
+      throw new Error(`Input video file not found: ${inputFilePath}`);
+    }
+    
+    // Create output directory for segments
+    const outputDir = path.join(tempDir, `video_segments_${Date.now()}`);
+    await fs.promises.mkdir(outputDir, { recursive: true });
+    
+    // For now, return a placeholder result
+    // TODO: Implement actual video splitting logic using FFmpeg
+    return {
+      success: true,
+      segments: [],
+      outputDir: outputDir,
+      message: 'Video splitting feature coming soon in desktop mode'
+    };
+    
+  } catch (error) {
+    console.error('❌ Video splitting failed:', error);
+    throw new Error(`Video splitting failed: ${error.message}`);
+  }
 });
 
 // Get app info
-ipcMain.handle('app:getInfo', () => {
+ipcMain.handle('app:info', () => {
   return {
     name: app.getName(),
     version: app.getVersion(),
-    platform: process.platform,
-    arch: process.arch,
-    isDev
+    platform: process.platform
   };
 });
 
-// Show notification
-ipcMain.handle('notification:show', (event, { title, body }) => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('notification', { title, body });
-  }
-  return { success: true };
-});
-
-// Theme management
-ipcMain.handle('theme:get', () => {
-  return nativeTheme.shouldUseDarkColors ? 'dark' : 'light';
-});
-
-ipcMain.handle('theme:set', (event, theme) => {
-  nativeTheme.themeSource = theme;
-  return { success: true };
-});
-
 /**
- * Helper function to get MIME type from extension
- */
-function getMimeType(ext) {
-  const mimeTypes = {
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.gif': 'image/gif',
-    '.bmp': 'image/bmp',
-    '.webp': 'image/webp',
-    '.svg': 'image/svg+xml',
-    '.mp4': 'video/mp4',
-    '.avi': 'video/x-msvideo',
-    '.mov': 'video/quicktime',
-    '.webm': 'video/webm',
-    '.mkv': 'video/x-matroska',
-    '.pdf': 'application/pdf',
-    '.md': 'text/markdown'
-  };
-
-  return mimeTypes[ext] || 'application/octet-stream';
-}
-
-/**
- * App Event Handlers
+ * App lifecycle
  */
 
 app.whenReady().then(async () => {
+  // Create temp directory if it doesn't exist
   try {
-    // Start backend server
-    await startBackend();
-    
-    // Create main window
-    createWindow();
-    
-    // Create system tray (Windows only)
-    createTray();
-
-    // macOS specific - recreate window when dock icon is clicked
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
-      }
-    });
+    await fs.mkdir(tempDir, { recursive: true });
+    console.log('✅ Temp directory ready:', tempDir);
   } catch (error) {
-    console.error('Failed to start application:', error);
-    dialog.showErrorBox('Startup Error', `Failed to start the application:\n\n${error.message}`);
-    app.quit();
+    console.error('❌ Failed to create temp directory:', error);
   }
+  
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
 });
 
-// Quit when all windows are closed (except macOS)
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
-// Cleanup before quitting
-app.on('before-quit', () => {
-  stopBackend();
-});
-
-// Handle shutdown
-app.on('will-quit', () => {
-  stopBackend();
-});
-
-// Prevent multiple instances
-const gotTheLock = app.requestSingleInstanceLock();
-
-if (!gotTheLock) {
+// Single instance
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
@@ -478,19 +590,8 @@ if (!gotTheLock) {
   });
 }
 
-// Security: Disable navigation to external sites
-app.on('web-contents-created', (event, contents) => {
-  contents.on('will-navigate', (event, navigationUrl) => {
-    const parsedUrl = new URL(navigationUrl);
-    
-    // Allow localhost in dev mode
-    if (isDev && parsedUrl.host === 'localhost:3001') {
-      return;
-    }
-    
-    // Prevent navigation to external sites
-    if (parsedUrl.protocol !== 'file:') {
-      event.preventDefault();
-    }
-  });
-});
+console.log('✅ AIO Converter Desktop App Started');
+console.log('📦 Running in:', isDev ? 'DEVELOPMENT' : 'PRODUCTION', 'mode');
+console.log('🔧 Sharp available:', !!sharp);
+console.log('🎬 FFmpeg available:', !!ffmpeg);
+console.log('🎨 Canvas available:', !!Canvas);

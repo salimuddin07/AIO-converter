@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getApiUrl, realAPI } from '../utils/apiConfig.js';
+import { getApiUrl, api as realAPI } from '../utils/unifiedAPI.js';
 
 const VideoResults = ({ result, onBack }) => {
   // === Use API configuration ===
@@ -86,28 +86,44 @@ const VideoResults = ({ result, onBack }) => {
   };
 
   const handleDownload = async (gifPath, filename, directUrl) => {
-    const endpoint = directUrl || `/api/video/download/${gifPath}`;
-    const url = resolveApiPath(endpoint, `/api/video/download/${gifPath}`);
-
     try {
       setIsDownloading(true);
-      const response = await fetch(url, { mode: 'cors' });
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.status}`);
+      
+      // Check if we have a direct URL (like a blob URL) that we can download directly
+      if (directUrl && (directUrl.startsWith('blob:') || directUrl.startsWith('data:'))) {
+        const link = document.createElement('a');
+        link.href = directUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
       }
 
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
+      // For file paths, use unified API to handle download
+      if (gifPath) {
+        // Try to download using API endpoint
+        const endpoint = `/api/video/download/${gifPath}`;
+        const response = await realAPI.downloadFile(endpoint);
+        
+        if (response && response.blob) {
+          const blobUrl = window.URL.createObjectURL(response.blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        } else {
+          throw new Error('Download response is invalid');
+        }
+      } else {
+        throw new Error('No download path provided');
+      }
     } catch (error) {
       console.error('Download failed:', error);
-      alert('Download failed. Please make sure the backend is running and try again.');
+      alert(`Download failed: ${error.message}. Please try again.`);
     } finally {
       setIsDownloading(false);
     }

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import VideoResults from './VideoResults';
-import { realAPI } from '../utils/apiConfig.js';
+import { api as realAPI } from '../utils/unifiedAPI.js';
 
 const VideoToGifConverter = () => {
   const [file, setFile] = useState(null);

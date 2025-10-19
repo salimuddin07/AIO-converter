@@ -7,7 +7,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { NotificationService } from '../utils/NotificationService.js';
-import { realAPI, getApiUrl } from '../utils/apiConfig.js';
+import { realAPI, getApiUrl } from '../utils/unifiedAPI.js';
 
 export default function EnhancedGifCreator({ onClose }) {
   const [activeTab, setActiveTab] = useState('video');

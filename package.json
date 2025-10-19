@@ -4,6 +4,7 @@
   "description": "A comprehensive Windows-native media converter application with support for images, videos, and GIF processing",
   "private": true,
   "main": "electron/main.js",
+  "type": "commonjs",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",
@@ -38,6 +39,7 @@
     "cross-env": "^7.0.3",
     "electron": "^28.2.0",
     "electron-builder": "^24.9.1",
+    "electron-packager": "^17.1.2",
     "rimraf": "^6.0.1"
   },
   "build": {
@@ -59,23 +61,32 @@
       {
         "from": "backend/node_modules/ffmpeg-static",
         "to": "ffmpeg",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "backend/node_modules/ffprobe-static",
         "to": "ffmpeg",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.ico",
@@ -121,5 +132,11 @@
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
+  },
+  "optionalDependencies": {
+    "canvas": "^3.2.0"
+  },
+  "dependencies": {
+    "gif-encoder-2": "^1.0.5"
   }
 }

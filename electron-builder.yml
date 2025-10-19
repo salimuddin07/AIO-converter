@@ -50,18 +50,8 @@ asarUnpack:
 # Windows-specific configuration
 win:
   target:
-    - target: nsis
-      arch:
-        - x64
-        - ia32
-    - target: portable
-      arch:
-        - x64
+    - target: dir
   icon: build/icon.ico
-  artifactName: ${productName}-${version}-${arch}.${ext}
-  requestedExecutionLevel: asInvoker
-  signAndEditExecutable: false
-  verifyUpdateCodeSignature: false
 
 # NSIS Installer Configuration
 nsis:

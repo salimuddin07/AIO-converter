@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { getApiUrl, realAPI } from '../utils/apiConfig';
+import { getApiUrl, api as realAPI } from '../utils/unifiedAPI.js';
 import SplitResults from './SplitResults';
 
 const TOOL_GIF = 'gif';
