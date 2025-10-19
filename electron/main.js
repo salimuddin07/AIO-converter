@@ -891,6 +891,58 @@ ipcMain.handle('serve-video', async (event, filePath) => {
   }
 });
 
+// Rename file
+ipcMain.handle('rename-file', async (event, { oldPath, newName }) => {
+  try {
+    console.log('🏷️ Renaming file:', oldPath, '→', newName);
+    
+    // Check if file exists
+    if (!fsSync.existsSync(oldPath)) {
+      throw new Error('File not found');
+    }
+    
+    // Get directory and extension
+    const directory = path.dirname(oldPath);
+    const extension = path.extname(oldPath);
+    
+    // Sanitize the new name (remove invalid characters)
+    const sanitizedName = newName
+      .replace(/[<>:"/\\|?*]/g, '') // Remove invalid filename characters
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim();
+    
+    if (!sanitizedName) {
+      throw new Error('Invalid filename');
+    }
+    
+    // Create new file path
+    const newPath = path.join(directory, sanitizedName + extension);
+    
+    // Check if a file with the new name already exists
+    if (fsSync.existsSync(newPath)) {
+      throw new Error('A file with this name already exists');
+    }
+    
+    // Rename the file
+    await fs.rename(oldPath, newPath);
+    
+    console.log('✅ File renamed successfully:', newPath);
+    
+    return {
+      success: true,
+      newPath: newPath,
+      newName: sanitizedName
+    };
+    
+  } catch (error) {
+    console.error('❌ Error renaming file:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
+
 /**
  * App lifecycle
  */
