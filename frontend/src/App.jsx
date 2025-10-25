@@ -12,6 +12,7 @@ import ImageEditorWithUpload from './components/ImageEditorWithUpload.jsx';
 import ImageOptimizer from './components/ImageOptimizer.jsx';
 import WebPConverter from './components/WebPConverter.jsx';
 import GifSplitter from './components/GifSplitter.jsx';
+import TimedVideoSplitter from './components/TimedVideoSplitter.jsx';
 import { ApngStudio, AvifStudio, JxlStudio } from './components/ModernFormatTool.jsx';
 import ToolInfoPanel from './components/ToolInfoPanel.jsx';
 import BuyMeCoffee from './components/BuyMeCoffee.jsx';
@@ -73,6 +74,12 @@ export default function App() {
             <div className="tool-icon">✂️</div>
             <h3>GIF Splitter</h3>
             <p>Extract frames from GIFs</p>
+          </div>
+
+          <div className="tool-card" onClick={() => setCurrentTool('timed-video-split')}>
+            <div className="tool-icon">🎬</div>
+            <h3>Timed Video Splitter</h3>
+            <p>Split videos at precise time intervals</p>
           </div>
           
           <div className="tool-card" onClick={() => setCurrentTool('webp-maker')}>
@@ -136,6 +143,8 @@ export default function App() {
         return <ImageEditorWithUpload tool="effects" />;
       case 'split':
         return <GifSplitter />;
+      case 'timed-video-split':
+        return <TimedVideoSplitter />;
       case 'webp-maker':
         return <WebPConverter />;
       case 'apng-maker':
