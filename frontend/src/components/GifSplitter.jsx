@@ -33,7 +33,69 @@ export default function GifSplitter() {
   const [error, setError] = useState('');
   const [splitData, setSplitData] = useState(null);
 
+  // New timing and progress states
+  const [processingState, setProcessingState] = useState('idle'); // 'idle', 'analyzing', 'splitting', 'complete'
+  const [estimatedTime, setEstimatedTime] = useState(0);
+  const [countdown, setCountdown] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [currentSegment, setCurrentSegment] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
+
   const videoAcceptAttr = useMemo(() => SUPPORTED_VIDEO_TYPES.map((ext) => `.${ext}`).join(','), [SUPPORTED_VIDEO_TYPES]);
+
+  // Time formatting utilities
+  const formatTime = (seconds) => {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h}h ${m}m ${s}s`;
+  };
+
+  // Estimate processing time
+  const estimateProcessingTime = () => {
+    const segmentDuration = computeSegmentDurationSeconds();
+    const estimatedSegments = videoDuration > 0 ? Math.ceil(videoDuration / segmentDuration) : 5;
+    // Rough estimate: 2 seconds per minute of video content
+    const baseTime = Math.max(10, Math.ceil(videoDuration / 30));
+    const segmentMultiplier = estimatedSegments * 2;
+    return baseTime + segmentMultiplier;
+  };
+
+  // Analyze video duration
+  const analyzeVideoDuration = async (file) => {
+    try {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      
+      video.onloadedmetadata = () => {
+        setVideoDuration(Math.floor(video.duration));
+        window.URL.revokeObjectURL(video.src);
+      };
+      
+      video.src = URL.createObjectURL(file);
+    } catch (err) {
+      console.warn('Could not analyze video duration:', err);
+    }
+  };
+
+  // Countdown timer effect
+  React.useEffect(() => {
+    let interval;
+    if (countdown > 0 && processingState === 'splitting') {
+      interval = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            setProgress(prev_progress => Math.min(prev_progress + 10, 95));
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [countdown, processingState]);
 
   const detectToolFromName = (name = '', mimeType = '') => {
     const lowerMime = mimeType.toLowerCase();
@@ -59,9 +121,14 @@ export default function GifSplitter() {
     } else if (tool === TOOL_VIDEO) {
       setVideoFile(file);
       setVideoUrl('');
+      // Analyze video duration for timing estimates
+      analyzeVideoDuration(file);
     }
     setSplitData(null);
     setError('');
+    setProcessingState('idle');
+    setProgress(0);
+    setCountdown(0);
   };
 
   const handleFileChange = (tool) => (event) => {
@@ -225,31 +292,72 @@ export default function GifSplitter() {
     try {
       setLoadingTool(tool);
       setError('');
-      const splitResult = await requestFn();
-
-      const items = tool === TOOL_VIDEO
-        ? splitResult.segments || []
-        : splitResult.frames || [];
-
-      console.log('🔍 Split result received:', splitResult);
-      console.log('🔍 Items extracted:', items);
-      console.log('🔍 Setting split data with type:', tool, 'and', items.length, 'items');
       
-      const splitDataToSet = {
-        type: tool,
-        jobId: splitResult.jobId,
-        items,
-        zipUrl: splitResult.zipUrl,
-        meta: splitResult
-      };
-      
-      console.log('🔍 Final split data:', splitDataToSet);
-      setSplitData(splitDataToSet);
+      // Add timing features for video splitting
+      if (tool === TOOL_VIDEO) {
+        setProcessingState('analyzing');
+        
+        // Estimate processing time
+        const estimated = estimateProcessingTime();
+        setEstimatedTime(estimated);
+        
+        // Simulate analysis phase
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        setProcessingState('splitting');
+        setCountdown(estimated);
+        setProgress(0);
+        setCurrentSegment(0);
+
+        // Simulate progress updates
+        const progressInterval = setInterval(() => {
+          setProgress(prev => {
+            const newProgress = Math.min(prev + 3, 90);
+            const segmentDuration = computeSegmentDurationSeconds();
+            const estimatedSegments = videoDuration > 0 ? Math.ceil(videoDuration / segmentDuration) : 5;
+            setCurrentSegment(Math.floor((newProgress / 100) * estimatedSegments));
+            return newProgress;
+          });
+        }, 1500);
+
+        const splitResult = await requestFn();
+
+        clearInterval(progressInterval);
+        setProgress(100);
+        setProcessingState('complete');
+
+        const items = splitResult.segments || [];
+        const splitDataToSet = {
+          type: tool,
+          jobId: splitResult.jobId,
+          items,
+          zipUrl: splitResult.zipUrl,
+          meta: splitResult
+        };
+        
+        setSplitData(splitDataToSet);
+      } else {
+        // Regular GIF processing without timing features
+        const splitResult = await requestFn();
+        const items = splitResult.frames || [];
+        
+        const splitDataToSet = {
+          type: tool,
+          jobId: splitResult.jobId,
+          items,
+          zipUrl: splitResult.zipUrl,
+          meta: splitResult
+        };
+        
+        setSplitData(splitDataToSet);
+      }
     } catch (err) {
       console.error('Split error:', err);
       setError(err.message || 'Split failed');
+      setProcessingState('idle');
     } finally {
       setLoadingTool(null);
+      setCountdown(0);
     }
   };
 
@@ -427,6 +535,21 @@ export default function GifSplitter() {
           />
         </p>
 
+        {/* Video Info Display */}
+        {videoDuration > 0 && (
+          <div className="video-info" style={{
+            padding: '1rem',
+            backgroundColor: '#f8f9fa',
+            border: '1px solid #dee2e6',
+            borderRadius: '8px',
+            marginBottom: '1rem'
+          }}>
+            <p style={{ margin: '0', fontWeight: 'bold', color: '#495057' }}>
+              📊 Video Duration: {formatTime(videoDuration)}
+            </p>
+          </div>
+        )}
+
         <fieldset style={{ marginBottom: '1.5rem' }}>
           <legend>Video options</legend>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
@@ -538,12 +661,96 @@ export default function GifSplitter() {
           </div>
         </fieldset>
 
+        {/* Processing Status Display */}
+        {processingState !== 'idle' && (
+          <fieldset style={{ marginBottom: '1.5rem' }}>
+            <legend>🔄 Processing Status</legend>
+            
+            <div className="processing-status">
+              {processingState === 'analyzing' && (
+                <div style={{ padding: '1rem', backgroundColor: '#e3f2fd', borderRadius: '8px' }}>
+                  <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold', color: '#1976d2' }}>
+                    🔍 Analyzing video...
+                  </p>
+                  <p style={{ margin: '0', color: '#424242' }}>
+                    Estimated processing time: {formatTime(estimatedTime)}
+                  </p>
+                </div>
+              )}
+              
+              {processingState === 'splitting' && (
+                <div style={{ padding: '1rem', backgroundColor: '#f3e5f5', borderRadius: '8px' }}>
+                  <p style={{ margin: '0 0 1rem 0', fontWeight: 'bold', color: '#7b1fa2' }}>
+                    ✂️ Splitting video... ({currentSegment + 1} segments processed)
+                  </p>
+                  
+                  {countdown > 0 && (
+                    <div className="countdown-display" style={{
+                      fontSize: '1.5rem',
+                      fontWeight: 'bold',
+                      color: '#4caf50',
+                      textAlign: 'center',
+                      margin: '1rem 0',
+                      padding: '0.5rem',
+                      backgroundColor: '#e8f5e8',
+                      borderRadius: '8px'
+                    }}>
+                      ⏰ {formatTime(countdown)} remaining
+                    </div>
+                  )}
+                  
+                  <div className="progress-bar" style={{
+                    width: '100%',
+                    height: '24px',
+                    backgroundColor: '#e0e0e0',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    margin: '1rem 0',
+                    border: '1px solid #bdbdbd'
+                  }}>
+                    <div 
+                      className="progress-fill"
+                      style={{
+                        width: `${progress}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #4caf50 0%, #81c784 100%)',
+                        transition: 'width 0.5s ease',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      {progress > 10 ? `${progress}%` : ''}
+                    </div>
+                  </div>
+                  
+                  <p style={{ margin: '0', textAlign: 'center', color: '#666' }}>
+                    Progress: {progress}% complete
+                  </p>
+                </div>
+              )}
+              
+              {processingState === 'complete' && (
+                <div style={{ padding: '1rem', backgroundColor: '#e8f5e8', borderRadius: '8px' }}>
+                  <p style={{ margin: '0', fontWeight: 'bold', color: '#2e7d32' }}>
+                    ✅ Split complete! Your video segments are ready for download.
+                  </p>
+                </div>
+              )}
+            </div>
+          </fieldset>
+        )}
+
         <p>
           <input
             type="submit"
             className="btn primary"
             value={loadingTool === TOOL_VIDEO ? 'Processing…' : 'Split video'}
-            disabled={loadingTool !== null}
+            disabled={loadingTool !== null || processingState !== 'idle'}
           />
         </p>
 
