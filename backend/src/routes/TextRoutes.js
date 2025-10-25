@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import textService from '../services/TextService.js';
+import textToMdService from '../services/TextToMdService.js';
 import { cleanupFiles } from '../services/cleanupService.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,7 +18,7 @@ router.get('/', (req, res) => {
         success: true, 
         service: 'Text Processing Service',
         message: 'Text processing endpoints are available',
-        endpoints: ['/upload', '/add-text', '/download/:filename']
+        endpoints: ['/upload', '/add-text', '/text-to-md', '/download/:filename']
     });
 });
 
@@ -309,6 +310,121 @@ router.get('/download/:filename', async (req, res) => {
     } catch (error) {
         console.error('Download error:', error);
         res.status(500).json({ error: 'Failed to download file' });
+    }
+});
+
+// Configure multer for text file uploads
+const textStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, path.join(__dirname, '../temp'));
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'text-input-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+
+const textUpload = multer({ 
+    storage: textStorage,
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit for text files
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = ['text/plain', 'application/octet-stream'];
+        const allowedExtensions = ['.txt', '.text'];
+        
+        const ext = path.extname(file.originalname).toLowerCase();
+        
+        if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file type. Please upload a .txt or .text file.'));
+        }
+    }
+});
+
+// Text to Markdown conversion endpoint
+router.post('/text-to-md', textUpload.single('textFile'), async (req, res) => {
+    let tempFiles = [];
+    
+    try {
+        if (!req.file) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'No text file provided' 
+            });
+        }
+
+        tempFiles.push(req.file.path);
+
+        // Get conversion options from request body
+        const options = {
+            autoHeaders: req.body.autoHeaders === 'true',
+            autoParagraphs: req.body.autoParagraphs !== 'false', // default true
+            autoLists: req.body.autoLists === 'true',
+            autoLinks: req.body.autoLinks === 'true',
+            autoCodeBlocks: req.body.autoCodeBlocks === 'true',
+            autoEmphasis: req.body.autoEmphasis === 'true',
+            preserveLineBreaks: req.body.preserveLineBreaks === 'true',
+            addFrontMatter: req.body.addFrontMatter === 'true',
+            title: req.body.title || '',
+            author: req.body.author || '',
+            date: req.body.date || new Date().toISOString().split('T')[0]
+        };
+
+        console.log('📝 Processing text to Markdown conversion with options:', options);
+
+        // Validate input file
+        await textToMdService.validateInput(req.file.path);
+
+        // Convert text to Markdown
+        const result = await textToMdService.convertTextToMarkdown(req.file.path, options);
+
+        tempFiles.push(result.outputPath);
+
+        // Read the converted file
+        const markdownContent = await fs.readFile(result.outputPath, 'utf-8');
+
+        // Create response data
+        const responseData = {
+            success: true,
+            result: {
+                filename: result.filename,
+                originalFilename: req.file.originalname,
+                size: result.size,
+                originalSize: result.originalSize,
+                markdownContent: markdownContent,
+                downloadUrl: `/api/text/download/${result.filename}`,
+                message: result.message,
+                conversionOptions: options
+            }
+        };
+
+        console.log('✅ Text to Markdown conversion completed successfully');
+
+        res.json(responseData);
+
+        // Schedule cleanup
+        setTimeout(async () => {
+            try {
+                await cleanupFiles(tempFiles);
+            } catch (cleanupError) {
+                console.error('Cleanup error:', cleanupError);
+            }
+        }, 5 * 60 * 1000); // 5 minutes
+
+    } catch (error) {
+        console.error('❌ Text to Markdown conversion error:', error);
+        
+        // Cleanup temp files on error
+        try {
+            await cleanupFiles(tempFiles);
+        } catch (cleanupError) {
+            console.error('Cleanup error after conversion failure:', cleanupError);
+        }
+
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Text to Markdown conversion failed'
+        });
     }
 });
 

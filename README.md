@@ -2,13 +2,27 @@
 
 > **Created by [Salimuddin](https://github.com/salimuddin07)** - Full-Stack Developer & Media Processing Expert
 
-A comprehensive, modern media conversion platform built with Node.js and React. Features professional-grade architecture with properly named services, clean code structure, and **all libraries fully tested and working**.
+A comprehensive, modern media conversion platform featuring both **web application** and **desktop app** capabilities. Built with Node.js, React, and Electron with professional-grade architecture, properly named services, and **all libraries fully tested and working**.
 
-## ✅ **Current Status: ALL LIBRARIES VERIFIED & WORKING**
+## ✅ **Current Status: FULLY OPERATIONAL DUAL-MODE PLATFORM**
+
+### 🖥️ **Desktop Application (Electron)**
+- ✅ **Native Desktop App** - Full-featured Electron application
+- ✅ **Local Processing** - No internet required, complete privacy
+- ✅ **File System Access** - Direct file management and organization
+- ✅ **Video Splitting with Audio** - Advanced FFmpeg integration with AAC encoding
+- ✅ **Segment Renaming** - Click-to-rename video segments for organization
+- ✅ **Real-time Preview** - Instant video segment previews and downloads
+
+### 🌐 **Web Application**
+- ✅ **Browser-based Interface** - Access from any modern web browser
+- ✅ **Progressive Web App** - Responsive design across all devices
+- ✅ **Cloud Processing** - Server-side media processing
+- ✅ **Real-time Progress** - Live conversion status updates
 
 **Backend Libraries:**
 - ✅ **Sharp** - High-performance image processing 
-- ✅ **FFmpeg** - Video conversion and manipulation
+- ✅ **FFmpeg** - Video conversion and manipulation with audio preservation
 - ✅ **Canvas** - Server-side graphics rendering
 - ✅ **Jimp** - Pure JavaScript image processing
 - ✅ **WebP Service** - WebP conversion (Sharp fallback implemented)
@@ -27,17 +41,36 @@ A comprehensive, modern media conversion platform built with Node.js and React. 
 **Development Servers:**
 - ✅ **Frontend Server**: Running on `http://localhost:3001` (Vite)
 - ✅ **Backend Server**: Running on `http://localhost:3003` (Express)
+- ✅ **Desktop App**: Electron with local processing capabilities
 - ✅ **Functionality Tester**: Available at `http://localhost:3003/functionality`
 
 
 ## 🚀 Features
 
-### **📊 Current Project Status (Updated September 30, 2025)**
+### **📊 Current Project Status (Updated October 25, 2025)**
 🟢 **FULLY OPERATIONAL** - All libraries tested and working  
-🟢 **Development Ready** - Both frontend and backend servers running  
-🟢 **Library Compatibility** - All Windows binary issues resolved  
+🟢 **Desktop App Ready** - Native Electron application with local processing  
+🟢 **Web App Ready** - Browser-based interface with cloud processing  
+🟢 **Library Compatibility** - All Windows/macOS/Linux binary issues resolved  
+🟢 **Audio Preservation** - FFmpeg configured for proper audio handling  
+🟢 **Video Splitting** - Advanced segment creation with renaming capabilities  
 🟢 **Testing Infrastructure** - Comprehensive validation system in place  
 🟢 **Clean Architecture** - Professional service organization implemented  
+
+### 🖥️ Desktop Application Features
+- **🎬 Advanced Video Splitting**: Split videos into custom durations with preserved audio
+- **🏷️ Segment Renaming**: Click-to-rename video segments for better organization
+- **📱 Real-time Preview**: Instant video segment previews with download options
+- **🔒 Complete Privacy**: All processing happens locally, no data leaves your computer
+- **📁 File System Integration**: Direct access to your local files and folders
+- **⚡ High Performance**: Native desktop performance with FFmpeg integration
+
+### 🌐 Web Application Features
+- **☁️ Cloud Processing**: Server-side conversion for any device
+- **📊 Real-time Progress**: Live updates during conversion processes
+- **🔄 Batch Operations**: Process multiple files simultaneously
+- **📱 Responsive Design**: Works perfectly on desktop, tablet, and mobile
+- **🌍 Cross-platform**: Access from any modern web browser
 
 ### Image Processing
 - **Format Conversion**: JPEG, PNG, WebP, AVIF, GIF, BMP, TIFF, SVG
@@ -49,10 +82,12 @@ A comprehensive, modern media conversion platform built with Node.js and React. 
 
 ### Video Processing  
 - **Format Conversion**: MP4, AVI, MOV, WebM, MKV, M4V, 3GP, FLV
-- **Video Manipulation**: Split, merge, resize, quality adjustment
-- **Scene Detection**: Intelligent video segmentation
+- **Advanced Video Splitting**: Split videos by duration or custom segments with audio preservation
+- **Video Segment Renaming**: Organize clips with custom names (Intro, Hook, Outro, etc.)
+- **Audio Preservation**: Proper AAC encoding ensures audio quality in all segments
+- **Quality Control**: Multiple quality presets for web delivery
 - **Frame Extraction**: Extract specific frames or sequences
-- **Web Optimization**: Multiple quality presets for web delivery
+- **Real-time Preview**: Instant preview of video segments with download options
 
 ### GIF Processing
 - **GIF Creation**: Convert videos/images to animated GIFs  
@@ -61,17 +96,26 @@ A comprehensive, modern media conversion platform built with Node.js and React. 
 - **Scene Filtering**: Smart frame selection based on content analysis
 - **Text Overlay**: Add animated text to GIFs
 
+### Desktop Application Exclusive Features
+- **🎯 Click-to-Rename Segments**: Instantly rename video segments for better organization
+- **📁 Local File Management**: Direct access to your computer's file system
+- **🔒 Complete Privacy**: No internet required, all processing happens locally
+- **⚡ Native Performance**: Full desktop application performance
+- **🎬 Advanced FFmpeg Integration**: Professional-grade video processing
+- **📱 Instant Preview**: Real-time video segment previews with working audio
+
 ### Modern Architecture
+- **Dual-Mode Platform**: Both web and desktop applications from same codebase
 - **Consolidated Services**: Replaced 20+ duplicate services with 3 unified processors
 - **Intelligent Service Selection**: Automatic optimal library selection based on operation and file characteristics
 - **Event-Driven Processing**: Real-time progress tracking and status updates
 - **Clean API Design**: RESTful endpoints with comprehensive error handling
 - **Factory Pattern**: Centralized service management and configuration
+- **Electron Integration**: Native desktop capabilities with IPC communication
 
-
-### Document prossesin
-- **PDF to MD convert making pdf to markdown file **
-- **images to pdf**
+### Document Processing
+- **PDF to Markdown**: Convert PDF documents to markdown format
+- **Images to PDF**: Bundle multiple images into a single PDF document
   
 
 ## 📁 Project Structure
@@ -112,19 +156,23 @@ A comprehensive, modern media conversion platform built with Node.js and React. 
 │   │   │   ├── 📄 MediaAnalysisService.js   # Media analysis tools
 │   │   │   ├── 📄 CanvasGraphicsService.js  # Canvas-based graphics
 │   │   │   ├── 📄 VideoJSService.js         # Video.js integration
-│   │   │   ├── � VideoSplitterService.js   # Video splitting utilities
+│   │   │   ├── 📄 VideoSplitterService.js   # Video splitting utilities
 │   │   │   └── 📄 index.js                  # ServiceFactory & Registry
 │   │   ├── 📂 utils/           # Utility libraries (RENAMED FROM lib/)
 │   │   │   └── 📄 FilePathUtils.js          # Centralized file management
 │   │   ├── 📂 middleware/      # Express middleware (PROPER NAMING!)
-│   │   │   ├── � ErrorHandler.js           # Error handling middleware
+│   │   │   ├── 📄 ErrorHandler.js           # Error handling middleware
 │   │   │   └── 📄 FileValidator.js          # File validation middleware
-│   │   ├── �📂 config/          # Configuration files
+│   │   ├── 📂 config/          # Configuration files
 │   │   │   └── 📄 index.js                  # Main configuration
 │   │   ├── 📄 app.js           # Express application setup
 │   │   └── 📄 server.js        # Server entry point
 │   ├── 📄 package.json
 │   └── 📄 eslint.config.js
+├── 📂 electron/                # Desktop Application
+│   ├── 📄 main.js              # Electron main process with IPC handlers
+│   ├── 📄 preload.js           # Secure preload script
+│   └── 📄 main-old.js          # Legacy main process backup
 ├── 📂 frontend/                # React SPA
 │   ├── 📂 src/
 │   │   ├── 📂 components/      # React components (RENAMED & ORGANIZED!)
@@ -209,12 +257,52 @@ Frontend libraries tested through browser component:
 
 ### Prerequisites
 - Node.js 18+ and npm
-- FFmpeg (for video processing)
+- FFmpeg (for video processing - included via ffmpeg-static in desktop app)
 - ImageMagick (for advanced image operations)
 
-### Backend Setup
+### Quick Start - Desktop Application (Recommended)
 ```bash
+# Clone the repository
+git clone https://github.com/salimuddin07/GIF-converter.git
+cd "AIO converter"
+
+# Install dependencies
+npm install
+
+# Run the desktop application
+npm run electron
+```
+
+### Quick Start - Web Application
+```bash
+# Backend Setup
 cd backend
+npm install
+npm run dev    # Development server with hot reload
+
+# Frontend Setup (in new terminal)
+cd frontend
+npm install
+npm run dev    # Development server with hot reload
+```
+
+### Environment Configuration
+Create `.env` files in both backend and frontend directories:
+
+**Backend `.env`:**
+```env
+NODE_ENV=development
+PORT=3003
+OPENAI_API_KEY=your_openai_key_here
+MAX_FILE_SIZE_GB=500
+MAX_BATCH_COUNT=20
+```
+
+**Frontend `.env`:**
+```env
+VITE_API_BASE_URL=http://localhost:3003
+VITE_MAX_FILE_SIZE=500
+```
 # GIF Converter
 
 All-in-one media conversion toolkit powered by an Express (Node.js) backend and a Vite + React frontend. The application handles image, GIF, video, and document workflows with optimized processing pipelines and a modular service architecture.
@@ -702,6 +790,14 @@ CORS_ORIGIN=https://your-frontend-url.vercel.app
 
 ## 📋 Recent Major Improvements ✅
 
+### **✅ Desktop Application Features (October 2025)**
+- **🎬 Advanced Video Splitting**: Fixed race condition bug, now properly returns video segments
+- **🔊 Audio Preservation**: Implemented FFmpeg with AAC encoding for perfect audio quality
+- **🏷️ Segment Renaming**: Click-to-rename functionality for organizing video clips
+- **📱 Real-time Preview**: Fixed file:// URL handling for instant video segment previews
+- **🔒 Local Processing**: Complete privacy with no internet dependency
+- **⚡ Native Performance**: Full Electron integration with IPC communication
+
 ### **✅ Complete Library Validation (September 2025)**
 - **All Backend Libraries Tested**: 6/6 libraries working perfectly
 - **All Frontend Libraries Verified**: 8/8 animation libraries functional  
@@ -1184,16 +1280,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**✅ Project Status: ALL LIBRARIES WORKING**  
-**🚀 Last Updated: September 30, 2025**
+**✅ Project Status: DUAL-MODE PLATFORM FULLY OPERATIONAL**  
+**🚀 Last Updated: October 25, 2025**
 
 **Built with ❤️ by [Salimuddin](https://github.com/salimuddin07)**
 
-*Professional Media Processing with Clean Architecture & Comprehensive Testing*
+*Professional Media Processing with Desktop & Web Applications*
 
+🟢 **Desktop App**: Native Electron with local processing  
+🟢 **Web App**: React SPA with cloud processing  
 🟢 **Backend**: 6/6 Libraries Working  
 🟢 **Frontend**: 8/8 Libraries Working  
-🟢 **Servers**: Running on ports 3001 & 3003  
+🟢 **Video Splitting**: Advanced with audio preservation & renaming  
 🟢 **Testing**: Functionality tester available  
 
 </div>

@@ -4,6 +4,7 @@ import Footer from './components/Footer.jsx';
 import PdfToMarkdownConverter from './components/PdfToMarkdownConverter.jsx';
 import MarkdownToPdf from './components/MarkdownToPdf.jsx';
 import ImagesToPdfConverter from './components/ImagesToPdfConverter.jsx';
+import TextToMdConverter from './components/TextToMdConverter.jsx';
 import VideoToGifConverter from './components/VideoToGifConverter.jsx';
 import ImageGifMaker from './components/ImageGifMaker.jsx';
 import MainConversionInterface from './components/MainConversionInterface.jsx';
@@ -48,6 +49,12 @@ export default function App() {
             <div className="tool-icon">📝</div>
             <h3>Markdown to PDF</h3>
             <p>Render Markdown into a polished PDF</p>
+          </div>
+
+          <div className="tool-card" onClick={() => setCurrentTool('text-to-md')}>
+            <div className="tool-icon">📄</div>
+            <h3>Text to Markdown</h3>
+            <p>Convert plain text to formatted Markdown</p>
           </div>
 
           <div className="tool-card" onClick={() => setCurrentTool('image-to-pdf')}>
@@ -105,6 +112,8 @@ export default function App() {
         return <PdfToMarkdownConverter />;
       case 'md-to-pdf':
         return <MarkdownToPdf />;
+      case 'text-to-md':
+        return <TextToMdConverter />;
       case 'image-to-pdf':
         return <ImagesToPdfConverter />;
       case 'gif-maker':
