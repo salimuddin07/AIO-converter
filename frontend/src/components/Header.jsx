@@ -37,6 +37,7 @@ export default function Header({ currentTool, setCurrentTool }) {
           <li><a href="#" className={`nav-link split ${currentTool === 'split' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'split')}>Split</a></li>
           <li><a href="#" className={`nav-link pdf-to-md ${currentTool === 'pdf-to-md' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'pdf-to-md')}>PDF to MD</a></li>
           <li><a href="#" className={`nav-link md-to-pdf ${currentTool === 'md-to-pdf' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'md-to-pdf')}>MD to PDF</a></li>
+          <li><a href="#" className={`nav-link text-to-md ${currentTool === 'text-to-md' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'text-to-md')}>Text to MD</a></li>
           <li><a href="#" className={`nav-link image-to-pdf ${currentTool === 'image-to-pdf' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'image-to-pdf')}>Image to PDF</a></li>
           <li><a href="#" className={`nav-link webp ${currentTool === 'webp-maker' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'webp-maker')}>WebP</a></li>
           <li><a href="#" className={`nav-link apng ${currentTool === 'apng-maker' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'apng-maker')}>APNG</a></li>
