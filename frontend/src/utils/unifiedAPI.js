@@ -5,11 +5,33 @@
 
 // Check if we're running in Electron
 const isElectron = () => {
-  return typeof window !== 'undefined' && window.electronAPI !== undefined;
+  try {
+    return typeof window !== 'undefined' && 
+           window.electronAPI !== undefined && 
+           typeof window.electronAPI === 'object';
+  } catch (error) {
+    console.warn('Error checking Electron environment:', error);
+    return false;
+  }
 };
 
 // Fallback HTTP API base URL (for browser mode)
 const HTTP_API_BASE = 'http://localhost:3003';
+
+/**
+ * Safe Electron API caller with error handling
+ */
+const safeElectronCall = async (method, ...args) => {
+  try {
+    if (!isElectron() || !window.electronAPI || typeof window.electronAPI[method] !== 'function') {
+      throw new Error(`Electron API method ${method} not available`);
+    }
+    return await window.electronAPI[method](...args);
+  } catch (error) {
+    console.error(`Electron API call failed for ${method}:`, error);
+    throw error;
+  }
+};
 
 /**
  * Unified API that works in both Electron and browser environments
@@ -936,6 +958,37 @@ export const api = {
         mode: 'browser',
         isElectron: false
       };
+    }
+  },
+
+  /**
+   * Convert text to Markdown
+   */
+  async convertTextToMd(file, options = {}) {
+    console.log('📝 Converting text to Markdown:', file.name);
+    
+    if (isElectron()) {
+      // Electron mode - not implemented yet
+      throw new Error('Text to Markdown conversion is not available in desktop mode yet');
+    } else {
+      // Browser mode - use HTTP API
+      const formData = new FormData();
+      formData.append('textFile', file);
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/text/text-to-md`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Text to Markdown conversion failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
     }
   }
 };
