@@ -103,7 +103,7 @@ export default function Footer() {
         </button>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .modern-footer {
           position: relative;
           background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
