@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
-import { getApiUrl } from '../utils/apiConfig.js';
+import React, { useMemo, useState, useEffect } from 'react';
+import { resolveDisplayUrl, api } from '../utils/unifiedAPI.js';
 
 const toAbsoluteUrl = (path) => {
   if (!path) return null;
-  return path.startsWith('http') ? path : getApiUrl(path);
+  return resolveDisplayUrl(path);
 };
 
 const formatSeconds = (value) => {
@@ -34,6 +34,229 @@ const formatFileSize = (bytes) => {
   }
   const precision = value < 10 && unitIndex > 0 ? 1 : 0;
   return `${value.toFixed(precision)} ${units[unitIndex]}`;
+};
+
+// Editable name component for renaming segments
+const EditableName = ({ initialName, segment, onNameChange }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(initialName);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (editName.trim() === '' || editName === initialName) {
+      setIsEditing(false);
+      setEditName(initialName);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Call backend to rename the file
+      if (typeof window !== 'undefined' && window.electronAPI) {
+        const result = await window.electronAPI.renameFile({
+          oldPath: segment.path,
+          newName: editName.trim()
+        });
+        
+        if (result.success) {
+          onNameChange(segment, editName.trim(), result.newPath);
+          setIsEditing(false);
+        } else {
+          alert('Failed to rename file: ' + result.error);
+          setEditName(initialName);
+        }
+      }
+    } catch (error) {
+      console.error('Error renaming file:', error);
+      alert('Error renaming file: ' + error.message);
+      setEditName(initialName);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditName(initialName);
+    setIsEditing(false);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '5px' }}>
+        <input
+          type="text"
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          onKeyPress={handleKeyPress}
+          onBlur={handleSave}
+          autoFocus
+          disabled={isSaving}
+          style={{
+            fontSize: '14px',
+            padding: '2px 5px',
+            border: '1px solid #ccc',
+            borderRadius: '3px',
+            flex: 1,
+            minWidth: '100px'
+          }}
+        />
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          style={{
+            fontSize: '10px',
+            padding: '2px 6px',
+            backgroundColor: '#28a745',
+            color: 'white',
+            border: 'none',
+            borderRadius: '3px',
+            cursor: isSaving ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {isSaving ? '...' : '✓'}
+        </button>
+        <button
+          onClick={handleCancel}
+          disabled={isSaving}
+          style={{
+            fontSize: '10px',
+            padding: '2px 6px',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '3px',
+            cursor: isSaving ? 'not-allowed' : 'pointer'
+          }}
+        >
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      onClick={() => setIsEditing(true)}
+      style={{ 
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '5px',
+        marginBottom: '10px',
+        padding: '5px 8px',
+        borderRadius: '4px',
+        backgroundColor: '#f8f9fa',
+        border: '1px solid transparent',
+        transition: 'all 0.2s ease'
+      }}
+      title="Click to rename this video segment"
+      onMouseEnter={(e) => {
+        e.target.style.backgroundColor = '#e9ecef';
+        e.target.style.borderColor = '#dee2e6';
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.backgroundColor = '#f8f9fa';
+        e.target.style.borderColor = 'transparent';
+      }}
+    >
+      <strong style={{ color: '#243b53', flex: 1, fontSize: '14px' }}>{initialName}</strong>
+      <span style={{ 
+        fontSize: '12px', 
+        color: '#6c757d',
+        backgroundColor: '#dee2e6',
+        padding: '2px 5px',
+        borderRadius: '3px'
+      }}>
+        ✏️ rename
+      </span>
+    </div>
+  );
+};
+
+// Secure video component for Electron
+const SecureVideo = ({ filePath, ...props }) => {
+  const [videoUrl, setVideoUrl] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!filePath) return;
+    
+    // Check if we're in Electron and need secure video loading
+    if (typeof window !== 'undefined' && window.electronAPI && filePath.match(/\.(mp4|webm|avi|mov|mkv)$/i)) {
+      console.log('🎥 Loading video securely:', filePath);
+      
+      window.electronAPI.serveVideo(filePath)
+        .then(result => {
+          if (result.success) {
+            console.log('✅ Video loaded securely');
+            setVideoUrl(result.dataUrl);
+          } else {
+            console.error('❌ Failed to load video:', result.error);
+            setError(result.error);
+          }
+        })
+        .catch(err => {
+          console.error('❌ Error loading video:', err);
+          setError(err.message);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      // Use direct URL for non-Electron or non-video files
+      setVideoUrl(filePath);
+      setLoading(false);
+    }
+  }, [filePath]);
+
+  if (loading) {
+    return (
+      <div style={{ 
+        width: '100%', 
+        height: '120px', 
+        backgroundColor: '#f0f0f0', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        borderRadius: '6px'
+      }}>
+        Loading video...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ 
+        width: '100%', 
+        height: '120px', 
+        backgroundColor: '#ffe6e6', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        borderRadius: '6px',
+        color: '#d63031'
+      }}>
+        Error loading video: {error}
+      </div>
+    );
+  }
+
+  return (
+    <video
+      {...props}
+      src={videoUrl}
+    />
+  );
 };
 
 const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation }) => (
@@ -133,9 +356,33 @@ const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation }) => (
 );
 
 const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
+  const [segmentList, setSegmentList] = useState(segments);
   const videoMeta = meta?.metadata?.video || {};
   const audioMeta = meta?.metadata?.audio;
   const totalDuration = meta?.metadata?.duration ?? segments.reduce((acc, segment) => acc + (segment.duration || 0), 0);
+
+  // Update segments when prop changes
+  useEffect(() => {
+    setSegmentList(segments);
+  }, [segments]);
+
+  const handleNameChange = (segment, newName, newPath) => {
+    setSegmentList(prevSegments => 
+      prevSegments.map(seg => 
+        seg.path === segment.path 
+          ? { 
+              ...seg, 
+              name: newName,
+              filename: newName + '.mp4',
+              path: newPath,
+              url: newPath.replace(/\\/g, '/').startsWith('/') ? `file://${newPath.replace(/\\/g, '/')}` : `file:///${newPath.replace(/\\/g, '/')}`,
+              previewUrl: newPath.replace(/\\/g, '/').startsWith('/') ? `file://${newPath.replace(/\\/g, '/')}` : `file:///${newPath.replace(/\\/g, '/')}`,
+              downloadUrl: newPath.replace(/\\/g, '/').startsWith('/') ? `file://${newPath.replace(/\\/g, '/')}` : `file:///${newPath.replace(/\\/g, '/')}`
+            }
+          : seg
+      )
+    );
+  };
 
   return (
     <div className="split-results">
@@ -169,6 +416,7 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
           </li>
           <li>Video codec: {videoMeta.codec || 'Auto-detected'}</li>
           <li>Audio: {audioMeta ? `${audioMeta.codec || 'preserved'} (${audioMeta.channels || 2} ch)` : 'Muted'}</li>
+          <li><strong>💡 Tip:</strong> Click on any segment name to rename it for better organization</li>
         </ul>
       </div>
 
@@ -180,7 +428,7 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
           gap: '18px'
         }}
       >
-        {segments.map((segment, index) => (
+        {segmentList.map((segment, index) => (
           <div
             key={segment.filename || index}
             style={{
@@ -190,9 +438,11 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
               backgroundColor: '#f7faff'
             }}
           >
-            <header style={{ marginBottom: '10px' }}>
-              <strong style={{ color: '#243b53' }}>{segment.name || `Clip ${index + 1}`}</strong>
-            </header>
+            <EditableName
+              initialName={segment.name || `Clip ${index + 1}`}
+              segment={segment}
+              onNameChange={handleNameChange}
+            />
 
             <video
               controls
@@ -201,6 +451,15 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
                 width: '100%',
                 borderRadius: '6px',
                 backgroundColor: '#000'
+              }}
+              onError={(e) => {
+                console.error('❌ Video load error:', e.target.error, 'for URL:', e.target.src);
+              }}
+              onLoadStart={() => {
+                console.log('🎥 Video load started for:', segment.name);
+              }}
+              onLoadedMetadata={() => {
+                console.log('✅ Video metadata loaded for:', segment.name);
               }}
             />
 
@@ -246,7 +505,8 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
         <h3>Tips</h3>
         <ul>
           <li>Use the clip summary to keep reels under time limits like 60 seconds.</li>
-          <li>Rename clips in the custom segment editor to keep exports organized.</li>
+          <li><strong>Click any segment name to rename it</strong> - great for organizing clips like "Intro", "Hook", "Outro".</li>
+          <li>Right-click video previews and select "Save video as..." for quick saving.</li>
           <li>Segments are hosted temporarily—download or move them to cloud storage soon after processing.</li>
         </ul>
       </div>
@@ -255,18 +515,33 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
 };
 
 export default function SplitResults({ type, items, meta, onEditAnimation, onDownloadZip }) {
+  console.log('🔍 SplitResults received:', { type, items: items?.length || 0, meta });
+  console.log('🔍 Raw items:', items);
+  
   const normalizedItems = useMemo(
     () =>
-      (items || []).map((item) => ({
-        ...item,
-        previewUrl: toAbsoluteUrl(item.previewUrl || item.url),
-        downloadUrl: toAbsoluteUrl(item.downloadUrl || item.url)
-      })),
+      (items || []).map((item, index) => {
+        const normalized = {
+          ...item,
+          previewUrl: toAbsoluteUrl(item.previewUrl || item.url),
+          downloadUrl: toAbsoluteUrl(item.downloadUrl || item.url)
+        };
+        console.log(`🔍 Normalized item ${index}:`, item, '→', normalized);
+        return normalized;
+      }),
     [items]
   );
 
+  console.log('🔍 Normalized items count:', normalizedItems.length);
+
   if (!normalizedItems.length) {
-    return null;
+    console.log('🔍 SplitResults returning null - no items');
+    return (
+      <div style={{ margin: '20px 0', padding: '15px', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '5px' }}>
+        <p>⚠️ No results to display. Check console for debugging information.</p>
+        <p><small>Received {items?.length || 0} items, type: {type}</small></p>
+      </div>
+    );
   }
 
   if (type === 'video') {

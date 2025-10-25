@@ -7,7 +7,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { NotificationService } from '../utils/NotificationService.js';
-import { realAPI, getApiUrl } from '../utils/apiConfig.js';
+import { realAPI, resolveDisplayUrl } from '../utils/unifiedAPI.js';
 
 export default function EnhancedGifCreator({ onClose }) {
   const [activeTab, setActiveTab] = useState('video');
@@ -152,7 +152,7 @@ export default function EnhancedGifCreator({ onClose }) {
   const downloadResult = () => {
     if (result && result.result) {
       const link = document.createElement('a');
-      link.href = getApiUrl(result.result.downloadUrl);
+      link.href = resolveDisplayUrl(result.result.downloadUrl || result.result.dataUrl || result.result.url);
       link.download = result.result.filename;
       document.body.appendChild(link);
       link.click();

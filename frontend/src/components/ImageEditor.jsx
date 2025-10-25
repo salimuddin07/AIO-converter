@@ -1236,7 +1236,17 @@ const ImageEditor = ({
         document.activeElement.disabled = true;
       }
 
-      // Make API request to backend
+      // Check if we're in Electron mode
+      const isElectron = typeof window !== 'undefined' && window.electronAPI !== undefined;
+      
+      if (isElectron) {
+        // Electron mode - AI background removal not supported locally
+        alert('❌ AI Background Removal is not available in desktop mode.\n\nThis feature requires cloud AI processing and is only available in the web browser version with backend server running.');
+        setIsProcessingBgRemoval(false);
+        return;
+      }
+
+      // Make API request to backend (browser mode only)
       const apiResponse = await fetch('http://localhost:3003/api/ai/remove-background', {
         method: 'POST',
         body: formData,

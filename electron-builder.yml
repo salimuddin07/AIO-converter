@@ -1,0 +1,111 @@
+# Electron Builder Configuration for AIO Converter
+
+appId: com.salimuddin.aioconverter
+productName: AIO Converter
+copyright: Copyright © 2025 Salimuddin
+
+# Build directories
+directories:
+  output: dist
+  buildResources: build
+
+# Files to include in the build
+files:
+  - electron/**/*
+  - frontend/dist/**/*
+  - backend/src/**/*
+  - backend/server.js
+  - backend/package.json
+  - package.json
+  - "!**/*.md"
+  - "!**/*.map"
+  - "!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/node_modules/*.d.ts"
+  - "!**/node_modules/.bin"
+  - "!**/.git"
+  - "!**/.gitignore"
+  - "!**/.eslintrc"
+  - "!**/*.test.js"
+  - "!**/*.spec.js"
+
+# Extra resources to copy (ffmpeg, fonts, etc.)
+extraResources:
+  - from: backend/node_modules/ffmpeg-static
+    to: ffmpeg
+    filter:
+      - "**/*"
+  - from: backend/node_modules/ffprobe-static
+    to: ffmpeg
+    filter:
+      - "**/*"
+
+# ASar archive configuration
+asar: true
+asarUnpack:
+  - "**/node_modules/sharp/**/*"
+  - "**/node_modules/canvas/**/*"
+  - "**/node_modules/@img/**/*"
+
+# Windows-specific configuration
+win:
+  target:
+    - target: dir
+  icon: build/icon.ico
+
+# NSIS Installer Configuration
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: AIO Converter
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeader: build/installerHeader.bmp
+  installerHeaderIcon: build/icon.ico
+  installerSidebar: build/installerSidebar.bmp
+  deleteAppDataOnUninstall: true
+  runAfterFinish: true
+  include: build/installer.nsh
+  license: LICENSE
+  warningsAsErrors: false
+  guid: aio-converter-app-id
+
+# Portable app configuration
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+  requestExecutionLevel: user
+  unpackDirName: ${productName}
+
+# Compression
+compression: maximum
+
+# Publish configuration (for auto-updates, optional)
+publish:
+  provider: github
+  owner: salimuddin07
+  repo: GIF-converter
+  private: false
+  releaseType: release
+
+# Package metadata
+extraMetadata:
+  main: electron/main.js
+  name: aio-converter
+
+# Node modules to rebuild for Electron
+buildDependenciesFromSource: true
+npmRebuild: true
+
+# Remove dev dependencies
+removePackageScripts: true
+removePackageKeywords: true
+
+# Protocols (for file associations)
+protocols:
+  name: AIO Converter
+  schemes:
+    - aioconverter

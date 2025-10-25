@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import VideoResults from './VideoResults';
-import { realAPI } from '../utils/apiConfig.js';
+import { api as realAPI } from '../utils/unifiedAPI.js';
 
 const VideoToGifConverter = () => {
   const [file, setFile] = useState(null);
@@ -171,7 +171,7 @@ const VideoToGifConverter = () => {
           </p>
           
           <p className="hint">
-            All uploaded files are automatically deleted 1 hour after upload.<br />
+            All uploaded files are automatically deleted 10 minutes after upload.<br />
             For permanent links you can use: https://aio-convert.com/video-to-gif?url=<span style={{color:'#2c882c'}}>https://example.com/source-video.mp4</span>
           </p>
         </fieldset>

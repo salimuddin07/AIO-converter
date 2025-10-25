@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { NotificationService } from '../utils/NotificationService.js';
-import { realAPI, downloadFile } from '../utils/apiConfig.js';
+import { api as realAPI } from '../utils/unifiedAPI.js';
+
+// Legacy compatibility for downloadFile
+const downloadFile = async (data, filename) => {
+  return await realAPI.saveFile(data, filename);
+};
 
 const FORMAT_CONFIG = {
   apng: {
