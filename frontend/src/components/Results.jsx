@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { realAPI } from '../utils/apiConfig';
+import { api as realAPI } from '../utils/unifiedAPI.js';
 
 export default function Results({ results }) {
   const [preview, setPreview] = useState(null);

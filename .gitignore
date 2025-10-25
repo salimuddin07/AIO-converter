@@ -12,3 +12,29 @@ frontend/dist/
 .env
 backend/.env
 .vercel
+
+# Electron build artifacts
+dist/
+dist-electron/
+out/
+*.asar
+.electron-builder.yaml
+*.blockmap
+
+# Electron cache
+.cache/
+electron-builder-effective-config.yaml
+
+# Build resources (keep structure but ignore large binary files)
+build/*.bmp
+build/*.ico
+!build/ICON_README.md
+!build/installer.nsh
+
+# Resources directory
+resources/
+!resources/.gitkeep
+
+# Additional OS files
+Thumbs.db
+desktop.ini
