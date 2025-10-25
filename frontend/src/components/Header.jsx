@@ -35,6 +35,7 @@ export default function Header({ currentTool, setCurrentTool }) {
           <li><a href="#" className={`nav-link optimize ${currentTool === 'optimize' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'optimize')}>Optimize</a></li>
           <li><a href="#" className={`nav-link effects ${currentTool === 'effects' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'effects')}>Effects</a></li>
           <li><a href="#" className={`nav-link split ${currentTool === 'split' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'split')}>Split</a></li>
+          <li><a href="#" className={`nav-link frame-split ${currentTool === 'frame-splitter' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'frame-splitter')}>Frame Split</a></li>
           <li><a href="#" className={`nav-link timed-split ${currentTool === 'timed-video-split' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'timed-video-split')}>Timed Split</a></li>
           <li><a href="#" className={`nav-link pdf-to-md ${currentTool === 'pdf-to-md' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'pdf-to-md')}>PDF to MD</a></li>
           <li><a href="#" className={`nav-link md-to-pdf ${currentTool === 'md-to-pdf' ? 'active' : ''}`} onClick={(e) => handleNavClick(e, 'md-to-pdf')}>MD to PDF</a></li>

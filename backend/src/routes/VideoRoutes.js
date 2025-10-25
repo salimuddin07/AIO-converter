@@ -258,4 +258,78 @@ router.delete('/cleanup/:videoId', async (req, res) => {
   }
 });
 
+// Extract frames from video
+router.post('/extract-frames', upload.single('video'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No video file provided' });
+    }
+
+    const options = {
+      format: req.body.format || 'png',
+      quality: req.body.quality || 'high',
+      skipDuplicates: req.body.skipDuplicates === 'true',
+      maxFrames: parseInt(req.body.maxFrames) || 0,
+      frameRate: parseInt(req.body.frameRate) || 0,
+      createZip: req.body.createZip !== 'false'
+    };
+
+    const result = await videoProcessor.extractFrames(req.file.path, options);
+    
+    res.json({
+      success: true,
+      jobId: result.jobId,
+      frames: result.frames,
+      zipUrl: result.zipUrl,
+      frameCount: result.frameCount,
+      message: `Successfully extracted ${result.frameCount} frames`
+    });
+
+  } catch (error) {
+    console.error('Frame extraction error:', error);
+    res.status(500).json({ 
+      error: 'Frame extraction failed',
+      details: error.message 
+    });
+  }
+});
+
+// Extract frames from video URL
+router.post('/extract-frames-url', async (req, res) => {
+  try {
+    const { url, options = {} } = req.body;
+    
+    if (!url) {
+      return res.status(400).json({ error: 'No video URL provided' });
+    }
+
+    const frameOptions = {
+      format: options.format || 'png',
+      quality: options.quality || 'high',
+      skipDuplicates: options.skipDuplicates || false,
+      maxFrames: parseInt(options.maxFrames) || 0,
+      frameRate: parseInt(options.frameRate) || 0,
+      createZip: options.createZip !== false
+    };
+
+    const result = await videoProcessor.extractFramesFromUrl(url, frameOptions);
+    
+    res.json({
+      success: true,
+      jobId: result.jobId,
+      frames: result.frames,
+      zipUrl: result.zipUrl,
+      frameCount: result.frameCount,
+      message: `Successfully extracted ${result.frameCount} frames`
+    });
+
+  } catch (error) {
+    console.error('Frame extraction from URL error:', error);
+    res.status(500).json({ 
+      error: 'Frame extraction from URL failed',
+      details: error.message 
+    });
+  }
+});
+
 export default router;
