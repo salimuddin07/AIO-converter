@@ -784,6 +784,118 @@ export const api = {
   },
 
   /**
+   * Extract frames from video
+   */
+  async extractVideoFrames(file, options = {}) {
+    console.log('🎞️ Extracting video frames:', file.name);
+    
+    if (isElectron()) {
+      // Convert File to temp file for Electron
+      const arrayBuffer = await file.arrayBuffer();
+      const ext = file.name.split('.').pop() || 'mp4';
+      
+      const result = await window.electronAPI.extractVideoFrames({
+        buffer: arrayBuffer,
+        originalName: file.name,
+        extension: ext,
+        options: options
+      });
+      
+      return result;
+    } else {
+      const formData = new FormData();
+      formData.append('video', file);
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/split/video/extract-frames`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Video frame extraction failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Extract frames from video URL
+   */
+  async extractVideoFramesFromUrl(url, options = {}) {
+    if (isElectron()) {
+      throw new Error('extractVideoFramesFromUrl not supported in Electron mode');
+    } else {
+      const response = await fetch(`${HTTP_API_BASE}/api/video/extract-frames-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, options })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Video frame extraction from URL failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Extract frames from GIF
+   */
+  async extractGifFrames(file, options = {}) {
+    console.log('🎭 Extracting GIF frames:', file.name);
+    
+    if (isElectron()) {
+      // Convert File to temp file for Electron
+      const arrayBuffer = await file.arrayBuffer();
+      
+      const result = await window.electronAPI.extractGifFrames({
+        buffer: arrayBuffer,
+        originalName: file.name,
+        options: options
+      });
+      
+      return result;
+    } else {
+      const formData = new FormData();
+      formData.append('gif', file);
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/split/gif/extract-frames`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`GIF frame extraction failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Extract frames from GIF URL
+   */
+  async extractGifFramesFromUrl(url, options = {}) {
+    if (isElectron()) {
+      throw new Error('extractGifFramesFromUrl not supported in Electron mode');
+    } else {
+      // Use existing splitGifFromUrl with frame extraction options
+      return await this.splitGifFromUrl(url, { 
+        ...options, 
+        extractFrames: true 
+      });
+    }
+  },
+
+  /**
    * Convert to WebP format
    */
   async convertToWebp(files, options = {}) {
@@ -1070,6 +1182,10 @@ export const {
   splitGifFromUrl,
   splitVideo,
   splitVideoFromUrl,
+  extractVideoFrames,
+  extractVideoFramesFromUrl,
+  extractGifFrames,
+  extractGifFramesFromUrl,
   convertToWebp,
   decodeWebp,
   describeImage,

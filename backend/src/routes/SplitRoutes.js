@@ -10,7 +10,7 @@ import fsPromises from 'fs/promises';
 import crypto from 'crypto';
 import archiver from 'archiver';
 
-import { videoSplitterService } from '../services/index.js';
+import { videoSplitterService, videoProcessor } from '../services/index.js';
 import { splitService } from '../services/SplitService.js';
 import { tempDir, outputDir, getSafeFilename, ensureDirectories } from '../utils/FilePathUtils.js';
 
@@ -554,4 +554,131 @@ router.get('/:type/download-zip/:jobId', async (req, res) => {
     return res.status(500).json({ success: false, error: 'Failed to create zip archive' });
   }
 });
+
+// Extract frames from GIF (enhanced frame extraction)
+router.post('/gif/extract-frames', upload.single('gif'), async (req, res) => {
+  const jobId = crypto.randomUUID();
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No GIF file provided' });
+    }
+
+    const options = {
+      format: req.body.format || 'png',
+      quality: req.body.quality || 'high',
+      skipDuplicates: req.body.skipDuplicates === 'true',
+      maxFrames: parseInt(req.body.maxFrames) || 0,
+      createZip: req.body.createZip !== 'false'
+    };
+
+    console.log(`Starting GIF frame extraction: ${jobId}`);
+    const result = await splitService.splitAnimatedImage(req.file.path, {
+      outputFormat: options.format,
+      quality: options.quality === 'high' ? 95 : options.quality === 'medium' ? 85 : 75,
+      skipDuplicates: options.skipDuplicates,
+      createZip: options.createZip,
+      jobId
+    });
+
+    const job = {
+      id: jobId,
+      type: 'gif-frames',
+      status: 'completed',
+      frames: result.frames || [],
+      originalFile: req.file.originalname,
+      extractedFrames: result.frames?.length || 0,
+      outputDirectory: result.outputDirectory,
+      zipPath: null,
+      createdAt: new Date().toISOString()
+    };
+
+    if (options.createZip && result.frames?.length) {
+      job.zipPath = await createZipArchive(jobId, result.frames, result.outputDirectory, 'gif-frames');
+    }
+
+    activeSplitJobs.set(jobId, job);
+
+    res.json({
+      success: true,
+      jobId,
+      frames: result.frames || [],
+      frameCount: result.frames?.length || 0,
+      zipUrl: job.zipPath ? `/api/split/gif-frames/download-zip/${jobId}` : null,
+      message: `Successfully extracted ${result.frames?.length || 0} frames from GIF`
+    });
+
+  } catch (error) {
+    console.error('GIF frame extraction error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'GIF frame extraction failed',
+      details: error.message 
+    });
+  }
+});
+
+// Extract frames from video (enhanced frame extraction)  
+router.post('/video/extract-frames', upload.single('video'), async (req, res) => {
+  const jobId = crypto.randomUUID();
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No video file provided' });
+    }
+
+    const options = {
+      format: req.body.format || 'png',
+      quality: req.body.quality || 'high',
+      skipDuplicates: req.body.skipDuplicates === 'true',
+      maxFrames: parseInt(req.body.maxFrames) || 0,
+      frameRate: parseInt(req.body.frameRate) || 0,
+      createZip: req.body.createZip !== 'false'
+    };
+
+    console.log(`Starting video frame extraction: ${jobId}`);
+    const result = await videoProcessor.extractFrames(req.file.path, {
+      fps: options.frameRate || 1,
+      format: options.format,
+      quality: options.quality === 'high' ? 95 : options.quality === 'medium' ? 85 : 75,
+      jobId
+    });
+
+    const job = {
+      id: jobId,
+      type: 'video-frames',
+      status: 'completed',
+      frames: result.frames || [],
+      originalFile: req.file.originalname,
+      extractedFrames: result.frames?.length || 0,
+      outputDirectory: result.outputDirectory,
+      zipPath: null,
+      createdAt: new Date().toISOString()
+    };
+
+    if (options.createZip && result.frames?.length) {
+      job.zipPath = await createZipArchive(jobId, result.frames, result.outputDirectory, 'video-frames');
+    }
+
+    activeSplitJobs.set(jobId, job);
+
+    res.json({
+      success: true,
+      jobId,
+      frames: result.frames || [],
+      frameCount: result.frames?.length || 0,
+      zipUrl: job.zipPath ? `/api/split/video-frames/download-zip/${jobId}` : null,
+      message: `Successfully extracted ${result.frames?.length || 0} frames from video`
+    });
+
+  } catch (error) {
+    console.error('Video frame extraction error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Video frame extraction failed',
+      details: error.message 
+    });
+  }
+});
+
 export default router;
