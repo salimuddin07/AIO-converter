@@ -32,6 +32,8 @@ export default function GifSplitter() {
   const [loadingTool, setLoadingTool] = useState(null);
   const [error, setError] = useState('');
   const [splitData, setSplitData] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
 
   const videoAcceptAttr = useMemo(() => SUPPORTED_VIDEO_TYPES.map((ext) => `.${ext}`).join(','), [SUPPORTED_VIDEO_TYPES]);
 
@@ -225,14 +227,33 @@ export default function GifSplitter() {
     try {
       setLoadingTool(tool);
       setError('');
+      setProgress(10);
+      setProgressMessage(tool === TOOL_VIDEO ? 'Preparing video split...' : 'Preparing GIF split...');
+      
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev < 90) return prev + 5;
+          return prev;
+        });
+      }, 500);
+      
       const splitResult = await requestFn();
+      
+      clearInterval(progressInterval);
+      setProgress(95);
+      setProgressMessage('Finalizing...');
+
+      console.log('🔍 RAW Split result received:', splitResult);
+      console.log('🔍 Split result structure:', Object.keys(splitResult || {}));
 
       const items = tool === TOOL_VIDEO
         ? splitResult.segments || []
         : splitResult.frames || [];
 
-      console.log('🔍 Split result received:', splitResult);
       console.log('🔍 Items extracted:', items);
+      console.log('🔍 Items count:', items.length);
+      console.log('🔍 First item structure:', items[0]);
       console.log('🔍 Setting split data with type:', tool, 'and', items.length, 'items');
       
       const splitDataToSet = {
@@ -245,9 +266,18 @@ export default function GifSplitter() {
       
       console.log('🔍 Final split data:', splitDataToSet);
       setSplitData(splitDataToSet);
+      setProgress(100);
+      setProgressMessage('Complete!');
+      
+      setTimeout(() => {
+        setProgress(0);
+        setProgressMessage('');
+      }, 1000);
     } catch (err) {
       console.error('Split error:', err);
       setError(err.message || 'Split failed');
+      setProgress(0);
+      setProgressMessage('');
     } finally {
       setLoadingTool(null);
     }
@@ -586,6 +616,29 @@ export default function GifSplitter() {
       </p>
 
       {activeTool === TOOL_GIF ? renderGifForm() : renderVideoForm()}
+
+      {loadingTool && progress > 0 && (
+        <div className="progress-container" style={{ margin: '20px 0', padding: '15px', background: '#f0f4f8', borderRadius: '8px' }}>
+          <div style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 'bold', color: '#2d3748' }}>{progressMessage}</span>
+            <span style={{ color: '#4a5568' }}>{Math.round(progress)}%</span>
+          </div>
+          <div style={{ width: '100%', height: '10px', background: '#cbd5e0', borderRadius: '5px', overflow: 'hidden' }}>
+            <div 
+              style={{ 
+                width: `${progress}%`, 
+                height: '100%', 
+                background: 'linear-gradient(90deg, #4299e1 0%, #3182ce 100%)', 
+                transition: 'width 0.3s ease',
+                borderRadius: '5px'
+              }}
+            />
+          </div>
+          <div style={{ marginTop: '8px', fontSize: '12px', color: '#718096' }}>
+            {loadingTool === TOOL_VIDEO ? 'Splitting video into segments...' : 'Extracting GIF frames...'}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="error" style={{ color: 'red', margin: '20px 0' }}>

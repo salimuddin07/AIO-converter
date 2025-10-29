@@ -38,16 +38,21 @@ const safeElectronCall = async (method, ...args) => {
  */
 export const api = {
   
-  // Environment detection
-  isElectron: isElectron(),
+  // Environment detection - use getter to make it dynamic
+  get isElectron() {
+    return isElectron();
+  },
   
   /**
    * Create GIF from images
    */
   async createGifFromImages(files, options = {}) {
+    const inElectron = isElectron();
     console.log('🎬 Creating GIF from', files.length, 'images');
+    console.log('📱 Running in Electron:', inElectron);
+    console.log('🔧 window.electronAPI available:', typeof window !== 'undefined' && !!window.electronAPI);
     
-    if (isElectron()) {
+    if (inElectron) {
       // Electron mode - use IPC
       console.log('📱 Using Electron IPC for GIF creation');
       
@@ -251,12 +256,31 @@ export const api = {
         
         const result = await window.electronAPI.convertVideo({
           inputPath,
-          outputPath: `converted_video_${Date.now()}.${options.format || 'mp4'}`,
-          format: options.format || 'mp4',
-          quality: options.quality || 'medium'
+          outputPath: `converted_video_${Date.now()}.${options.outputFormat || options.format || 'mp4'}`,
+          format: options.outputFormat || options.format || 'mp4',
+          options: {
+            quality: options.quality || 'medium',
+            width: options.width,
+            height: options.height,
+            fps: options.fps,
+            startTime: options.startTime,
+            duration: options.duration
+          }
         });
         
-        console.log('✅ Video converted successfully via Electron');
+        if (result.success && result.outputPath) {
+          // Add file URL for preview/download
+          const normalizedPath = result.outputPath.replace(/\\/g, '/');
+          const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+          
+          result.dataUrl = fileUrl;
+          result.url = fileUrl;
+          result.previewUrl = fileUrl;
+          result.downloadUrl = fileUrl;
+          result.filename = result.outputPath.split(/[/\\]/).pop();
+        }
+        
+        console.log('✅ Video converted successfully via Electron:', result);
         return result;
         
       } catch (error) {
