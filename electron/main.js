@@ -314,33 +314,95 @@ ipcMain.handle('convert-video', async (event, { inputPath, outputPath, format, o
     throw new Error('FFmpeg not available');
   }
 
-  return new Promise((resolve, reject) => {
-    let command = ffmpeg(inputPath);
+  try {
+    const outputFilePath = path.isAbsolute(outputPath) ? outputPath : path.join(tempDir, outputPath);
+    
+    // Ensure output directory exists
+    await fs.mkdir(path.dirname(outputFilePath), { recursive: true });
 
-    // Set output format
-    command = command.toFormat(format);
+    console.log('🎥 Converting video:', inputPath, 'to', format);
+    console.log('📁 Output path:', outputFilePath);
+    console.log('⚙️ Options:', options);
 
-    // Apply options
-    if (options.videoBitrate) {
-      command = command.videoBitrate(options.videoBitrate);
-    }
-    if (options.size) {
-      command = command.size(options.size);
-    }
+    return new Promise((resolve, reject) => {
+      let command = ffmpeg(inputPath);
 
-    command
-      .on('end', () => {
-        resolve({
-          success: true,
-          outputPath: outputPath,
-          message: 'Video converted successfully'
-        });
-      })
-      .on('error', (err) => {
-        reject(new Error(`Video conversion failed: ${err.message}`));
-      })
-      .save(outputPath);
-  });
+      // Handle GIF conversion specially
+      if (format.toLowerCase() === 'gif') {
+        console.log('🎞️ Converting to GIF format');
+        
+        // Apply timing options first
+        if (options.startTime !== undefined) {
+          command = command.seekInput(options.startTime);
+        }
+        if (options.duration !== undefined) {
+          command = command.duration(options.duration);
+        }
+        
+        // GIF-specific options
+        command = command
+          .outputOptions([
+            '-vf', `fps=${options.fps || 10},scale=${options.width || 320}:${options.height || -1}:flags=lanczos,palettegen=reserve_transparent=0`,
+            '-y' // Overwrite output file
+          ])
+          .toFormat('gif');
+      } else {
+        // Regular video conversion
+        command = command.toFormat(format);
+        
+        // Apply timing options
+        if (options.startTime !== undefined) {
+          command = command.seekInput(options.startTime);
+        }
+        if (options.duration !== undefined) {
+          command = command.duration(options.duration);
+        }
+
+        // Apply other options
+        if (options.videoBitrate) {
+          command = command.videoBitrate(options.videoBitrate);
+        }
+        if (options.width && options.height) {
+          command = command.size(`${options.width}x${options.height}`);
+        }
+      }
+
+      command
+        .on('start', (commandLine) => {
+          console.log('🚀 FFmpeg command:', commandLine);
+        })
+        .on('progress', (progress) => {
+          console.log('📊 Progress:', Math.round(progress.percent || 0) + '% done');
+        })
+        .on('end', async () => {
+          try {
+            console.log('✅ Video conversion completed');
+            
+            // Verify file exists and get stats
+            const stats = await fs.stat(outputFilePath);
+            
+            resolve({
+              success: true,
+              outputPath: outputFilePath,
+              filename: path.basename(outputFilePath),
+              size: stats.size,
+              format: format,
+              message: `Video converted to ${format.toUpperCase()} successfully`
+            });
+          } catch (error) {
+            reject(new Error(`Conversion completed but failed to verify output: ${error.message}`));
+          }
+        })
+        .on('error', (err) => {
+          console.error('❌ FFmpeg error:', err);
+          reject(new Error(`Video conversion failed: ${err.message}`));
+        })
+        .save(outputFilePath);
+    });
+  } catch (error) {
+    console.error('❌ Video conversion setup failed:', error);
+    throw new Error(`Video conversion failed: ${error.message}`);
+  }
 });
 
 // Open file dialog
