@@ -8,6 +8,7 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron')
 const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
+const archiver = require('archiver'); // For ZIP creation
 
 // Import processing libraries directly
 let sharp, ffmpeg, Canvas;
@@ -414,8 +415,17 @@ ipcMain.handle('create-gif-from-images', async (event, { inputPaths, outputPath,
       
       // Set GIF options
       encoder.setRepeat(options.loop !== false ? 0 : -1); // 0 = infinite loop
-      encoder.setDelay(Math.round(1000 / (options.fps || 2))); // delay in ms
       encoder.setQuality(10); // lower is better quality
+      
+      // Determine delay strategy
+      const frameDelays = options.frameDelays; // Array of individual delays
+      const globalDelay = options.delay || options.frameDelay || Math.round(1000 / (options.fps || 10));
+      
+      console.log('🎬 Delay configuration:', {
+        frameDelays: frameDelays ? `Array of ${frameDelays.length} delays` : 'None',
+        globalDelay: globalDelay,
+        fps: options.fps
+      });
       
       // Start encoding
       encoder.start();
@@ -425,16 +435,30 @@ ipcMain.handle('create-gif-from-images', async (event, { inputPaths, outputPath,
         const imagePath = inputPaths[i];
         console.log(`🖼️ Processing image ${i + 1}/${inputPaths.length}: ${path.basename(imagePath)}`);
         
+        // Determine delay for this frame
+        let frameDelay = globalDelay;
+        if (frameDelays && frameDelays[i] !== undefined) {
+          frameDelay = parseInt(frameDelays[i], 10);
+          if (isNaN(frameDelay) || frameDelay < 10) {
+            frameDelay = globalDelay;
+          }
+        }
+        
+        console.log(`⏱️ Frame ${i + 1} delay: ${frameDelay}ms`);
+        
         try {
           // Use Sharp to resize and convert to buffer
           const imageBuffer = await sharp(imagePath)
             .resize(width, height, {
-              fit: 'inside',
+              fit: options.fit || 'inside',
               background: { r: 255, g: 255, b: 255, alpha: 1 }
             })
             .raw()
             .ensureAlpha()
             .toBuffer({ resolveWithObject: true });
+          
+          // Set delay for this specific frame
+          encoder.setDelay(frameDelay);
           
           // Add frame to GIF
           encoder.addFrame(imageBuffer.data);
@@ -488,6 +512,10 @@ ipcMain.handle('create-gif-from-images', async (event, { inputPaths, outputPath,
 
 // Split GIF into frames
 ipcMain.handle('split-gif', async (event, { inputPath, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp not available');
+  }
+
   try {
     console.log('✂️ Splitting GIF:', inputPath);
     
@@ -498,19 +526,48 @@ ipcMain.handle('split-gif', async (event, { inputPath, options = {} }) => {
     }
     
     // Create output directory for frames
-    const outputDir = path.join(tempDir, `gif_frames_${Date.now()}`);
+    const outputDir = path.join(tempDir, `gif_split_${Date.now()}`);
     await fs.mkdir(outputDir, { recursive: true });
     
     // Use Sharp to extract frames from GIF
-    const outputPattern = path.join(outputDir, 'frame_%03d.png');
+    const gifBuffer = await fs.readFile(inputFilePath);
+    const { pages } = await sharp(gifBuffer, { pages: -1 }).metadata();
     
-    // For now, return a placeholder result
-    // TODO: Implement actual GIF splitting logic
+    console.log(`📊 GIF has ${pages} frames to split`);
+    
+    // Extract each frame
+    const frames = [];
+    for (let i = 0; i < pages; i++) {
+      const frameFilename = `frame_${String(i + 1).padStart(4, '0')}.png`;
+      const framePath = path.join(outputDir, frameFilename);
+      
+      // Extract frame i from the GIF
+      await sharp(gifBuffer, { page: i })
+        .png()
+        .toFile(framePath);
+      
+      // Generate file URL
+      const normalizedPath = framePath.replace(/\\/g, '/');
+      const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+      
+      frames.push({
+        id: i + 1,
+        filename: frameFilename,
+        path: framePath,
+        url: fileUrl,
+        downloadUrl: fileUrl,
+        size: (await fs.stat(framePath)).size
+      });
+    }
+    
+    console.log('✅ GIF splitting completed');
+    
     return {
       success: true,
-      frames: [],
+      frames: frames,
+      frameCount: frames.length,
       outputDir: outputDir,
-      message: 'GIF splitting feature coming soon in desktop mode'
+      message: `Successfully split GIF into ${frames.length} frames`
     };
     
   } catch (error) {
@@ -940,6 +997,621 @@ ipcMain.handle('rename-file', async (event, { oldPath, newName }) => {
       success: false,
       error: error.message
     };
+  }
+});
+
+// Extract frames from video
+ipcMain.handle('extract-video-frames', async (event, args) => {
+  console.log('🔍 extract-video-frames received args:', args);
+  
+  const { inputPath, options = {} } = args || {};
+  
+  if (!ffmpeg) {
+    throw new Error('FFmpeg not available');
+  }
+
+  try {
+    if (!inputPath) {
+      throw new Error('inputPath is required but was not provided');
+    }
+    
+    const inputFilePath = path.isAbsolute(inputPath) ? inputPath : path.join(tempDir, inputPath);
+    
+    if (!fsSync.existsSync(inputFilePath)) {
+      throw new Error(`Input video file not found: ${inputFilePath}`);
+    }
+    
+    console.log('🎞️ Extracting frames from video:', inputFilePath);
+    console.log('🔍 Frame extraction options:', options);
+    
+    // Create output directory for frames
+    const outputDir = path.join(tempDir, `video_frames_${Date.now()}`);
+    await fs.mkdir(outputDir, { recursive: true });
+    
+    // Determine frame extraction settings based on mode
+    let frameFilter = '';
+    const extractionMode = options.extractionMode || 'fps';
+    
+    console.log('🎯 Extraction mode:', extractionMode);
+    
+    if (extractionMode === 'every-frame') {
+      // Extract every frame
+      frameFilter = '';
+    } else if (extractionMode === 'interval') {
+      // Extract frames at specific millisecond intervals
+      const intervalMs = options.intervalMs || 1000;
+      const intervalSeconds = intervalMs / 1000;
+      const fps = 1 / intervalSeconds;
+      frameFilter = `fps=${fps}`;
+      console.log('🕒 Interval mode:', intervalMs + 'ms', '→', fps, 'fps');
+    } else {
+      // FPS mode (default)
+      const fps = options.fps || 1;
+      frameFilter = `fps=${fps}`;
+      console.log('🎬 FPS mode:', fps);
+    }
+    
+    // Convert quality preset to numeric value for FFmpeg
+    let quality = 2; // Default quality (lower is better, 1-31 scale)
+    console.log('🔍 Original quality option:', options.quality, typeof options.quality);
+    
+    if (options.quality) {
+      if (typeof options.quality === 'number') {
+        quality = Math.max(1, Math.min(31, options.quality));
+        console.log('🔢 Using numeric quality:', quality);
+      } else {
+        // Convert quality presets to numeric values
+        const qualityMap = {
+          'low': 10,      // Lower quality, smaller files
+          'medium': 5,    // Medium quality
+          'high': 2,      // High quality, larger files
+          'best': 1       // Best quality, largest files
+        };
+        quality = qualityMap[options.quality.toLowerCase()] || 2;
+        console.log('🎯 Converted quality preset:', options.quality, '→', quality);
+      }
+    }
+    
+    console.log('🎯 Final FFmpeg settings:', { frameFilter, quality, outputDir });
+    
+    const outputPattern = path.join(outputDir, 'frame_%04d.png');
+    
+    return new Promise((resolve, reject) => {
+      let frameCount = 0;
+      
+      // Build FFmpeg command based on extraction mode
+      const command = ffmpeg(inputFilePath);
+      
+      if (frameFilter) {
+        command.outputOptions([
+          `-vf`, frameFilter,
+          `-q:v`, quality.toString()
+        ]);
+      } else {
+        // Extract every frame
+        command.outputOptions([
+          `-q:v`, quality.toString()
+        ]);
+      }
+      
+      command
+        .output(outputPattern)
+        .on('start', (commandLine) => {
+          console.log('🚀 FFmpeg frame extraction command:', commandLine);
+        })
+        .on('progress', (progress) => {
+          console.log('📊 Frame extraction progress:', Math.round(progress.percent || 0) + '% done');
+        })
+        .on('end', async () => {
+          try {
+            console.log('✅ Frame extraction completed');
+            
+            // Get list of extracted frames
+            const files = await fs.readdir(outputDir);
+            let frameFiles = files
+              .filter(file => file.startsWith('frame_') && file.endsWith('.png'))
+              .sort()
+              .map(file => path.join(outputDir, file));
+            
+            // Apply max frames limit if specified
+            if (options.maxFrames && options.maxFrames > 0) {
+              frameFiles = frameFiles.slice(0, options.maxFrames);
+              console.log(`🔢 Limited to ${options.maxFrames} frames (from ${files.length} total)`);
+            }
+            
+            // Generate file URLs for each frame
+            const frames = frameFiles.map((framePath, index) => {
+              const normalizedPath = framePath.replace(/\\/g, '/');
+              const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+              
+              return {
+                index: index + 1,
+                filename: path.basename(framePath),
+                path: framePath,
+                url: fileUrl,
+                downloadUrl: fileUrl,
+                previewUrl: fileUrl
+              };
+            });
+
+            // Create ZIP if requested
+            let zipUrl = null;
+            let zipPath = null;
+            if (options.createZip && frames.length > 0) {
+              const zipFileName = `video_frames_${Date.now()}.zip`;
+              zipPath = path.join(tempDir, zipFileName);
+              
+              try {
+                await new Promise((resolveZip, rejectZip) => {
+                  const output = fsSync.createWriteStream(zipPath);
+                  const archive = archiver('zip', { zlib: { level: 9 } });
+                  
+                  output.on('close', () => {
+                    console.log(`📦 ZIP created: ${archive.pointer()} total bytes`);
+                    resolveZip();
+                  });
+                  
+                  archive.on('error', (err) => {
+                    console.error('❌ ZIP creation error:', err);
+                    rejectZip(err);
+                  });
+                  
+                  archive.pipe(output);
+                  
+                  // Add all frame files to ZIP
+                  frameFiles.forEach((framePath) => {
+                    archive.file(framePath, { name: path.basename(framePath) });
+                  });
+                  
+                  archive.finalize();
+                });
+                
+                const normalizedZipPath = zipPath.replace(/\\/g, '/');
+                zipUrl = normalizedZipPath.startsWith('/') ? `file://${normalizedZipPath}` : `file:///${normalizedZipPath}`;
+                console.log('✅ ZIP created successfully:', zipUrl);
+              } catch (zipError) {
+                console.error('❌ ZIP creation failed:', zipError);
+                // Continue without ZIP
+              }
+            }
+            
+            resolve({
+              success: true,
+              frames: frames,
+              frameCount: frames.length,
+              outputDir: outputDir,
+              zipUrl: zipUrl,
+              zipPath: zipUrl ? zipPath : null,
+              message: `Extracted ${frames.length} frames from video${zipUrl ? ' and created ZIP' : ''}`
+            });
+            
+          } catch (error) {
+            reject(new Error(`Frame extraction completed but failed to process results: ${error.message}`));
+          }
+        })
+        .on('error', (err) => {
+          console.error('❌ FFmpeg frame extraction error:', err);
+          reject(new Error(`Frame extraction failed: ${err.message}`));
+        });
+      
+      command.run();
+    });
+    
+  } catch (error) {
+    console.error('❌ Video frame extraction setup failed:', error);
+    throw new Error(`Video frame extraction failed: ${error.message}`);
+  }
+});
+
+// Extract frames from GIF
+ipcMain.handle('extract-gif-frames', async (event, { inputPath, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp not available');
+  }
+
+  try {
+    const inputFilePath = path.isAbsolute(inputPath) ? inputPath : path.join(tempDir, inputPath);
+    
+    if (!fsSync.existsSync(inputFilePath)) {
+      throw new Error(`Input GIF file not found: ${inputFilePath}`);
+    }
+    
+    console.log('🎞️ Extracting frames from GIF:', inputFilePath);
+    
+    // Create output directory for frames
+    const outputDir = path.join(tempDir, `gif_frames_${Date.now()}`);
+    await fs.mkdir(outputDir, { recursive: true });
+    
+    // Use Sharp to get GIF metadata and extract frames
+    const gifBuffer = await fs.readFile(inputFilePath);
+    const { pages } = await sharp(gifBuffer, { pages: -1 }).metadata();
+    
+    console.log(`📊 GIF has ${pages} frames`);
+    
+    // Extract each frame
+    const frames = [];
+    for (let i = 0; i < pages; i++) {
+      const frameFilename = `frame_${String(i + 1).padStart(4, '0')}.png`;
+      const framePath = path.join(outputDir, frameFilename);
+      
+      // Extract frame i from the GIF
+      await sharp(gifBuffer, { page: i })
+        .png()
+        .toFile(framePath);
+      
+      // Generate file URL
+      const normalizedPath = framePath.replace(/\\/g, '/');
+      const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+      
+      frames.push({
+        index: i + 1,
+        filename: frameFilename,
+        path: framePath,
+        url: fileUrl,
+        downloadUrl: fileUrl
+      });
+    }
+    
+    console.log('✅ GIF frame extraction completed');
+    
+    return {
+      success: true,
+      frames: frames,
+      frameCount: frames.length,
+      outputDir: outputDir,
+      message: `Extracted ${frames.length} frames from GIF`
+    };
+    
+  } catch (error) {
+    console.error('❌ GIF frame extraction failed:', error);
+    throw new Error(`GIF frame extraction failed: ${error.message}`);
+  }
+});
+
+// Text to Image conversion
+ipcMain.handle('text-to-image', async (event, { text, options = {} }) => {
+  if (!Canvas) {
+    throw new Error('Canvas not available');
+  }
+
+  try {
+    const {
+      width = 800,
+      height = 400,
+      fontSize = 48,
+      fontFamily = 'Arial',
+      textColor = '#000000',
+      backgroundColor = '#ffffff',
+      textAlign = 'center',
+      padding = 50,
+      lineHeight = 1.2,
+      format = 'png'
+    } = options;
+
+    // Create canvas
+    const { createCanvas } = Canvas;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    // Set background
+    ctx.fillStyle = backgroundColor;
+    ctx.fillRect(0, 0, width, height);
+
+    // Set text properties
+    ctx.fillStyle = textColor;
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.textAlign = textAlign;
+    ctx.textBaseline = 'middle';
+
+    // Word wrap and draw text
+    const words = text.split(' ');
+    const lines = [];
+    let currentLine = words[0];
+
+    for (let i = 1; i < words.length; i++) {
+      const word = words[i];
+      const testLine = currentLine + ' ' + word;
+      const metrics = ctx.measureText(testLine);
+      
+      if (metrics.width > width - (padding * 2)) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    lines.push(currentLine);
+
+    // Draw each line
+    const lineHeightPx = fontSize * lineHeight;
+    const startY = (height - (lines.length * lineHeightPx)) / 2 + lineHeightPx / 2;
+
+    lines.forEach((line, index) => {
+      const y = startY + (index * lineHeightPx);
+      const x = textAlign === 'center' ? width / 2 : 
+                textAlign === 'right' ? width - padding : padding;
+      ctx.fillText(line, x, y);
+    });
+
+    // Convert to buffer
+    const buffer = canvas.toBuffer(`image/${format === 'jpg' ? 'jpeg' : format}`);
+    
+    // Save to temp file
+    const outputFileName = `text_image_${Date.now()}.${format}`;
+    const outputPath = path.join(tempDir, outputFileName);
+    await fs.writeFile(outputPath, buffer);
+
+    return {
+      success: true,
+      filePath: outputPath,
+      fileName: outputFileName,
+      url: `file:///${outputPath.replace(/\\/g, '/')}`
+    };
+
+  } catch (error) {
+    console.error('❌ Text to image conversion failed:', error);
+    throw new Error(`Text to image conversion failed: ${error.message}`);
+  }
+});
+
+// Add text overlay to existing image
+ipcMain.handle('add-text-to-image', async (event, { inputPath, text, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp not available');
+  }
+
+  try {
+    const {
+      fontSize = 48,
+      fontFamily = 'Arial',
+      textColor = '#ffffff',
+      position = 'center', // top, center, bottom, custom
+      x = 0,
+      y = 0,
+      padding = 20,
+      backgroundColor = null,
+      strokeColor = null,
+      strokeWidth = 2
+    } = options;
+
+    // Read original image
+    const inputBuffer = await fs.readFile(inputPath);
+    const metadata = await sharp(inputBuffer).metadata();
+    
+    // Create text overlay using Canvas
+    const { createCanvas } = Canvas;
+    const canvas = createCanvas(metadata.width, metadata.height);
+    const ctx = canvas.getContext('2d');
+
+    // Make canvas transparent
+    ctx.clearRect(0, 0, metadata.width, metadata.height);
+
+    // Set text properties
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.fillStyle = textColor;
+    if (strokeColor) {
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = strokeWidth;
+    }
+
+    // Calculate text position
+    const textMetrics = ctx.measureText(text);
+    let textX, textY;
+
+    switch (position) {
+      case 'top':
+        textX = metadata.width / 2;
+        textY = padding + fontSize;
+        ctx.textAlign = 'center';
+        break;
+      case 'bottom':
+        textX = metadata.width / 2;
+        textY = metadata.height - padding;
+        ctx.textAlign = 'center';
+        break;
+      case 'center':
+        textX = metadata.width / 2;
+        textY = metadata.height / 2;
+        ctx.textAlign = 'center';
+        break;
+      case 'custom':
+        textX = x;
+        textY = y;
+        break;
+      default:
+        textX = metadata.width / 2;
+        textY = metadata.height / 2;
+        ctx.textAlign = 'center';
+    }
+
+    ctx.textBaseline = 'middle';
+
+    // Draw background rectangle if specified
+    if (backgroundColor) {
+      const textWidth = textMetrics.width;
+      const textHeight = fontSize;
+      ctx.fillStyle = backgroundColor;
+      ctx.fillRect(
+        textX - textWidth / 2 - padding / 2,
+        textY - textHeight / 2 - padding / 2,
+        textWidth + padding,
+        textHeight + padding
+      );
+      ctx.fillStyle = textColor;
+    }
+
+    // Draw text
+    if (strokeColor) {
+      ctx.strokeText(text, textX, textY);
+    }
+    ctx.fillText(text, textX, textY);
+
+    // Convert canvas to buffer
+    const overlayBuffer = canvas.toBuffer('image/png');
+
+    // Composite with original image
+    const outputFileName = `image_with_text_${Date.now()}.${path.extname(inputPath).slice(1)}`;
+    const outputPath = path.join(tempDir, outputFileName);
+
+    await sharp(inputBuffer)
+      .composite([{ input: overlayBuffer, top: 0, left: 0 }])
+      .toFile(outputPath);
+
+    return {
+      success: true,
+      filePath: outputPath,
+      fileName: outputFileName,
+      url: `file:///${outputPath.replace(/\\/g, '/')}`
+    };
+
+  } catch (error) {
+    console.error('❌ Add text to image failed:', error);
+    throw new Error(`Add text to image failed: ${error.message}`);
+  }
+});
+
+// Advanced WebP conversion with animation support
+ipcMain.handle('convert-to-webp-advanced', async (event, { inputPath, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp not available');
+  }
+
+  try {
+    const {
+      quality = 85,
+      effort = 4, // 0-6, higher = better compression but slower
+      lossless = false,
+      alphaQuality = 100,
+      method = 4, // 0-6 compression method
+      preset = 'default', // default, photo, picture, drawing, icon, text
+      smartSubsample = true,
+      progressive = false
+    } = options;
+
+    const inputBuffer = await fs.readFile(inputPath);
+    const outputFileName = `webp_${Date.now()}.webp`;
+    const outputPath = path.join(tempDir, outputFileName);
+
+    const webpOptions = {
+      quality: lossless ? undefined : quality,
+      lossless,
+      alphaQuality,
+      effort,
+      smartSubsample,
+      preset,
+      progressive
+    };
+
+    await sharp(inputBuffer)
+      .webp(webpOptions)
+      .toFile(outputPath);
+
+    return {
+      success: true,
+      filePath: outputPath,
+      fileName: outputFileName,
+      url: `file:///${outputPath.replace(/\\/g, '/')}`
+    };
+
+  } catch (error) {
+    console.error('❌ Advanced WebP conversion failed:', error);
+    throw new Error(`Advanced WebP conversion failed: ${error.message}`);
+  }
+});
+
+// Batch image processing
+ipcMain.handle('batch-convert-images', async (event, { inputPaths, format, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp not available');
+  }
+
+  try {
+    const results = [];
+    const batchId = Date.now();
+
+    for (let i = 0; i < inputPaths.length; i++) {
+      const inputPath = inputPaths[i];
+      const inputFileName = path.basename(inputPath, path.extname(inputPath));
+      const outputFileName = `${inputFileName}_converted_${batchId}_${i}.${format}`;
+      const outputPath = path.join(tempDir, outputFileName);
+
+      try {
+        let sharpInstance = sharp(inputPath);
+
+        // Apply options
+        if (options.resize) {
+          sharpInstance = sharpInstance.resize(options.resize.width, options.resize.height, {
+            fit: options.resize.fit || 'inside',
+            withoutEnlargement: options.resize.withoutEnlargement !== false
+          });
+        }
+
+        if (options.rotate) {
+          sharpInstance = sharpInstance.rotate(options.rotate);
+        }
+
+        // Format-specific options
+        switch (format.toLowerCase()) {
+          case 'webp':
+            sharpInstance = sharpInstance.webp({ 
+              quality: options.quality || 85,
+              effort: options.effort || 4,
+              lossless: options.lossless || false
+            });
+            break;
+          case 'jpeg':
+          case 'jpg':
+            sharpInstance = sharpInstance.jpeg({ 
+              quality: options.quality || 85,
+              progressive: options.progressive || false
+            });
+            break;
+          case 'png':
+            sharpInstance = sharpInstance.png({ 
+              quality: options.quality || 100,
+              progressive: options.progressive || false
+            });
+            break;
+          case 'avif':
+            sharpInstance = sharpInstance.avif({ 
+              quality: options.quality || 85,
+              effort: options.effort || 4
+            });
+            break;
+          default:
+            throw new Error(`Unsupported format: ${format}`);
+        }
+
+        await sharpInstance.toFile(outputPath);
+
+        results.push({
+          success: true,
+          originalPath: inputPath,
+          filePath: outputPath,
+          fileName: outputFileName,
+          url: `file:///${outputPath.replace(/\\/g, '/')}`
+        });
+
+      } catch (error) {
+        results.push({
+          success: false,
+          originalPath: inputPath,
+          error: error.message
+        });
+      }
+    }
+
+    return {
+      success: true,
+      results,
+      processed: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      total: inputPaths.length
+    };
+
+  } catch (error) {
+    console.error('❌ Batch conversion failed:', error);
+    throw new Error(`Batch conversion failed: ${error.message}`);
   }
 });
 

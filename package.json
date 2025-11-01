@@ -131,6 +131,7 @@
     "canvas": "^3.2.0"
   },
   "dependencies": {
+    "archiver": "^7.0.1",
     "gif-encoder-2": "^1.0.5"
   }
 }

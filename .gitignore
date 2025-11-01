@@ -38,3 +38,39 @@ resources/
 # Additional OS files
 Thumbs.db
 desktop.ini
+
+# Media files - don't commit test videos, images, or generated files
+*.mp4
+*.mov
+*.avi
+*.webm
+*.mkv
+*.flv
+*.wmv
+*.m4v
+*.gif
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.bmp
+*.tiff
+*.svg
+*.ico
+*.mp3
+*.wav
+*.ogg
+*.m4a
+*.aac
+*.zip
+
+# Keep specific icon files needed for the app
+!build/icon.png
+!build/icon.ico
+!frontend/public/favicon.ico
+!frontend/src/assets/*.png
+!frontend/src/assets/*.svg
+
+# Generated frame extraction directories
+video_frames_*
+gif_frames_*

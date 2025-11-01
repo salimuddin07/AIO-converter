@@ -15,8 +15,10 @@ const isElectron = () => {
   }
 };
 
-// Fallback HTTP API base URL (for browser mode)
-const HTTP_API_BASE = 'http://localhost:3003';
+// This app is DESKTOP ONLY - no HTTP server support
+const throwDesktopOnlyError = (functionName) => {
+  throw new Error(`${functionName} is only available in the desktop app. Please use the Electron version.`);
+};
 
 /**
  * Safe Electron API caller with error handling
@@ -38,8 +40,10 @@ const safeElectronCall = async (method, ...args) => {
  */
 export const api = {
   
-  // Environment detection
-  isElectron: isElectron(),
+  // Environment detection - use getter to check dynamically
+  get isElectron() {
+    return isElectron();
+  },
   
   /**
    * Create GIF from images
@@ -103,7 +107,11 @@ export const api = {
             height: options.height || 300,
             quality: options.quality || 80,
             fps: options.fps || 10,
-            loop: options.loop !== false
+            loop: options.loop !== false,
+            delay: options.delay, // Global delay
+            frameDelay: options.frameDelay, // Frame delay setting
+            frameDelays: options.frameDelays ? JSON.parse(options.frameDelays) : null, // Individual frame delays
+            fit: options.fit || 'inside'
           }
         });
         
@@ -116,39 +124,8 @@ export const api = {
       }
       
     } else {
-      // Browser mode - use HTTP API
-      console.log('🌐 Using HTTP API for GIF creation');
-      
-      try {
-        const formData = new FormData();
-        
-        // Add files
-        files.forEach((file, index) => {
-          formData.append('images', file);
-        });
-        
-        // Add options
-        Object.entries(options).forEach(([key, value]) => {
-          formData.append(key, value);
-        });
-        
-        const response = await fetch(`${HTTP_API_BASE}/api/enhanced-gif/images-to-gif`, {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.blob();
-        console.log('✅ GIF created successfully via HTTP API');
-        return result;
-        
-      } catch (error) {
-        console.error('❌ HTTP GIF creation failed:', error);
-        throw new Error(`GIF creation failed: ${error.message}`);
-      }
+      // Browser mode - use HTTP API (REMOVED - Desktop app only)
+      throw new Error('This functionality is only available in the desktop app. Please use the Electron version.');
     }
   },
 
@@ -193,36 +170,8 @@ export const api = {
       }
       
     } else {
-      // Browser mode
-      console.log('🌐 Using HTTP API for image conversion');
-      
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined) {
-            formData.append(key, value);
-          }
-        });
-        
-        const response = await fetch(`${HTTP_API_BASE}/api/convert`, {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.blob();
-        console.log('✅ Image converted successfully via HTTP API');
-        return result;
-        
-      } catch (error) {
-        console.error('❌ HTTP image conversion failed:', error);
-        throw new Error(`Image conversion failed: ${error.message}`);
-      }
+      // Browser mode - use HTTP API (REMOVED - Desktop app only)
+      throw new Error('This functionality is only available in the desktop app. Please use the Electron version.');
     }
   },
 
@@ -265,36 +214,8 @@ export const api = {
       }
       
     } else {
-      // Browser mode
-      console.log('🌐 Using HTTP API for video conversion');
-      
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        Object.entries(options).forEach(([key, value]) => {
-          if (value !== undefined) {
-            formData.append(key, value);
-          }
-        });
-        
-        const response = await fetch(`${HTTP_API_BASE}/api/video/convert`, {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.blob();
-        console.log('✅ Video converted successfully via HTTP API');
-        return result;
-        
-      } catch (error) {
-        console.error('❌ HTTP video conversion failed:', error);
-        throw new Error(`Video conversion failed: ${error.message}`);
-      }
+      // Browser mode - use HTTP API (REMOVED - Desktop app only)
+      throw new Error('This functionality is only available in the desktop app. Please use the Electron version.');
     }
   },
 
@@ -590,11 +511,54 @@ export const api = {
     console.log('🎬 Converting video to GIF:', file.name);
     
     if (isElectron()) {
-      // Use the general convertVideo method
-      return await this.convertVideo(file, {
-        ...options,
-        outputFormat: 'gif'
-      });
+      // Electron mode - use direct convertVideo with proper options
+      try {
+        let inputPath;
+        if (file instanceof File) {
+          const arrayBuffer = await file.arrayBuffer();
+          const ext = file.name.split('.').pop() || 'mp4';
+          const tempResult = await window.electronAPI.writeFile({
+            filePath: `temp_video_${Date.now()}.${ext}`,
+            data: arrayBuffer
+          });
+          inputPath = tempResult.filePath;
+        } else {
+          inputPath = file;
+        }
+        
+        const result = await window.electronAPI.convertVideo({
+          inputPath,
+          outputPath: `video_to_gif_${Date.now()}.gif`,
+          format: 'gif',
+          options: {
+            fps: options.fps || 10,
+            width: options.width || 320,
+            height: options.height || -1, // maintain aspect ratio
+            startTime: options.startTime,
+            duration: options.duration,
+            ...options
+          }
+        });
+        
+        if (result.success) {
+          // Add file URLs for Electron
+          const normalizedPath = result.outputPath.replace(/\\/g, '/');
+          const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+          
+          return {
+            ...result,
+            dataUrl: fileUrl,
+            previewUrl: fileUrl,
+            downloadUrl: fileUrl
+          };
+        }
+        
+        return result;
+        
+      } catch (error) {
+        console.error('❌ Electron video to GIF conversion failed:', error);
+        throw new Error(`Video to GIF conversion failed: ${error.message}`);
+      }
     } else {
       // Browser mode - use HTTP API
       const formData = new FormData();
@@ -791,17 +755,33 @@ export const api = {
     
     if (isElectron()) {
       // Convert File to temp file for Electron
-      const arrayBuffer = await file.arrayBuffer();
-      const ext = file.name.split('.').pop() || 'mp4';
-      
-      const result = await window.electronAPI.extractVideoFrames({
-        buffer: arrayBuffer,
-        originalName: file.name,
-        extension: ext,
-        options: options
-      });
-      
-      return result;
+      try {
+        let inputPath;
+        if (file instanceof File) {
+          const arrayBuffer = await file.arrayBuffer();
+          const ext = file.name.split('.').pop() || 'mp4';
+          const tempResult = await window.electronAPI.writeFile({
+            filePath: `temp_video_${Date.now()}.${ext}`,
+            data: arrayBuffer
+          });
+          inputPath = tempResult.filePath;
+        } else {
+          inputPath = file;
+        }
+        
+        const result = await window.electronAPI.extractVideoFrames({
+          inputPath: inputPath,
+          options: options
+        });
+        
+        console.log('🔍 Video frame extraction args sent:', { inputPath, options });
+        console.log('🔍 Video frame extraction result:', result);
+        
+        return result;
+      } catch (error) {
+        console.error('❌ Electron video frame extraction failed:', error);
+        throw new Error(`Video frame extraction failed: ${error.message}`);
+      }
     } else {
       const formData = new FormData();
       formData.append('video', file);
@@ -851,15 +831,30 @@ export const api = {
     
     if (isElectron()) {
       // Convert File to temp file for Electron
-      const arrayBuffer = await file.arrayBuffer();
-      
-      const result = await window.electronAPI.extractGifFrames({
-        buffer: arrayBuffer,
-        originalName: file.name,
-        options: options
-      });
-      
-      return result;
+      try {
+        let inputPath;
+        if (file instanceof File) {
+          const arrayBuffer = await file.arrayBuffer();
+          const ext = file.name.split('.').pop() || 'gif';
+          const tempResult = await window.electronAPI.writeFile({
+            filePath: `temp_gif_${Date.now()}.${ext}`,
+            data: arrayBuffer
+          });
+          inputPath = tempResult.filePath;
+        } else {
+          inputPath = file;
+        }
+        
+        const result = await window.electronAPI.extractGifFrames({
+          inputPath: inputPath,
+          options: options
+        });
+        
+        return result;
+      } catch (error) {
+        console.error('❌ Electron GIF frame extraction failed:', error);
+        throw new Error(`GIF frame extraction failed: ${error.message}`);
+      }
     } else {
       const formData = new FormData();
       formData.append('gif', file);
@@ -1074,6 +1069,165 @@ export const api = {
   },
 
   /**
+   * Convert text to image
+   */
+  async textToImage(text, options = {}) {
+    console.log('📝 Converting text to image:', text.substring(0, 50) + (text.length > 50 ? '...' : ''));
+    
+    if (isElectron()) {
+      return await safeElectronCall('textToImage', { text, options });
+    } else {
+      // HTTP mode
+      const response = await fetch(`${HTTP_API_BASE}/api/text/to-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, options })
+      });
+      return await response.json();
+    }
+  },
+
+  /**
+   * Add text overlay to existing image
+   */
+  async addTextToImage(file, text, options = {}) {
+    console.log('📝 Adding text to image:', text);
+    
+    if (isElectron()) {
+      let inputPath;
+      
+      if (file instanceof File) {
+        // Save temp file first
+        const arrayBuffer = await file.arrayBuffer();
+        const ext = file.name.split('.').pop() || 'jpg';
+        const tempFileName = `temp_text_overlay_${Date.now()}.${ext}`;
+        
+        const tempResult = await window.electronAPI.writeFile({
+          filePath: tempFileName,
+          data: arrayBuffer
+        });
+        
+        if (!tempResult.success) {
+          throw new Error('Failed to save temp file');
+        }
+        
+        inputPath = tempResult.filePath;
+      } else {
+        inputPath = file;
+      }
+      
+      return await safeElectronCall('addTextToImage', { inputPath, text, options });
+    } else {
+      // HTTP mode
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('text', text);
+      formData.append('options', JSON.stringify(options));
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/text/add-to-image`, {
+        method: 'POST',
+        body: formData
+      });
+      return await response.json();
+    }
+  },
+
+  /**
+   * Advanced WebP conversion with more options
+   */
+  async convertToWebpAdvanced(file, options = {}) {
+    console.log('🔧 Advanced WebP conversion:', file instanceof File ? file.name : file);
+    
+    if (isElectron()) {
+      let inputPath;
+      
+      if (file instanceof File) {
+        // Save temp file first
+        const arrayBuffer = await file.arrayBuffer();
+        const ext = file.name.split('.').pop() || 'jpg';
+        const tempFileName = `temp_webp_${Date.now()}.${ext}`;
+        
+        const tempResult = await window.electronAPI.writeFile({
+          filePath: tempFileName,
+          data: arrayBuffer
+        });
+        
+        if (!tempResult.success) {
+          throw new Error('Failed to save temp file');
+        }
+        
+        inputPath = tempResult.filePath;
+      } else {
+        inputPath = file;
+      }
+      
+      return await safeElectronCall('convertToWebpAdvanced', { inputPath, options });
+    } else {
+      // HTTP mode
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('options', JSON.stringify(options));
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/webp/convert-advanced`, {
+        method: 'POST',
+        body: formData
+      });
+      return await response.json();
+    }
+  },
+
+  /**
+   * Batch convert multiple images
+   */
+  async batchConvertImages(files, format, options = {}) {
+    console.log('🔧 Batch converting', files.length, 'images to', format);
+    
+    if (isElectron()) {
+      const inputPaths = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        
+        if (file instanceof File) {
+          // Save temp file first
+          const arrayBuffer = await file.arrayBuffer();
+          const ext = file.name.split('.').pop() || 'jpg';
+          const tempFileName = `temp_batch_${Date.now()}_${i}.${ext}`;
+          
+          const tempResult = await window.electronAPI.writeFile({
+            filePath: tempFileName,
+            data: arrayBuffer
+          });
+          
+          if (!tempResult.success) {
+            throw new Error(`Failed to save temp file: ${file.name}`);
+          }
+          
+          inputPaths.push(tempResult.filePath);
+        } else {
+          inputPaths.push(file);
+        }
+      }
+      
+      return await safeElectronCall('batchConvertImages', { inputPaths, format, options });
+    } else {
+      // HTTP mode
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append(`files`, file);
+      });
+      formData.append('format', format);
+      formData.append('options', JSON.stringify(options));
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/convert/batch`, {
+        method: 'POST',
+        body: formData
+      });
+      return await response.json();
+    }
+  },
+
+  /**
    * Convert text to Markdown
    */
   async convertTextToMd(file, options = {}) {
@@ -1170,6 +1324,10 @@ export const {
   resize,
   rotate,
   addText,
+  textToImage,
+  addTextToImage,
+  convertToWebpAdvanced,
+  batchConvertImages,
   createApngSequence,
   convertToAvifModern,
   convertToJxl,
