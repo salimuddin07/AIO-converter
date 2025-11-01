@@ -19,7 +19,9 @@ export default function FrameSplitter() {
     quality: 'high', // high, medium, low
     skipDuplicates: false,
     maxFrames: 0, // 0 = unlimited
-    frameRate: 0, // 0 = original, or specific fps
+    extractionMode: 'fps', // 'fps', 'interval', 'every-frame'
+    fps: 1, // frames per second (for fps mode)
+    intervalMs: 1000, // milliseconds between frames (for interval mode)
     createZip: true
   });
 
@@ -186,7 +188,9 @@ export default function FrameSplitter() {
         quality: frameOptions.quality,
         skipDuplicates: frameOptions.skipDuplicates,
         maxFrames: frameOptions.maxFrames || undefined,
-        frameRate: frameOptions.frameRate || undefined,
+        extractionMode: frameOptions.extractionMode,
+        fps: frameOptions.fps,
+        intervalMs: frameOptions.intervalMs,
         createZip: frameOptions.createZip
       };
 
@@ -216,9 +220,15 @@ export default function FrameSplitter() {
       setProgress(100);
       setProcessingState('complete');
 
+      console.log('🔍 Frame extraction result:', result);
+      console.log('🔍 Result.frames:', result.frames);
+      console.log('🔍 Result.frames length:', result.frames?.length || 0);
+
       const items = activeType === 'video' 
         ? result.frames || []
         : result.frames || [];
+
+      console.log('🔍 Final items for SplitResults:', items);
 
       setSplitData({
         type: 'frames',
@@ -356,19 +366,68 @@ export default function FrameSplitter() {
 
               {activeType === 'video' && (
                 <div>
-                  <label>Frame Rate (FPS):</label>
+                  <label>Extraction Mode:</label>
                   <select 
-                    value={frameOptions.frameRate} 
-                    onChange={(e) => setFrameOptions(prev => ({ ...prev, frameRate: parseInt(e.target.value) }))}
+                    value={frameOptions.extractionMode} 
+                    onChange={(e) => setFrameOptions(prev => ({ ...prev, extractionMode: e.target.value }))}
                     className="text"
                     style={{ width: '100%' }}
                   >
-                    <option value="0">Original (all frames)</option>
-                    <option value="1">1 FPS (every second)</option>
+                    <option value="fps">Frames per Second</option>
+                    <option value="interval">Time Interval (ms)</option>
+                    <option value="every-frame">Every Frame</option>
+                  </select>
+                  <small style={{ color: '#666', fontSize: '12px', display: 'block', marginTop: '4px' }}>
+                    {frameOptions.extractionMode === 'fps' && 'Extract frames based on frequency per second'}
+                    {frameOptions.extractionMode === 'interval' && 'Extract frames at precise millisecond intervals'}
+                    {frameOptions.extractionMode === 'every-frame' && 'Extract all frames (high output)'}
+                  </small>
+                </div>
+              )}
+
+              {activeType === 'video' && frameOptions.extractionMode === 'fps' && (
+                <div>
+                  <label>Frames per Second:</label>
+                  <select 
+                    value={frameOptions.fps} 
+                    onChange={(e) => setFrameOptions(prev => ({ ...prev, fps: parseFloat(e.target.value) }))}
+                    className="text"
+                    style={{ width: '100%' }}
+                  >
+                    <option value="0.1">0.1 FPS (every 10s)</option>
+                    <option value="0.2">0.2 FPS (every 5s)</option>
+                    <option value="0.5">0.5 FPS (every 2s)</option>
+                    <option value="1">1 FPS (every 1s)</option>
+                    <option value="2">2 FPS (every 0.5s)</option>
                     <option value="5">5 FPS (every 0.2s)</option>
                     <option value="10">10 FPS (every 0.1s)</option>
                     <option value="30">30 FPS (smooth)</option>
                   </select>
+                </div>
+              )}
+
+              {activeType === 'video' && frameOptions.extractionMode === 'interval' && (
+                <div>
+                  <label>Interval (milliseconds):</label>
+                  <select 
+                    value={frameOptions.intervalMs} 
+                    onChange={(e) => setFrameOptions(prev => ({ ...prev, intervalMs: parseInt(e.target.value) }))}
+                    className="text"
+                    style={{ width: '100%' }}
+                  >
+                    <option value="33">33ms (~30 FPS)</option>
+                    <option value="50">50ms (~20 FPS)</option>
+                    <option value="100">100ms (~10 FPS)</option>
+                    <option value="200">200ms (~5 FPS)</option>
+                    <option value="500">500ms (~2 FPS)</option>
+                    <option value="1000">1000ms (1s)</option>
+                    <option value="2000">2000ms (2s)</option>
+                    <option value="5000">5000ms (5s)</option>
+                    <option value="10000">10000ms (10s)</option>
+                  </select>
+                  <small style={{ color: '#666', fontSize: '12px' }}>
+                    Precise millisecond control for frame extraction
+                  </small>
                 </div>
               )}
 
@@ -507,13 +566,20 @@ export default function FrameSplitter() {
         {/* Results */}
         {splitData && (
           <SplitResults
-            splitData={splitData}
-            onZipDownload={() => {
-              if (splitData?.zipUrl) {
-                const url = resolveDisplayUrl(splitData.zipUrl);
-                if (url) window.open(url, '_blank', 'noopener');
+            type={splitData.type}
+            items={splitData.items}
+            meta={splitData.meta}
+            zipUrl={splitData.zipUrl}
+            zipPath={splitData.meta?.zipPath}
+            onDownloadZip={splitData.zipUrl ? () => {
+              const url = resolveDisplayUrl(splitData.zipUrl);
+              if (url) {
+                window.open(url, '_blank', 'noopener');
+              } else {
+                alert('ZIP file not available');
               }
-            }}
+            } : null}
+            onEditAnimation={null}
           />
         )}
       </div>

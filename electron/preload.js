@@ -23,6 +23,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   splitGif: (data) => ipcRenderer.invoke('split-gif', data),
   splitVideo: (data) => ipcRenderer.invoke('split-video', data),
   
+  // Frame extraction operations
+  extractVideoFrames: (data) => ipcRenderer.invoke('extract-video-frames', data),
+  extractGifFrames: (data) => ipcRenderer.invoke('extract-gif-frames', data),
+  
+  // Text operations
+  textToImage: (data) => ipcRenderer.invoke('text-to-image', data),
+  addTextToImage: (data) => ipcRenderer.invoke('add-text-to-image', data),
+  
+  // Advanced WebP operations
+  convertToWebpAdvanced: (data) => ipcRenderer.invoke('convert-to-webp-advanced', data),
+  batchConvertImages: (data) => ipcRenderer.invoke('batch-convert-images', data),
+  
   // Dialogs
   openDialog: (options) => ipcRenderer.invoke('dialog:open', options),
   saveDialog: (options) => ipcRenderer.invoke('dialog:save', options),

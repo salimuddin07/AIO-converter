@@ -108,7 +108,64 @@ const VideoToGifConverter = () => {
   };
 
   if (uploadResult) {
-    return <VideoResults result={uploadResult} onBack={() => setUploadResult(null)} />;
+    // Check if we're in Electron mode and handle results differently
+    if (realAPI.isElectron && uploadResult.success) {
+      // Electron mode - show direct result with preview and download
+      return (
+        <div id="main">
+          <h1>Video to GIF Converter - Conversion Complete!</h1>
+          
+          <div className="conversion-result">
+            <div className="result-info">
+              <h2>✅ Conversion Successful!</h2>
+              <p>{uploadResult.message || 'Video successfully converted to GIF'}</p>
+              
+              {uploadResult.filename && (
+                <p><strong>File:</strong> {uploadResult.filename}</p>
+              )}
+              
+              {uploadResult.size && (
+                <p><strong>Size:</strong> {(uploadResult.size / 1024 / 1024).toFixed(2)} MB</p>
+              )}
+            </div>
+            
+            {(uploadResult.dataUrl || uploadResult.previewUrl || uploadResult.url) && (
+              <div className="result-preview">
+                <h3>Preview:</h3>
+                <img 
+                  src={uploadResult.dataUrl || uploadResult.previewUrl || uploadResult.url} 
+                  alt="Converted GIF"
+                  style={{maxWidth: '100%', maxHeight: '400px', border: '1px solid #ddd'}}
+                />
+              </div>
+            )}
+            
+            <div className="result-actions">
+              {(uploadResult.downloadUrl || uploadResult.dataUrl || uploadResult.url) && (
+                <a 
+                  href={uploadResult.downloadUrl || uploadResult.dataUrl || uploadResult.url}
+                  download={uploadResult.filename || 'converted.gif'}
+                  className="btn primary"
+                  style={{marginRight: '10px'}}
+                >
+                  📥 Download GIF
+                </a>
+              )}
+              
+              <button 
+                onClick={() => setUploadResult(null)} 
+                className="btn secondary"
+              >
+                🔄 Convert Another Video
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    } else {
+      // Browser mode - use VideoResults component
+      return <VideoResults result={uploadResult} onBack={() => setUploadResult(null)} />;
+    }
   }
 
   return (

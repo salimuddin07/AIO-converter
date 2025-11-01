@@ -259,15 +259,45 @@ const SecureVideo = ({ filePath, ...props }) => {
   );
 };
 
-const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation }) => (
+const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation, zipUrl, zipPath }) => (
   <div className="split-results">
     <h2>Extracted Frames ({frames.length} frames)</h2>
 
     <div className="action-buttons" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
       {onDownloadZip && (
-        <button className="btn primary" onClick={onDownloadZip}>
-          Download frames as ZIP
-        </button>
+        <>
+          <button className="btn primary" onClick={onDownloadZip}>
+            Quick Download ZIP
+          </button>
+          <button
+            className="btn primary"
+            style={{ marginLeft: 8 }}
+            onClick={async () => {
+              if (window.electronAPI && zipPath) {
+                try {
+                  const { filePath } = await window.electronAPI.saveDialog({
+                    title: 'Save ZIP As',
+                    defaultPath: zipPath.split(/[\\/]/).pop() || 'frames.zip',
+                    filters: [
+                      { name: 'ZIP Files', extensions: ['zip'] }
+                    ]
+                  });
+                  if (filePath) {
+                    await window.electronAPI.copyFile({ sourcePath: zipPath, destPath: filePath });
+                    alert('ZIP file saved successfully!');
+                  }
+                } catch (error) {
+                  console.error('Error saving ZIP:', error);
+                  alert('Error saving ZIP file: ' + error.message);
+                }
+              } else {
+                alert('ZIP file not available');
+              }
+            }}
+          >
+            Save ZIP As
+          </button>
+        </>
       )}
       {onEditAnimation && (
         <button className="btn secondary" onClick={onEditAnimation}>
@@ -321,15 +351,44 @@ const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation }) => (
             {frame.width && frame.height ? `${frame.width}×${frame.height}px` : null}
           </div>
 
-          <div className="frame-actions" style={{ marginTop: '5px' }}>
+          <div className="frame-actions" style={{ marginTop: '5px', display: 'flex', gap: '6px' }}>
             <a
               href={frame.downloadUrl || frame.previewUrl}
               download={frame.filename}
               className="btn small"
               style={{ fontSize: '10px', padding: '3px 8px', textDecoration: 'none' }}
             >
-              Download
+              Quick Download
             </a>
+            <button
+              className="btn small"
+              style={{ fontSize: '10px', padding: '3px 8px' }}
+              onClick={async () => {
+                if (window.electronAPI && frame.path) {
+                  try {
+                    const { filePath } = await window.electronAPI.saveDialog({
+                      title: 'Save Frame As',
+                      defaultPath: frame.filename,
+                      filters: [
+                        { name: 'Image Files', extensions: ['png', 'jpg', 'jpeg', 'webp'] },
+                        { name: 'All Files', extensions: ['*'] }
+                      ]
+                    });
+                    if (filePath) {
+                      await window.electronAPI.copyFile({ sourcePath: frame.path, destPath: filePath });
+                      alert('Frame saved successfully!');
+                    }
+                  } catch (error) {
+                    console.error('Error saving frame:', error);
+                    alert('Error saving frame: ' + error.message);
+                  }
+                } else {
+                  alert('Frame file not available for download');
+                }
+              }}
+            >
+              Save As
+            </button>
           </div>
         </div>
       ))}
@@ -355,7 +414,7 @@ const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation }) => (
   </div>
 );
 
-const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
+const VideoResultsSection = ({ segments, meta, onDownloadZip, zipUrl, zipPath }) => {
   const [segmentList, setSegmentList] = useState(segments);
   const videoMeta = meta?.metadata?.video || {};
   const audioMeta = meta?.metadata?.audio;
@@ -390,9 +449,39 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
 
       <div className="action-buttons" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         {onDownloadZip && (
-          <button className="btn primary" onClick={onDownloadZip}>
-            Download clips as ZIP
-          </button>
+          <>
+            <button className="btn primary" onClick={onDownloadZip}>
+              Quick Download ZIP
+            </button>
+            <button
+              className="btn primary"
+              style={{ marginLeft: 8 }}
+              onClick={async () => {
+                if (window.electronAPI && zipPath) {
+                  try {
+                    const { filePath } = await window.electronAPI.saveDialog({
+                      title: 'Save ZIP As',
+                      defaultPath: zipPath.split(/[\\/]/).pop() || 'videos.zip',
+                      filters: [
+                        { name: 'ZIP Files', extensions: ['zip'] }
+                      ]
+                    });
+                    if (filePath) {
+                      await window.electronAPI.copyFile({ sourcePath: zipPath, destPath: filePath });
+                      alert('ZIP file saved successfully!');
+                    }
+                  } catch (error) {
+                    console.error('Error saving ZIP:', error);
+                    alert('Error saving ZIP file: ' + error.message);
+                  }
+                } else {
+                  alert('ZIP file not available');
+                }
+              }}
+            >
+              Save ZIP As
+            </button>
+          </>
         )}
       </div>
 
@@ -478,15 +567,44 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
               </div>
             </div>
 
-            <div style={{ marginTop: '10px' }}>
+            <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
               <a
                 href={segment.downloadUrl || segment.previewUrl}
                 download={segment.filename}
                 className="btn small"
                 style={{ fontSize: '11px', padding: '5px 10px', textDecoration: 'none' }}
               >
-                Download clip
+                Quick Download
               </a>
+              <button
+                className="btn small"
+                style={{ fontSize: '11px', padding: '5px 10px' }}
+                onClick={async () => {
+                  if (window.electronAPI && segment.path) {
+                    try {
+                      const { filePath } = await window.electronAPI.saveDialog({
+                        title: 'Save Video Clip As',
+                        defaultPath: segment.filename,
+                        filters: [
+                          { name: 'Video Files', extensions: ['mp4', 'webm', 'avi', 'mov', 'mkv'] },
+                          { name: 'All Files', extensions: ['*'] }
+                        ]
+                      });
+                      if (filePath) {
+                        await window.electronAPI.copyFile({ sourcePath: segment.path, destPath: filePath });
+                        alert('Video clip saved successfully!');
+                      }
+                    } catch (error) {
+                      console.error('Error saving video clip:', error);
+                      alert('Error saving video clip: ' + error.message);
+                    }
+                  } else {
+                    alert('Video clip file not available for download');
+                  }
+                }}
+              >
+                Save As
+              </button>
             </div>
           </div>
         ))}
@@ -514,8 +632,8 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
   );
 };
 
-export default function SplitResults({ type, items, meta, onEditAnimation, onDownloadZip }) {
-  console.log('🔍 SplitResults received:', { type, items: items?.length || 0, meta });
+export default function SplitResults({ type, items, meta, onEditAnimation, onDownloadZip, zipUrl, zipPath }) {
+  console.log('🔍 SplitResults received:', { type, items: items?.length || 0, meta, zipUrl, zipPath });
   console.log('🔍 Raw items:', items);
   
   const normalizedItems = useMemo(
@@ -545,8 +663,8 @@ export default function SplitResults({ type, items, meta, onEditAnimation, onDow
   }
 
   if (type === 'video') {
-    return <VideoResultsSection segments={normalizedItems} meta={meta} onDownloadZip={onDownloadZip} />;
+    return <VideoResultsSection segments={normalizedItems} meta={meta} onDownloadZip={onDownloadZip} zipUrl={zipUrl} zipPath={zipPath} />;
   }
 
-  return <GifResultsSection frames={normalizedItems} onDownloadZip={onDownloadZip} onEditAnimation={onEditAnimation} />;
+  return <GifResultsSection frames={normalizedItems} onDownloadZip={onDownloadZip} onEditAnimation={onEditAnimation} zipUrl={zipUrl} zipPath={zipPath} />;
 }
