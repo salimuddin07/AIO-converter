@@ -5,6 +5,7 @@ import html2pdf from 'html2pdf.js';
 import { PDFDocument } from 'pdf-lib';
 import { NotificationService } from '../utils/NotificationService.js';
 import { PAGE_SIZES_MM, sanitizeFileName, clampMargin, mmToPixels, getPageSizeMm } from '../utils/pdfExport.js';
+import { downloadFile, showDownloadNotification } from '../utils/downloadUtils.js';
 
 const SAMPLE_MARKDOWN = String.raw`# Markdown to PDF
 
@@ -350,16 +351,15 @@ export default function MarkdownToPdf() {
       const exportedCount = shouldSubset ? uniqueIndexes.length : totalPages;
 
       const blob = new Blob([outputBytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = exportName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      NotificationService.success(`PDF downloaded successfully (${exportedCount} page${exportedCount === 1 ? '' : 's'})`);
+      
+      // Use proper desktop download
+      const result = await downloadFile(blob, exportName);
+      
+      if (result.success) {
+        NotificationService.success(`PDF downloaded successfully (${exportedCount} page${exportedCount === 1 ? '' : 's'})`);
+      } else {
+        showDownloadNotification(result);
+      }
     } catch (conversionError) {
       console.error('Markdown to PDF error:', conversionError);
       const message = conversionError?.message || 'PDF generation failed';

@@ -840,7 +840,7 @@ export default function GifSplitter() {
             <p style={{ color: '#4a5668' }}>Break an animated GIF into the individual frames.</p>
             <h4 style={{ marginBottom: '0.5rem' }}>How it works</h4>
             <ol style={{ paddingLeft: '1.25rem', marginBottom: '1rem', color: '#2c3748' }}>
-              <li>Upload the GIF you want to dissect or paste any direct GIF URL.</li>
+              <li>Upload the GIF you want to dissect using the file picker.</li>
               <li>Choose whether to skip duplicate frames and enable automatic ZIP packaging.</li>
               <li>The splitter exports lossless PNG frames in playback order.</li>
               <li>Download individual frames or grab the full ZIP archive.</li>
@@ -857,7 +857,7 @@ export default function GifSplitter() {
             <p style={{ color: '#4a5668' }}>Cut MP4, MOV, WEBM, AVI, MKV, and more into back-to-back clips sized for reels, shorts, and stories.</p>
             <h4 style={{ marginBottom: '0.5rem' }}>How it works</h4>
             <ol style={{ paddingLeft: '1.25rem', marginBottom: '1rem', color: '#2c3748' }}>
-              <li>Upload a video file or provide a direct streaming URL.</li>
+              <li>Upload a video file using the file picker.</li>
               <li>Pick a uniform clip length (minutes/seconds) or define custom start-end pairs.</li>
               <li>We render fresh video files for every segment and keep audio if you request it.</li>
               <li>Preview clips instantly, download favorites, or grab the full ZIP export.</li>

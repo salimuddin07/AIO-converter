@@ -104,13 +104,13 @@ export const api = {
         inputPaths: imagePaths,
         outputPath: outputFileName,
         options: {
-          width: options.width || 500,
-          height: options.height || 300,
-          quality: options.quality || 80,
-          fps: options.fps || 10,
+          width: options.width ? parseInt(options.width) : undefined,
+          height: options.height ? parseInt(options.height) : undefined,
+          quality: parseInt(options.quality) || 80,
+          fps: parseInt(options.fps) || 10,
           loop: options.loop !== false,
-          delay: options.delay,
-          frameDelay: options.frameDelay,
+          delay: options.delay ? parseInt(options.delay) : undefined,
+          frameDelay: options.frameDelay ? parseInt(options.frameDelay) : undefined,
           frameDelays: options.frameDelays ? JSON.parse(options.frameDelays) : null,
           fit: options.fit || 'inside'
         }
@@ -526,8 +526,28 @@ export const getApiUrl = () => {
   throw new Error('❌ API URLs are not supported in desktop-only mode');
 };
 
-export const resolveDisplayUrl = () => {
-  throw new Error('❌ Display URLs are not supported in desktop-only mode');
+export const resolveDisplayUrl = (path) => {
+  if (!path) return '';
+  
+  // In desktop mode, convert file paths to file:// URLs for display
+  if (isElectron()) {
+    // If it's already a URL, return as-is
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('blob:') || path.startsWith('data:')) {
+      return path;
+    }
+    
+    // If it's already a file:// URL, return as-is
+    if (path.startsWith('file://')) {
+      return path;
+    }
+    
+    // Convert local path to file:// URL
+    const normalizedPath = path.replace(/\\/g, '/');
+    return normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+  }
+  
+  // Fallback for non-Electron environments
+  return path;
 };
 
 // Export individual functions for convenience

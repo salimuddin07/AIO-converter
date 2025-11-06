@@ -408,10 +408,12 @@ ipcMain.handle('create-gif-from-images', async (event, { inputPaths, outputPath,
       // Load GIF encoder
       const GIFEncoder = require('gif-encoder-2');
       
-      // Create GIF encoder with specified dimensions
-      const width = options.width || 500;
-      const height = options.height || 300;
+      // Create GIF encoder with specified dimensions - ensure numbers
+      const width = options.width ? parseInt(options.width) : 500;
+      const height = options.height ? parseInt(options.height) : 300;
       const encoder = new GIFEncoder(width, height);
+      
+      console.log('🎬 GIF dimensions:', { width, height, originalOptions: { width: options.width, height: options.height } });
       
       // Set GIF options
       encoder.setRepeat(options.loop !== false ? 0 : -1); // 0 = infinite loop

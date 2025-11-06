@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { pdfProcessor } from '../utils/pdfToMarkdown.js';
+import { downloadFile, showDownloadNotification } from '../utils/downloadUtils.js';
 
 export default function PdfToMarkdownConverter() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -74,20 +75,15 @@ export default function PdfToMarkdownConverter() {
     }
   };
 
-  // Download the converted markdown file
-  const downloadMarkdown = () => {
+  // Download converted markdown as file
+  const downloadMarkdown = async () => {
     if (result && result.content) {
       // Create a blob from the markdown content
       const blob = new Blob([result.content], { type: 'text/markdown' });
-      const url = URL.createObjectURL(blob);
+      const filename = `${selectedFile.name.replace('.pdf', '')}.md`;
       
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${selectedFile.name.replace('.pdf', '')}.md`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const downloadResult = await downloadFile(blob, filename);
+      showDownloadNotification(downloadResult);
     }
   };
 

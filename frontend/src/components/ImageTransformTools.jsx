@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Cropper from 'react-easy-crop';
 import { NotificationService } from '../utils/NotificationService.js';
+import { downloadFile, showDownloadNotification } from '../utils/downloadUtils.js';
 
 const cardStyle = {
   background: 'white',

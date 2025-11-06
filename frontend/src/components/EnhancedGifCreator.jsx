@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { NotificationService } from '../utils/NotificationService.js';
 import { realAPI, resolveDisplayUrl } from '../utils/unifiedAPI.js';
+import { downloadFile, showDownloadNotification, downloadFileFromPath } from '../utils/downloadUtils.js';
 
 export default function EnhancedGifCreator({ onClose }) {
   const [activeTab, setActiveTab] = useState('video');
@@ -113,13 +114,17 @@ export default function EnhancedGifCreator({ onClose }) {
       } else if (activeTab === 'images') {
         // Prepare image options
         const imageOptions = {
-          fps: options.fps,
+          fps: parseInt(options.fps) || 15,
           quality: options.quality,
           loop: 'true'
         };
         
-        if (options.width) imageOptions.width = options.width;
-        if (options.height) imageOptions.height = options.height;
+        if (options.width && options.width.toString().trim()) {
+          imageOptions.width = parseInt(options.width);
+        }
+        if (options.height && options.height.toString().trim()) {
+          imageOptions.height = parseInt(options.height);
+        }
 
         result = await realAPI.createGifFromImages(files, imageOptions);
       }
@@ -149,16 +154,42 @@ export default function EnhancedGifCreator({ onClose }) {
     }
   };
 
-  const downloadResult = () => {
+  const downloadResult = async () => {
     if (result && result.result) {
-      const link = document.createElement('a');
-      link.href = resolveDisplayUrl(result.result.downloadUrl || result.result.dataUrl || result.result.url);
-      link.download = result.result.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      NotificationService.toast('Download started!', 'success');
+      try {
+        // Get the file data
+        let fileData;
+        const downloadUrl = result.result.downloadUrl || result.result.dataUrl || result.result.url;
+        
+        if (downloadUrl.startsWith('data:')) {
+          // Data URL - can download directly
+          fileData = downloadUrl;
+        } else if (downloadUrl.startsWith('file://')) {
+          // File path - use path-based download
+          const filePath = downloadUrl.replace('file://', '');
+          const downloadResult = await downloadFileFromPath(
+            filePath, 
+            result.result.filename || 'gif-output.gif'
+          );
+          showDownloadNotification(downloadResult);
+          return;
+        } else {
+          // Fetch the file
+          const response = await fetch(downloadUrl);
+          fileData = await response.blob();
+        }
+        
+        const downloadResult = await downloadFile(
+          fileData, 
+          result.result.filename || 'gif-output.gif'
+        );
+        
+        showDownloadNotification(downloadResult);
+        
+      } catch (error) {
+        console.error('Download error:', error);
+        NotificationService.error('Download failed: ' + error.message);
+      }
     }
   };
 

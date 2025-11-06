@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
 import { api as realAPI, resolveDisplayUrl } from '../utils/unifiedAPI.js';
+import { downloadFileFromPath, downloadFromBlobUrl, showDownloadNotification } from '../utils/downloadUtils.js';
 
 const SPEED_PRESETS = {
   slow: { label: 'Slow', delay: 140 },
@@ -299,15 +300,15 @@ export default function ImageGifMaker() {
     try {
       progressToast.update({ message: `Uploading ${activeFrames.length} frame${activeFrames.length === 1 ? '' : 's'}`, progress: 30 });
       const payload = {
-        fps: options.fps,
+        fps: parseInt(options.fps) || 12,
         quality: options.quality,
         loop: options.loop ? 'true' : 'false'
       };
 
-      if (options.width) payload.width = options.width;
-      if (options.height) payload.height = options.height;
-      if (options.frameDelay) payload.delay = options.frameDelay;
-      if (options.loopCount && options.loopCount !== 'infinite') payload.loopCount = options.loopCount;
+      if (options.width && options.width.trim()) payload.width = parseInt(options.width);
+      if (options.height && options.height.trim()) payload.height = parseInt(options.height);
+      if (options.frameDelay) payload.delay = parseInt(options.frameDelay);
+      if (options.loopCount && options.loopCount !== 'infinite') payload.loopCount = parseInt(options.loopCount);
       if (options.fit) payload.fit = options.fit;
 
       const frameDelays = activeFrames.map((frame) => sanitizeDelay(frame.delay, options.frameDelay));
@@ -352,39 +353,28 @@ export default function ImageGifMaker() {
   const downloadResult = async () => {
     if (!result?.result) return;
     const { dataUrl, downloadUrl, url, filename, outputPath } = result.result;
-    const targetUrl = dataUrl || downloadUrl || url;
     
-    if (!targetUrl) {
-      NotificationService.toast('No downloadable result is available yet.', 'info');
-      return;
-    }
-
     try {
       if (realAPI.isElectron && outputPath) {
-        // In Electron mode, use the save dialog via unified API
-        const options = {
-          defaultPath: filename || 'image-sequence.gif',
-          filters: [
-            { name: 'GIF Images', extensions: ['gif'] },
-            { name: 'All Files', extensions: ['*'] }
-          ]
-        };
-        
-        const saveResult = await window.electronAPI.saveDialog(options);
-        
-        if (!saveResult.canceled && saveResult.filePath) {
-          // Copy the file to the chosen location
-          await realAPI.copyFile(outputPath, saveResult.filePath);
-          NotificationService.success('GIF saved successfully!');
-        }
+        // In Electron mode, use path-based download
+        const result = await downloadFileFromPath(
+          outputPath, 
+          filename || 'image-sequence.gif'
+        );
+        showDownloadNotification(result);
       } else {
-        // Browser mode - use regular download
-        const link = document.createElement('a');
-        link.href = resolveUrl(targetUrl);
-        link.download = filename || 'image-sequence.gif';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // Fallback - download from URL
+        const targetUrl = dataUrl || downloadUrl || url;
+        if (!targetUrl) {
+          NotificationService.toast('No downloadable result is available yet.', 'info');
+          return;
+        }
+        
+        const result = await downloadFromBlobUrl(
+          targetUrl, 
+          filename || 'image-sequence.gif'
+        );
+        showDownloadNotification(result);
       }
     } catch (error) {
       console.error('Download failed:', error);

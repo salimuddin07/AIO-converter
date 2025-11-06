@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
+import { downloadFile, showDownloadNotification } from '../utils/downloadUtils.js';
 import '../aio-convert-style.css';
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'];
@@ -226,11 +227,18 @@ export default function ImageOptimizer() {
     }
   };
 
-  const handleDownload = (result) => {
-    const link = document.createElement('a');
-    link.href = result.previewUrl;
-    link.download = result.optimizedFile.name;
-    link.click();
+  const handleDownload = async (result) => {
+    try {
+      // Convert data URL to blob
+      const response = await fetch(result.previewUrl);
+      const blob = await response.blob();
+      
+      const downloadResult = await downloadFile(blob, result.optimizedFile.name);
+      showDownloadNotification(downloadResult);
+    } catch (error) {
+      console.error('Download error:', error);
+      NotificationService.error('Download failed: ' + error.message);
+    }
   };
 
   const removeFile = (index) => {

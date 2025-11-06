@@ -2,10 +2,25 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { NotificationService } from '../utils/NotificationService.js';
 import { api as realAPI } from '../utils/unifiedAPI.js';
+import { downloadFile as desktopDownloadFile, downloadFileFromPath, showDownloadNotification } from '../utils/downloadUtils.js';
 
 // Legacy compatibility for downloadFile
 const downloadFile = async (data, filename) => {
-  return await realAPI.saveFile(data, filename);
+  try {
+    if (typeof data === 'string' && (data.startsWith('file://') || data.startsWith('/'))) {
+      // It's a file path
+      const filePath = data.startsWith('file://') ? data.replace('file://', '') : data;
+      const result = await downloadFileFromPath(filePath, filename);
+      showDownloadNotification(result);
+    } else {
+      // It's data to be saved
+      const result = await desktopDownloadFile(data, filename);
+      showDownloadNotification(result);
+    }
+  } catch (error) {
+    console.error('Download error:', error);
+    NotificationService.error('Download failed: ' + error.message);
+  }
 };
 
 const FORMAT_CONFIG = {

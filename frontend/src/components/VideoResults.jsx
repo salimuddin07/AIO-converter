@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { resolveDisplayUrl, api as realAPI } from '../utils/unifiedAPI.js';
+import { downloadFileFromPath, downloadFromBlobUrl, showDownloadNotification } from '../utils/downloadUtils.js';
 
 const VideoResults = ({ result, onBack }) => {
   // === Use API configuration ===
@@ -91,36 +92,19 @@ const VideoResults = ({ result, onBack }) => {
       
       // Check if we have a direct URL (like a blob URL) that we can download directly
       if (directUrl && (directUrl.startsWith('blob:') || directUrl.startsWith('data:'))) {
-        const link = document.createElement('a');
-        link.href = directUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const result = await downloadFromBlobUrl(directUrl, filename);
+        showDownloadNotification(result);
         return;
       }
 
-      // For file paths, use unified API to handle download
+      // For file paths, use path-based download
       if (gifPath) {
-        // Try to download using API endpoint
-        const endpoint = `/api/video/download/${gifPath}`;
-        const response = await realAPI.downloadFile(endpoint);
-        
-        if (response && response.blob) {
-          const blobUrl = window.URL.createObjectURL(response.blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(blobUrl);
-        } else {
-          throw new Error('Download response is invalid');
-        }
+        const result = await downloadFileFromPath(gifPath, filename);
+        showDownloadNotification(result);
       } else {
-        throw new Error('No download path provided');
+        throw new Error('No file path or URL available for download');
       }
+      
     } catch (error) {
       console.error('Download failed:', error);
       alert(`Download failed: ${error.message}. Please try again.`);
