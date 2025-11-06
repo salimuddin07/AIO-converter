@@ -1,10 +1,222 @@
 /**
  * DESKTOP DOWNLOAD UTILITIES
- * Proper file downloading for Electron desktop app
+ * Proper file downloading for Electron desktop app with progress tracking
  * NO browser-style downloads that open files
  */
 
 import { api } from './unifiedAPI.js';
+
+// Download status tracker
+let downloadCounter = 0;
+const activeDownloads = new Map();
+
+/**
+ * Create a unique download ID
+ */
+function createDownloadId() {
+  return `download_${++downloadCounter}_${Date.now()}`;
+}
+
+/**
+ * Show download progress notification
+ * @param {string} downloadId - Unique download identifier
+ * @param {string} filename - File being downloaded
+ * @param {string} status - 'starting' | 'progress' | 'complete' | 'error'
+ * @param {Object} extra - Additional info like progress percentage, filePath, etc.
+ */
+function showDownloadStatus(downloadId, filename, status, extra = {}) {
+  const downloadInfo = {
+    id: downloadId,
+    filename,
+    status,
+    timestamp: new Date().toISOString(),
+    ...extra
+  };
+
+  activeDownloads.set(downloadId, downloadInfo);
+
+  // Show appropriate notification based on status
+  switch (status) {
+    case 'starting':
+      showToast(`📥 Starting download: ${filename}`, 'info', 3000);
+      break;
+    
+    case 'progress':
+      if (extra.progress !== undefined) {
+        showToast(`📥 Downloading ${filename}: ${extra.progress}%`, 'info', 1000);
+      }
+      break;
+    
+    case 'complete':
+      showToast(
+        `✅ Downloaded: ${filename}`,
+        'success',
+        0, // Permanent until user clicks
+        {
+          action: 'Open Folder',
+          callback: () => openDownloadLocation(extra.filePath)
+        }
+      );
+      break;
+    
+    case 'error':
+      showToast(`❌ Download failed: ${filename} - ${extra.error}`, 'error', 5000);
+      break;
+  }
+
+  // Emit custom event for download status changes
+  window.dispatchEvent(new CustomEvent('downloadStatusChange', {
+    detail: downloadInfo
+  }));
+}
+
+/**
+ * Show toast notification with action button
+ * @param {string} message - Notification message
+ * @param {string} type - 'success' | 'error' | 'info' | 'warning'
+ * @param {number} duration - Auto-hide duration in ms (0 = permanent)
+ * @param {Object} action - Optional action button {action: 'text', callback: function}
+ */
+function showToast(message, type = 'info', duration = 3000, action = null) {
+  // Try to use NotificationService if available
+  if (window.NotificationService) {
+    window.NotificationService.show(message, type, duration);
+    return;
+  }
+
+  // Fallback: Create custom toast
+  const toast = document.createElement('div');
+  toast.className = `download-toast toast-${type}`;
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: ${getToastColor(type)};
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 10000;
+    max-width: 400px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    animation: slideInFromRight 0.3s ease-out;
+  `;
+
+  // Add close button
+  const closeBtn = document.createElement('button');
+  closeBtn.innerHTML = '×';
+  closeBtn.style.cssText = `
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    float: right;
+    margin-left: 10px;
+    cursor: pointer;
+    opacity: 0.7;
+    padding: 0;
+    line-height: 1;
+  `;
+  closeBtn.onclick = () => document.body.removeChild(toast);
+
+  // Create message container
+  const messageDiv = document.createElement('div');
+  messageDiv.textContent = message;
+  messageDiv.style.paddingRight = action ? '0' : '20px';
+
+  toast.appendChild(messageDiv);
+  toast.appendChild(closeBtn);
+
+  // Add action button if provided
+  if (action) {
+    const actionBtn = document.createElement('button');
+    actionBtn.textContent = action.action;
+    actionBtn.style.cssText = `
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      margin-top: 8px;
+      margin-right: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      display: inline-block;
+    `;
+    actionBtn.onclick = () => {
+      action.callback();
+      document.body.removeChild(toast);
+    };
+    toast.appendChild(actionBtn);
+  }
+
+  // Add CSS for animation
+  if (!document.querySelector('#toast-styles')) {
+    const style = document.createElement('style');
+    style.id = 'toast-styles';
+    style.textContent = `
+      @keyframes slideInFromRight {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      .download-toast:hover { opacity: 0.9; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.body.appendChild(toast);
+
+  // Auto-remove after duration (if not permanent)
+  if (duration > 0) {
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+    }, duration);
+  }
+}
+
+/**
+ * Get toast background color based on type
+ */
+function getToastColor(type) {
+  switch (type) {
+    case 'success': return '#10b981';
+    case 'error': return '#ef4444';
+    case 'warning': return '#f59e0b';
+    case 'info': 
+    default: return '#3b82f6';
+  }
+}
+
+/**
+ * Open the download location in system file explorer
+ * @param {string} filePath - Path to the downloaded file
+ */
+async function openDownloadLocation(filePath) {
+  try {
+    if (!window.electronAPI) {
+      throw new Error('Electron API not available');
+    }
+
+    // Try to show the file in folder (highlights the file)
+    if (window.electronAPI.showItemInFolder) {
+      await window.electronAPI.showItemInFolder(filePath);
+    } else if (window.electronAPI.openPath) {
+      // Fallback: open the parent directory
+      const path = require('path');
+      const directory = path.dirname(filePath);
+      await window.electronAPI.openPath(directory);
+    } else {
+      console.warn('No method available to open download location');
+    }
+  } catch (error) {
+    console.error('Failed to open download location:', error);
+    showToast('Could not open download folder', 'warning', 3000);
+  }
+}
 
 /**
  * Download a file using Electron's native save dialog

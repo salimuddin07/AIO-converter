@@ -47,25 +47,7 @@
     "files": [
       "electron/**/*",
       "frontend/dist/**/*",
-      "backend/**/*",
-      "!backend/node_modules/**/*",
       "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "backend/node_modules/ffmpeg-static",
-        "to": "ffmpeg",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "backend/node_modules/ffprobe-static",
-        "to": "ffmpeg",
-        "filter": [
-          "**/*"
-        ]
-      }
     ],
     "win": {
       "target": [
@@ -98,7 +80,6 @@
     }
   },
   "workspaces": [
-    "backend",
     "frontend"
   ],
   "repository": {

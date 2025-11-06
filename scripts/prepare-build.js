@@ -144,26 +144,10 @@ try {
   process.exit(1);
 }
 
-// 6. Verify backend dependencies
-console.log('\n6️⃣ Verifying backend dependencies...');
-const backendNodeModules = path.join(__dirname, '../backend/node_modules');
-if (!fs.existsSync(backendNodeModules)) {
-  console.log('⚠️  Backend dependencies not installed. Installing...');
-  try {
-    process.chdir(path.join(__dirname, '../backend'));
-    execSync('npm install', { stdio: 'inherit' });
-    console.log('✅ Backend dependencies installed');
-  } catch (error) {
-    console.error('❌ Failed to install backend dependencies:', error.message);
-    process.exit(1);
-  }
-}
-
 console.log('\n✅ All resources prepared successfully!');
 console.log('\n📋 Summary:');
 console.log('   - Build directory ready');
 console.log('   - Frontend built');
-console.log('   - Backend dependencies verified');
 console.log('   - NSIS installer script created');
 console.log('\n🚀 You can now run: npm run build:win');
 console.log('   Or for portable: npm run build:win-portable\n');
