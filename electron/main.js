@@ -35,8 +35,8 @@ try {
   console.log('Canvas not available:', e.message);
 }
 
-// Define temp directory for file operations
-const tempDir = path.join(__dirname, '../temp');
+// Define temp directory for file operations - will be set when app is ready
+let tempDir;
 
 let mainWindow = null;
 const isDev = process.env.NODE_ENV === 'development'; // Normal dev mode detection
@@ -198,11 +198,11 @@ ipcMain.handle('write-file', async (event, { filePath, data, encoding = 'base64'
     console.log('💾 Writing file:', filePath);
     
     // Ensure the file path is safe and in a writable location
-    const safeFilePath = path.resolve(process.cwd(), 'temp', path.basename(filePath));
+    const safeFilePath = path.resolve(tempDir, path.basename(filePath));
     
     // Create temp directory if it doesn't exist
-    const tempDir = path.dirname(safeFilePath);
-    await fs.mkdir(tempDir, { recursive: true });
+    const tempDirPath = path.dirname(safeFilePath);
+    await fs.mkdir(tempDirPath, { recursive: true });
     
     // Handle different data types
     let buffer;
@@ -856,6 +856,185 @@ ipcMain.handle('split-video', async (event, { inputPath, options = {} }) => {
   }
 });
 
+// Create GIF from video
+ipcMain.handle('createGifFromVideo', async (event, { inputPath, outputPath, options = {} }) => {
+  console.log('🎬 Creating GIF from video:', inputPath);
+  
+  try {
+    if (!ffmpeg) {
+      throw new Error('FFmpeg not available');
+    }
+
+    const outputFilePath = path.isAbsolute(outputPath) ? outputPath : path.join(tempDir, outputPath);
+    
+    // Ensure output directory exists
+    const outputDir = path.dirname(outputFilePath);
+    await fs.mkdir(outputDir, { recursive: true });
+
+    return new Promise((resolve, reject) => {
+      let command = ffmpeg(inputPath);
+      
+      // Apply options
+      if (options.startTime) command = command.seekInput(options.startTime);
+      if (options.duration) command = command.duration(options.duration);
+      if (options.fps) command = command.fps(options.fps);
+      if (options.width && options.height) {
+        command = command.size(`${options.width}x${options.height}`);
+      }
+      
+      command
+        .output(outputFilePath)
+        .on('end', () => {
+          console.log('✅ GIF created from video:', outputFilePath);
+          resolve({
+            success: true,
+            outputPath: outputFilePath,
+            message: 'GIF created successfully from video'
+          });
+        })
+        .on('error', (error) => {
+          console.error('❌ Video to GIF conversion failed:', error);
+          reject(new Error(`Video to GIF conversion failed: ${error.message}`));
+        })
+        .run();
+    });
+  } catch (error) {
+    console.error('❌ Video to GIF conversion error:', error);
+    throw new Error(`Video to GIF conversion failed: ${error.message}`);
+  }
+});
+
+// Convert to WebP
+ipcMain.handle('convertToWebp', async (event, { file, options = {} }) => {
+  console.log('🔄 Converting to WebP:', file);
+  
+  try {
+    if (!sharp) {
+      throw new Error('Sharp not available');
+    }
+
+    const inputFilePath = path.isAbsolute(file) ? file : path.join(tempDir, file);
+    const outputPath = path.join(tempDir, `converted_webp_${Date.now()}.webp`);
+    
+    let sharpInstance = sharp(inputFilePath);
+    
+    // Apply WebP options
+    const webpOptions = {
+      quality: options.quality || 80,
+      effort: options.effort || 4,
+      lossless: options.lossless || false
+    };
+    
+    await sharpInstance
+      .webp(webpOptions)
+      .toFile(outputPath);
+    
+    console.log('✅ WebP conversion successful:', outputPath);
+    return {
+      success: true,
+      outputPath: outputPath,
+      message: 'Image converted to WebP successfully'
+    };
+  } catch (error) {
+    console.error('❌ WebP conversion failed:', error);
+    throw new Error(`WebP conversion failed: ${error.message}`);
+  }
+});
+
+// Decode WebP
+ipcMain.handle('decodeWebp', async (event, { file, options = {} }) => {
+  console.log('🔄 Decoding WebP:', file);
+  
+  try {
+    if (!sharp) {
+      throw new Error('Sharp not available');
+    }
+
+    const inputFilePath = path.isAbsolute(file) ? file : path.join(tempDir, file);
+    const outputPath = path.join(tempDir, `decoded_webp_${Date.now()}.png`);
+    
+    await sharp(inputFilePath)
+      .png()
+      .toFile(outputPath);
+    
+    console.log('✅ WebP decoded successfully:', outputPath);
+    return {
+      success: true,
+      outputPath: outputPath,
+      message: 'WebP decoded successfully'
+    };
+  } catch (error) {
+    console.error('❌ WebP decode failed:', error);
+    throw new Error(`WebP decode failed: ${error.message}`);
+  }
+});
+
+// Describe image (placeholder - would need AI integration)
+ipcMain.handle('describeImage', async (event, { file, options = {} }) => {
+  console.log('🤖 Describing image:', file);
+  
+  // Placeholder implementation
+  return {
+    success: true,
+    description: "Image description feature not yet implemented in desktop version",
+    message: "AI description requires additional setup"
+  };
+});
+
+// Save file dialog
+ipcMain.handle('saveFileDialog', async (event, { data, filename }) => {
+  try {
+    const result = await dialog.showSaveDialog(mainWindow, {
+      defaultPath: filename,
+      filters: [
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (!result.canceled && result.filePath) {
+      // Write the data to the selected file
+      let buffer;
+      if (data instanceof ArrayBuffer) {
+        buffer = Buffer.from(data);
+      } else if (Buffer.isBuffer(data)) {
+        buffer = data;
+      } else if (typeof data === 'string') {
+        buffer = Buffer.from(data, 'base64');
+      } else {
+        buffer = Buffer.from(data);
+      }
+
+      await fs.writeFile(result.filePath, buffer);
+      
+      return {
+        success: true,
+        filePath: result.filePath,
+        message: 'File saved successfully'
+      };
+    } else {
+      return {
+        success: false,
+        message: 'Save operation cancelled'
+      };
+    }
+  } catch (error) {
+    console.error('❌ Save file dialog failed:', error);
+    throw new Error(`Save file failed: ${error.message}`);
+  }
+});
+
+// Get app info (alias for app:info)
+ipcMain.handle('getAppInfo', async (event) => {
+  return {
+    name: app.getName(),
+    version: app.getVersion(),
+    electronVersion: process.versions.electron,
+    nodeVersion: process.versions.node,
+    platform: process.platform,
+    arch: process.arch
+  };
+});
+
 /**
  * File cleanup function
  */
@@ -880,7 +1059,7 @@ async function cleanupOldFiles() {
         if (fileAge > CLEANUP_TIME_MS) {
           if (stats.isDirectory()) {
             // Remove directory recursively
-            await fs.rmdir(filePath, { recursive: true });
+            await fs.rm(filePath, { recursive: true });
           } else {
             // Remove file
             await fs.unlink(filePath);
@@ -1620,6 +1799,9 @@ ipcMain.handle('batch-convert-images', async (event, { inputPaths, format, optio
  */
 
 app.whenReady().then(async () => {
+  // Set temp directory to app's user data directory for cross-platform compatibility
+  tempDir = path.join(app.getPath('userData'), 'temp');
+  
   // Create temp directory if it doesn't exist
   try {
     await fs.mkdir(tempDir, { recursive: true });

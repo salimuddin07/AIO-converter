@@ -33,18 +33,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Advanced WebP operations
   convertToWebpAdvanced: (data) => ipcRenderer.invoke('convert-to-webp-advanced', data),
+  convertToWebp: (data) => ipcRenderer.invoke('convertToWebp', data),
+  decodeWebp: (data) => ipcRenderer.invoke('decodeWebp', data),
   batchConvertImages: (data) => ipcRenderer.invoke('batch-convert-images', data),
+  
+  // GIF from video
+  createGifFromVideo: (data) => ipcRenderer.invoke('createGifFromVideo', data),
+  
+  // AI features
+  describeImage: (data) => ipcRenderer.invoke('describeImage', data),
   
   // Dialogs
   openDialog: (options) => ipcRenderer.invoke('dialog:open', options),
   saveDialog: (options) => ipcRenderer.invoke('dialog:save', options),
+  saveFileDialog: (data) => ipcRenderer.invoke('saveFileDialog', data),
   showMessage: (options) => ipcRenderer.invoke('dialog:message', options),
   
   // Shell
   openPath: (path) => ipcRenderer.invoke('shell:open', path),
   
   // App info
-  getAppInfo: () => ipcRenderer.invoke('app:info'),
+  getAppInfo: () => ipcRenderer.invoke('getAppInfo'),
   
   // Video serving for preview
   serveVideo: (filePath) => ipcRenderer.invoke('serve-video', filePath),
