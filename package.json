@@ -47,7 +47,17 @@
     "files": [
       "electron/**/*",
       "frontend/dist/**/*",
-      "package.json"
+      "package.json",
+      "node_modules/**/*",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin"
+    ],
+    "asarUnpack": [
+      "**/node_modules/sharp/**/*",
+      "**/node_modules/@img/**/*",
+      "**/node_modules/ffmpeg-static/**/*"
     ],
     "win": {
       "target": [
@@ -77,7 +87,10 @@
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.${ext}"
-    }
+    },
+    "buildDependenciesFromSource": false,
+    "npmRebuild": false,
+    "nodeGypRebuild": false
   },
   "workspaces": [
     "frontend"
@@ -102,11 +115,11 @@
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
   },
-  "optionalDependencies": {
-    "canvas": "^3.2.0"
-  },
   "dependencies": {
     "archiver": "^7.0.1",
-    "gif-encoder-2": "^1.0.5"
+    "gif-encoder-2": "^1.0.5",
+    "sharp": "^0.33.2",
+    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.2"
   }
 }
