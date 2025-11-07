@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { NotificationService } from '../utils/NotificationService.js';
 import { realAPI, resolveDisplayUrl } from '../utils/unifiedAPI.js';
-import { downloadFile, showDownloadNotification, downloadFileFromPath } from '../utils/downloadUtils.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 export default function EnhancedGifCreator({ onClose }) {
   const [activeTab, setActiveTab] = useState('video');
@@ -151,45 +151,6 @@ export default function EnhancedGifCreator({ onClose }) {
       NotificationService.error('GIF Creation Failed', error.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const downloadResult = async () => {
-    if (result && result.result) {
-      try {
-        // Get the file data
-        let fileData;
-        const downloadUrl = result.result.downloadUrl || result.result.dataUrl || result.result.url;
-        
-        if (downloadUrl.startsWith('data:')) {
-          // Data URL - can download directly
-          fileData = downloadUrl;
-        } else if (downloadUrl.startsWith('file://')) {
-          // File path - use path-based download
-          const filePath = downloadUrl.replace('file://', '');
-          const downloadResult = await downloadFileFromPath(
-            filePath, 
-            result.result.filename || 'gif-output.gif'
-          );
-          showDownloadNotification(downloadResult);
-          return;
-        } else {
-          // Fetch the file
-          const response = await fetch(downloadUrl);
-          fileData = await response.blob();
-        }
-        
-        const downloadResult = await downloadFile(
-          fileData, 
-          result.result.filename || 'gif-output.gif'
-        );
-        
-        showDownloadNotification(downloadResult);
-        
-      } catch (error) {
-        console.error('Download error:', error);
-        NotificationService.error('Download failed: ' + error.message);
-      }
     }
   };
 
@@ -524,13 +485,13 @@ export default function EnhancedGifCreator({ onClose }) {
               Size: {(result.result.size / 1024).toFixed(1)} KB
             </p>
             
-            <motion.button
-              onClick={downloadResult}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <DownloadButton
+              data={result.result.downloadUrl || result.result.dataUrl || result.result.url}
+              filename={result.result.filename || 'gif-output.gif'}
+              buttonText="📥 Download GIF"
               style={{
                 padding: '12px 24px',
-                background: '#28a745',
+                backgroundColor: '#28a745',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
@@ -538,9 +499,18 @@ export default function EnhancedGifCreator({ onClose }) {
                 fontWeight: '500',
                 cursor: 'pointer'
               }}
-            >
-              📥 Download GIF
-            </motion.button>
+              onDownloadStart={(filename) => {
+                console.log(`Starting GIF download: ${filename}`);
+              }}
+              onDownloadComplete={(result) => {
+                console.log(`GIF downloaded: ${result.filePath}`);
+                NotificationService.success('GIF downloaded successfully!');
+              }}
+              onDownloadError={(error) => {
+                console.error(`GIF download failed: ${error.message}`);
+                NotificationService.error(`Download failed: ${error.message}`);
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { resolveDisplayUrl, api as realAPI } from '../utils/unifiedAPI.js';
-import { downloadFileFromPath, downloadFromBlobUrl, showDownloadNotification } from '../utils/downloadUtils.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 const VideoResults = ({ result, onBack }) => {
   // === Use API configuration ===

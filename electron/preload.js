@@ -51,6 +51,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Shell
   openPath: (path) => ipcRenderer.invoke('shell:open', path),
+  showItemInFolder: (path) => ipcRenderer.invoke('shell:showItemInFolder', path),
+  
+  // Direct Downloads
+  downloadDirect: (data) => ipcRenderer.invoke('download:direct', data),
+  copyToDownloads: (data) => ipcRenderer.invoke('download:copyToDownloads', data),
+  onDownloadProgress: (callback) => {
+    ipcRenderer.on('download:progress', (event, data) => callback(data));
+  },
   
   // App info
   getAppInfo: () => ipcRenderer.invoke('getAppInfo'),

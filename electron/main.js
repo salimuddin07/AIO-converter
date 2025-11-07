@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const archiver = require('archiver'); // For ZIP creation
+const os = require('os'); // For getting Downloads folder
 
 // Import processing libraries directly
 let sharp, ffmpeg, Canvas;
@@ -369,6 +370,159 @@ ipcMain.handle('dialog:message', async (event, options) => {
 ipcMain.handle('shell:open', async (event, path) => {
   await shell.openPath(path);
   return { success: true };
+});
+
+// Show item in folder (highlights the file in explorer)
+ipcMain.handle('shell:showItemInFolder', async (event, path) => {
+  shell.showItemInFolder(path);
+  return { success: true };
+});
+
+// Get Downloads folder path
+function getDownloadsFolder() {
+  return path.join(os.homedir(), 'Downloads');
+}
+
+// Direct download to Downloads folder
+ipcMain.handle('download:direct', async (event, { data, filename, showProgress = true }) => {
+  try {
+    const downloadsPath = getDownloadsFolder();
+    
+    // Ensure Downloads folder exists
+    await fs.mkdir(downloadsPath, { recursive: true });
+    
+    // Generate unique filename if file already exists
+    let finalFilename = filename;
+    let counter = 1;
+    const ext = path.extname(filename);
+    const name = path.basename(filename, ext);
+    
+    while (fsSync.existsSync(path.join(downloadsPath, finalFilename))) {
+      finalFilename = `${name} (${counter})${ext}`;
+      counter++;
+    }
+    
+    const filePath = path.join(downloadsPath, finalFilename);
+    
+    // Emit progress start
+    if (showProgress) {
+      event.sender.send('download:progress', { status: 'starting', filename: finalFilename });
+    }
+    
+    // Write file with progress simulation
+    if (data instanceof ArrayBuffer) {
+      await fs.writeFile(filePath, Buffer.from(data));
+    } else if (Buffer.isBuffer(data)) {
+      await fs.writeFile(filePath, data);
+    } else if (typeof data === 'string') {
+      // Handle base64 data URLs
+      if (data.startsWith('data:')) {
+        const base64 = data.split(',')[1];
+        const buffer = Buffer.from(base64, 'base64');
+        await fs.writeFile(filePath, buffer);
+      } else {
+        // Regular string content
+        await fs.writeFile(filePath, data, 'utf8');
+      }
+    } else {
+      throw new Error('Unsupported data type for download');
+    }
+    
+    // Emit progress complete
+    if (showProgress) {
+      event.sender.send('download:progress', { 
+        status: 'complete', 
+        filename: finalFilename,
+        filePath: filePath 
+      });
+    }
+    
+    return {
+      success: true,
+      filePath: filePath,
+      filename: finalFilename,
+      message: `File downloaded to Downloads folder`
+    };
+    
+  } catch (error) {
+    console.error('❌ Direct download failed:', error);
+    
+    if (showProgress) {
+      event.sender.send('download:progress', { 
+        status: 'error', 
+        filename: filename,
+        error: error.message 
+      });
+    }
+    
+    return {
+      success: false,
+      message: `Download failed: ${error.message}`
+    };
+  }
+});
+
+// Copy file directly to Downloads folder
+ipcMain.handle('download:copyToDownloads', async (event, { sourcePath, filename, showProgress = true }) => {
+  try {
+    const downloadsPath = getDownloadsFolder();
+    
+    // Ensure Downloads folder exists
+    await fs.mkdir(downloadsPath, { recursive: true });
+    
+    // Generate unique filename if file already exists
+    let finalFilename = filename;
+    let counter = 1;
+    const ext = path.extname(filename);
+    const name = path.basename(filename, ext);
+    
+    while (fsSync.existsSync(path.join(downloadsPath, finalFilename))) {
+      finalFilename = `${name} (${counter})${ext}`;
+      counter++;
+    }
+    
+    const destPath = path.join(downloadsPath, finalFilename);
+    
+    // Emit progress start
+    if (showProgress) {
+      event.sender.send('download:progress', { status: 'starting', filename: finalFilename });
+    }
+    
+    // Copy file
+    await fs.copyFile(sourcePath, destPath);
+    
+    // Emit progress complete
+    if (showProgress) {
+      event.sender.send('download:progress', { 
+        status: 'complete', 
+        filename: finalFilename,
+        filePath: destPath 
+      });
+    }
+    
+    return {
+      success: true,
+      filePath: destPath,
+      filename: finalFilename,
+      message: `File downloaded to Downloads folder`
+    };
+    
+  } catch (error) {
+    console.error('❌ Copy to Downloads failed:', error);
+    
+    if (showProgress) {
+      event.sender.send('download:progress', { 
+        status: 'error', 
+        filename: filename,
+        error: error.message 
+      });
+    }
+    
+    return {
+      success: false,
+      message: `Download failed: ${error.message}`
+    };
+  }
 });
 
 // Create GIF from multiple images

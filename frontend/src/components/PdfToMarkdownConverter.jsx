@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { pdfProcessor } from '../utils/pdfToMarkdown.js';
-import { downloadFile, showDownloadNotification } from '../utils/downloadUtils.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 export default function PdfToMarkdownConverter() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -72,18 +72,6 @@ export default function PdfToMarkdownConverter() {
       setError(err.message || 'Failed to convert PDF to Markdown');
     } finally {
       setConverting(false);
-    }
-  };
-
-  // Download converted markdown as file
-  const downloadMarkdown = async () => {
-    if (result && result.content) {
-      // Create a blob from the markdown content
-      const blob = new Blob([result.content], { type: 'text/markdown' });
-      const filename = `${selectedFile.name.replace('.pdf', '')}.md`;
-      
-      const downloadResult = await downloadFile(blob, filename);
-      showDownloadNotification(downloadResult);
     }
   };
 
@@ -179,9 +167,21 @@ export default function PdfToMarkdownConverter() {
           </div>
 
           <div className="result-actions">
-            <button className="download-button" onClick={downloadMarkdown}>
-              📥 Download Markdown File
-            </button>
+            <DownloadButton
+              data={result?.content}
+              filename={`${selectedFile?.name?.replace('.pdf', '') || 'converted'}.md`}
+              buttonText="📥 Download Markdown File"
+              className="download-button"
+              onDownloadStart={(filename) => {
+                console.log(`Starting markdown download: ${filename}`);
+              }}
+              onDownloadComplete={(result) => {
+                console.log(`Markdown downloaded: ${result.filePath}`);
+              }}
+              onDownloadError={(error) => {
+                console.error(`Markdown download failed: ${error.message}`);
+              }}
+            />
             <button className="reset-button" onClick={reset}>
               Convert Another PDF
             </button>

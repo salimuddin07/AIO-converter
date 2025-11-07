@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { downloadFile, showDownloadNotification } from '../utils/downloadUtils.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 const SAMPLE_TEXT = `AIO Convert - Professional Media Converter
 

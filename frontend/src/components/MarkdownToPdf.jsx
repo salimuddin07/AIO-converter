@@ -5,7 +5,7 @@ import html2pdf from 'html2pdf.js';
 import { PDFDocument } from 'pdf-lib';
 import { NotificationService } from '../utils/NotificationService.js';
 import { PAGE_SIZES_MM, sanitizeFileName, clampMargin, mmToPixels, getPageSizeMm } from '../utils/pdfExport.js';
-import { downloadFile, showDownloadNotification } from '../utils/downloadUtils.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 const SAMPLE_MARKDOWN = String.raw`# Markdown to PDF
 

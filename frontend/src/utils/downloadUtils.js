@@ -219,19 +219,27 @@ async function openDownloadLocation(filePath) {
 }
 
 /**
- * Download a file using Electron's native save dialog
- * This will prompt the user to choose where to save the file
+ * Enhanced download function with comprehensive status tracking
+ * Shows download progress and provides option to open file location when complete
  * @param {string|ArrayBuffer|Buffer|Blob} data - The file data
  * @param {string} filename - Suggested filename
  * @param {Array} filters - File type filters for the save dialog
  * @returns {Promise<{success: boolean, filePath?: string, message: string}>}
  */
-export async function downloadFile(data, filename, filters = []) {
+export async function downloadFileWithStatus(data, filename, filters = []) {
+  const downloadId = createDownloadId();
+  
   try {
+    // Show starting status
+    showDownloadStatus(downloadId, filename, 'starting');
+    
     // Ensure we're in Electron environment
     if (!window.electronAPI) {
       throw new Error('❌ Download requires the desktop app');
     }
+
+    // Show downloading status
+    showDownloadStatus(downloadId, filename, 'downloading');
 
     // Convert different data types to ArrayBuffer
     let arrayBuffer;
@@ -325,6 +333,7 @@ export async function downloadFile(data, filename, filters = []) {
     });
 
     if (result.canceled) {
+      showDownloadStatus(downloadId, filename, 'error', { error: 'Download cancelled by user' });
       return {
         success: false,
         message: 'Download cancelled by user'
@@ -337,6 +346,9 @@ export async function downloadFile(data, filename, filters = []) {
       data: arrayBuffer
     });
 
+    // Show success status with file location
+    showDownloadStatus(downloadId, filename, 'complete', { filePath: result.filePath });
+
     return {
       success: true,
       filePath: result.filePath,
@@ -345,6 +357,7 @@ export async function downloadFile(data, filename, filters = []) {
 
   } catch (error) {
     console.error('❌ Download failed:', error);
+    showDownloadStatus(downloadId, filename, 'error', { error: error.message });
     return {
       success: false,
       message: `Download failed: ${error.message}`
@@ -353,17 +366,140 @@ export async function downloadFile(data, filename, filters = []) {
 }
 
 /**
- * Download a file from a URL/path using Electron's file operations
+ * Direct download to Downloads folder (NEW)
+ * Downloads directly to Downloads folder without user interaction
+ * @param {string|ArrayBuffer|Buffer|Blob} data - The file data
+ * @param {string} filename - Filename
+ * @returns {Promise<{success: boolean, filePath?: string, message: string}>}
+ */
+export async function downloadFileDirectly(data, filename) {
+  const downloadId = createDownloadId();
+  
+  try {
+    // Ensure we're in Electron environment
+    if (!window.electronAPI) {
+      throw new Error('❌ Download requires the desktop app');
+    }
+
+    // Show starting status
+    showDownloadStatus(downloadId, filename, 'starting');
+
+    // Convert different data types to appropriate format
+    let processedData;
+    
+    if (data instanceof ArrayBuffer) {
+      processedData = data;
+    } else if (data instanceof Blob) {
+      processedData = await data.arrayBuffer();
+    } else if (typeof data === 'string') {
+      processedData = data; // Let the main process handle string data
+    } else if (Buffer.isBuffer(data)) {
+      processedData = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    } else {
+      throw new Error('Unsupported data type for download');
+    }
+
+    // Show downloading status
+    showDownloadStatus(downloadId, filename, 'downloading');
+
+    // Download directly to Downloads folder
+    const result = await window.electronAPI.downloadDirect({
+      data: processedData,
+      filename: filename,
+      showProgress: true
+    });
+
+    if (result.success) {
+      // Show success status with file location
+      showDownloadStatus(downloadId, filename, 'complete', { 
+        filePath: result.filePath,
+        filename: result.filename 
+      });
+    } else {
+      showDownloadStatus(downloadId, filename, 'error', { error: result.message });
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('❌ Direct download failed:', error);
+    showDownloadStatus(downloadId, filename, 'error', { error: error.message });
+    return {
+      success: false,
+      message: `Download failed: ${error.message}`
+    };
+  }
+}
+
+/**
+ * Copy file directly to Downloads folder (NEW)
+ * Copies an existing file to Downloads folder without user interaction
+ * @param {string} sourcePath - Path to source file
+ * @param {string} filename - Filename for downloaded file
+ * @returns {Promise<{success: boolean, filePath?: string, message: string}>}
+ */
+export async function downloadFileFromPathDirectly(sourcePath, filename) {
+  const downloadId = createDownloadId();
+  
+  try {
+    // Ensure we're in Electron environment
+    if (!window.electronAPI) {
+      throw new Error('❌ Download requires the desktop app');
+    }
+
+    // Show starting status
+    showDownloadStatus(downloadId, filename, 'starting');
+    showDownloadStatus(downloadId, filename, 'downloading');
+
+    // Copy to Downloads folder
+    const result = await window.electronAPI.copyToDownloads({
+      sourcePath: sourcePath,
+      filename: filename,
+      showProgress: true
+    });
+
+    if (result.success) {
+      // Show success status with file location
+      showDownloadStatus(downloadId, filename, 'complete', { 
+        filePath: result.filePath,
+        filename: result.filename 
+      });
+    } else {
+      showDownloadStatus(downloadId, filename, 'error', { error: result.message });
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('❌ Direct download from path failed:', error);
+    showDownloadStatus(downloadId, filename, 'error', { error: error.message });
+    return {
+      success: false,
+      message: `Download failed: ${error.message}`
+    };
+  }
+}
+
+/**
+ * Enhanced download from file path with status tracking
  * @param {string} filePath - Path to the source file
  * @param {string} suggestedName - Suggested filename for save dialog
  * @param {Array} filters - File type filters
  * @returns {Promise<{success: boolean, filePath?: string, message: string}>}
  */
-export async function downloadFileFromPath(filePath, suggestedName, filters = []) {
+export async function downloadFileFromPathWithStatus(filePath, suggestedName, filters = []) {
+  const downloadId = createDownloadId();
+  
   try {
+    // Show starting status
+    showDownloadStatus(downloadId, suggestedName, 'starting');
+    
     if (!window.electronAPI) {
       throw new Error('❌ Download requires the desktop app');
     }
+
+    // Show downloading status
+    showDownloadStatus(downloadId, suggestedName, 'downloading');
 
     // Show save dialog
     const result = await window.electronAPI.saveDialog({
@@ -373,6 +509,7 @@ export async function downloadFileFromPath(filePath, suggestedName, filters = []
     });
 
     if (result.canceled) {
+      showDownloadStatus(downloadId, suggestedName, 'error', { error: 'Download cancelled by user' });
       return {
         success: false,
         message: 'Download cancelled by user'
@@ -385,6 +522,9 @@ export async function downloadFileFromPath(filePath, suggestedName, filters = []
       destPath: result.filePath
     });
 
+    // Show success status with file location
+    showDownloadStatus(downloadId, suggestedName, 'complete', { filePath: result.filePath });
+
     return {
       success: true,
       filePath: result.filePath,
@@ -393,6 +533,7 @@ export async function downloadFileFromPath(filePath, suggestedName, filters = []
 
   } catch (error) {
     console.error('❌ Download from path failed:', error);
+    showDownloadStatus(downloadId, suggestedName, 'error', { error: error.message });
     return {
       success: false,
       message: `Download failed: ${error.message}`
@@ -465,9 +606,15 @@ export function legacyBrowserDownload(url, filename) {
   document.body.removeChild(link);
 }
 
+// Backward compatibility exports
+export const downloadFile = downloadFileWithStatus;
+export const downloadFileFromPath = downloadFileFromPathWithStatus;
+
 export default {
   downloadFile,
+  downloadFileWithStatus,
   downloadFileFromPath,
+  downloadFileFromPathWithStatus,
   downloadFromBlobUrl,
   showDownloadNotification,
   legacyBrowserDownload

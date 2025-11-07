@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ImageEditor from './ImageEditor.jsx';
 import { ImageCropTool, ImageResizeTool, ImageRotateTool } from './ImageTransformTools.jsx';
-import { downloadFile, showDownloadNotification } from '../utils/downloadUtils.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 const ImageEditorWithUpload = ({ tool = 'edit' }) => {
   const [imageUrl, setImageUrl] = useState(null);

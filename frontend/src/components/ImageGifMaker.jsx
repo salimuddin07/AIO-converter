@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
 import { api as realAPI, resolveDisplayUrl } from '../utils/unifiedAPI.js';
-import { downloadFileFromPath, downloadFromBlobUrl, showDownloadNotification } from '../utils/downloadUtils.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 const SPEED_PRESETS = {
   slow: { label: 'Slow', delay: 140 },
@@ -350,38 +350,6 @@ export default function ImageGifMaker() {
     }
   };
 
-  const downloadResult = async () => {
-    if (!result?.result) return;
-    const { dataUrl, downloadUrl, url, filename, outputPath } = result.result;
-    
-    try {
-      if (realAPI.isElectron && outputPath) {
-        // In Electron mode, use path-based download
-        const result = await downloadFileFromPath(
-          outputPath, 
-          filename || 'image-sequence.gif'
-        );
-        showDownloadNotification(result);
-      } else {
-        // Fallback - download from URL
-        const targetUrl = dataUrl || downloadUrl || url;
-        if (!targetUrl) {
-          NotificationService.toast('No downloadable result is available yet.', 'info');
-          return;
-        }
-        
-        const result = await downloadFromBlobUrl(
-          targetUrl, 
-          filename || 'image-sequence.gif'
-        );
-        showDownloadNotification(result);
-      }
-    } catch (error) {
-      console.error('Download failed:', error);
-      NotificationService.error(`Download failed: ${error.message}`);
-    }
-  };
-
   return (
     <div className="image-gif-maker">
       <div className="hero">
@@ -680,7 +648,22 @@ export default function ImageGifMaker() {
             />
           </div>
           <div className="result-actions">
-            <button type="button" onClick={downloadResult}>Download GIF</button>
+            <DownloadButton
+              data={result?.result?.outputPath || result?.result?.dataUrl || result?.result?.downloadUrl || result?.result?.url}
+              filename={result?.result?.filename || 'image-sequence.gif'}
+              buttonText="Download GIF"
+              onDownloadStart={(filename) => {
+                console.log(`Starting GIF download: ${filename}`);
+              }}
+              onDownloadComplete={(result) => {
+                console.log(`GIF downloaded: ${result.filePath}`);
+                NotificationService.success('GIF downloaded successfully!');
+              }}
+              onDownloadError={(error) => {
+                console.error(`GIF download failed: ${error.message}`);
+                NotificationService.error(`Download failed: ${error.message}`);
+              }}
+            />
             <button type="button" onClick={reset}>Create another</button>
           </div>
         </section>

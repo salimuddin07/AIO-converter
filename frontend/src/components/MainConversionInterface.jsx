@@ -1,30 +1,8 @@
 import { useState, useRef } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
 import { api as realAPI } from '../utils/unifiedAPI.js';
-import { downloadFile as desktopDownloadFile, downloadFileFromPath, showDownloadNotification } from '../utils/downloadUtils.js';
-
-// Legacy compatibility for downloadFile and validateFile
-const downloadFile = async (data, filename) => {
-  try {
-    if (typeof data === 'string' && (data.startsWith('file://') || data.startsWith('/'))) {
-      // It's a file path
-      const filePath = data.startsWith('file://') ? data.replace('file://', '') : data;
-      const result = await downloadFileFromPath(filePath, filename);
-      showDownloadNotification(result);
-    } else if (data && typeof data === 'object' && data.downloadUrl) {
-      // It's a result object with downloadUrl
-      const result = await downloadFileFromPath(data.downloadUrl, filename);
-      showDownloadNotification(result);
-    } else {
-      // It's data to be saved
-      const result = await desktopDownloadFile(data, filename);
-      showDownloadNotification(result);
-    }
-  } catch (error) {
-    console.error('Download error:', error);
-    NotificationService.error('Download failed: ' + error.message);
-  }
-};
+import { downloadFileWithStatus, downloadFileFromPathWithStatus } from '../utils/downloadUtils.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 const validateFile = (file) => {
   // Basic file validation
@@ -399,15 +377,23 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
                         : ''
                       }
                     </p>
-                    <button 
+                    <DownloadButton
+                      data={result.processedFile}
+                      filename={result.processedFile?.name || `processed_${result.originalName}`}
+                      buttonText="📥 Download"
                       className="download-button"
-                      onClick={() => downloadFile(
-                        result.processedFile, 
-                        result.processedFile?.name || `processed_${result.originalName}`
-                      )}
-                    >
-                      📥 Download
-                    </button>
+                      onDownloadStart={(filename) => {
+                        console.log(`Starting download: ${filename}`);
+                      }}
+                      onDownloadComplete={(result) => {
+                        console.log(`Download completed: ${result.filePath}`);
+                        NotificationService.success('File downloaded successfully!');
+                      }}
+                      onDownloadError={(error) => {
+                        console.error(`Download failed: ${error.message}`);
+                        NotificationService.error(`Download failed: ${error.message}`);
+                      }}
+                    />
                   </div>
                 </div>
               ))}

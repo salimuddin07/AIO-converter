@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
-import { downloadFile, showDownloadNotification } from '../utils/downloadUtils.js';
+import { DownloadButton } from './DownloadManager.jsx';
 import '../aio-convert-style.css';
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp'];
@@ -227,20 +227,6 @@ export default function ImageOptimizer() {
     }
   };
 
-  const handleDownload = async (result) => {
-    try {
-      // Convert data URL to blob
-      const response = await fetch(result.previewUrl);
-      const blob = await response.blob();
-      
-      const downloadResult = await downloadFile(blob, result.optimizedFile.name);
-      showDownloadNotification(downloadResult);
-    } catch (error) {
-      console.error('Download error:', error);
-      NotificationService.error('Download failed: ' + error.message);
-    }
-  };
-
   const removeFile = (index) => {
     setFiles((prev) => prev.filter((_, idx) => idx !== index));
   };
@@ -413,9 +399,23 @@ export default function ImageOptimizer() {
                       <dd>{formatBytes(result.originalSize - result.optimizedSize)}</dd>
                     </div>
                   </dl>
-                  <button type="button" className="secondary-btn" onClick={() => handleDownload(result)}>
-                    Download optimized
-                  </button>
+                  <DownloadButton
+                    data={result.previewUrl}
+                    filename={result.optimizedFile.name}
+                    buttonText="Download optimized"
+                    className="secondary-btn"
+                    onDownloadStart={(filename) => {
+                      console.log(`Starting image download: ${filename}`);
+                    }}
+                    onDownloadComplete={(result) => {
+                      console.log(`Image downloaded: ${result.filePath}`);
+                      NotificationService.success('Image downloaded successfully!');
+                    }}
+                    onDownloadError={(error) => {
+                      console.error(`Image download failed: ${error.message}`);
+                      NotificationService.error(`Download failed: ${error.message}`);
+                    }}
+                  />
                 </article>
               ))}
             </div>
