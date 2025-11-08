@@ -260,12 +260,21 @@ const SecureVideo = ({ filePath, ...props }) => {
   );
 };
 
-const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation, zipUrl, zipPath }) => (
+const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation, zipUrl, zipPath }) => {
+  console.log('🔍 GifResultsSection props:', { 
+    framesCount: frames?.length, 
+    onDownloadZip: !!onDownloadZip, 
+    zipUrl, 
+    zipPath,
+    hasZipData: !!(zipUrl || zipPath)
+  });
+  
+  return (
   <div className="split-results">
     <h2>Extracted Frames ({frames.length} frames)</h2>
 
     <div className="action-buttons" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-      {onDownloadZip && (
+      {onDownloadZip && (zipUrl || zipPath) && (
         <>
           <DownloadButton
             data={zipUrl}
@@ -282,6 +291,16 @@ const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation, zipUrl, zip
             style={{ marginLeft: 8 }}
           />
         </>
+      )}
+      {!onDownloadZip && (
+        <div style={{ color: 'red', fontSize: '12px' }}>
+          DEBUG: onDownloadZip is missing
+        </div>
+      )}
+      {onDownloadZip && !(zipUrl || zipPath) && (
+        <div style={{ color: 'red', fontSize: '12px' }}>
+          DEBUG: ZIP data missing - zipUrl: {String(zipUrl)}, zipPath: {String(zipPath)}
+        </div>
       )}
       {onEditAnimation && (
         <button className="btn secondary" onClick={onEditAnimation}>
@@ -377,7 +396,8 @@ const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation, zipUrl, zip
       </ul>
     </div>
   </div>
-);
+  );
+};
 
 const VideoResultsSection = ({ segments, meta, onDownloadZip, zipUrl, zipPath }) => {
   const [segmentList, setSegmentList] = useState(segments);

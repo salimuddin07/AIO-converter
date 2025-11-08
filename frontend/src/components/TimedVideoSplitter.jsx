@@ -273,6 +273,7 @@ export default function TimedVideoSplitter() {
         jobId: splitResult.jobId,
         items,
         zipUrl: splitResult.zipUrl,
+        zipPath: splitResult.zipPath,
         meta: splitResult
       });
 
@@ -590,8 +591,12 @@ export default function TimedVideoSplitter() {
         {/* Results */}
         {splitData && (
           <SplitResults
-            splitData={splitData}
-            onZipDownload={() => {
+            type={splitData.type}
+            items={splitData.items}
+            meta={splitData.meta}
+            zipUrl={splitData.zipUrl}
+            zipPath={splitData.zipPath}
+            onDownloadZip={() => {
               if (splitData?.zipUrl) {
                 const url = resolveDisplayUrl(splitData.zipUrl);
                 if (url) window.open(url, '_blank', 'noopener');

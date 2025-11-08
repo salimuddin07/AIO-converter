@@ -17,6 +17,7 @@
     "build:win-portable": "npm run build:frontend && electron-builder --win portable",
     "build:all": "npm run build:frontend && electron-builder --win --x64 --ia32",
     "pack": "electron-builder --dir",
+    "pack:production": "npm run build:frontend && npx electron-packager . \"AIO Converter\" --platform=win32 --arch=x64 --out=dist-packager --ignore=\"frontend/src|frontend/node_modules|temp|logs|\\.git\" --overwrite --no-asar",
     "dist": "npm run build:frontend && electron-builder",
     "postinstall": "electron-builder install-app-deps",
     "install:all": "npm install && cd frontend && npm install",

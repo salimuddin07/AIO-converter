@@ -229,6 +229,7 @@ export default function FrameSplitter() {
         : result.frames || [];
 
       console.log('🔍 Final items for SplitResults:', items);
+      console.log('🔍 ZIP data from result:', { zipUrl: result.zipUrl, zipPath: result.zipPath });
 
       setSplitData({
         type: 'frames',
@@ -236,7 +237,14 @@ export default function FrameSplitter() {
         jobId: result.jobId,
         items,
         zipUrl: result.zipUrl,
+        zipPath: result.zipPath,
         meta: result
+      });
+
+      console.log('🔍 Split data set with ZIP info:', { 
+        zipUrl: result.zipUrl, 
+        zipPath: result.zipPath,
+        hasZipUrl: !!result.zipUrl 
       });
 
     } catch (err) {
@@ -570,7 +578,7 @@ export default function FrameSplitter() {
             items={splitData.items}
             meta={splitData.meta}
             zipUrl={splitData.zipUrl}
-            zipPath={splitData.meta?.zipPath}
+            zipPath={splitData.zipPath}
             onDownloadZip={splitData.zipUrl ? () => {
               const url = resolveDisplayUrl(splitData.zipUrl);
               if (url) {

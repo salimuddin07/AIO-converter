@@ -877,13 +877,18 @@ export const api = {
       console.log('📂 Input video path:', inputPath);
       
       // Extract frames via Electron
-      const result = await safeElectronCall('extractVideoFrames', {
+      const result = await safeElectronCall('extract-video-frames', {
         inputPath: inputPath,
         options: {
           fps: options.fps ? parseFloat(options.fps) : 1,
           startTime: options.startTime ? parseFloat(options.startTime) : 0,
           duration: options.duration ? parseFloat(options.duration) : undefined,
           outputFormat: options.outputFormat || 'png',
+          createZip: options.createZip,
+          maxFrames: options.maxFrames,
+          extractionMode: options.extractionMode,
+          intervalMs: options.intervalMs,
+          quality: options.quality,
           ...options
         }
       });

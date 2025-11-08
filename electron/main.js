@@ -22,10 +22,45 @@ try {
 }
 
 try {
-  const ffmpegPath = require('ffmpeg-static');
+  let ffmpegPath;
+  
+  // Check if we're in a packaged app
+  if (app.isPackaged) {
+    // For packaged apps, FFmpeg should be in the app directory (no-asar build)
+    ffmpegPath = path.join(__dirname, '..', 'node_modules', 'ffmpeg-static', 'ffmpeg.exe');
+    
+    // Check if the binary exists
+    if (!fsSync.existsSync(ffmpegPath)) {
+      // Try alternative paths
+      const altPaths = [
+        path.join(process.resourcesPath, 'app', 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
+        path.join(path.dirname(process.execPath), 'resources', 'app', 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
+        path.join(__dirname, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe')
+      ];
+      
+      for (const altPath of altPaths) {
+        if (fsSync.existsSync(altPath)) {
+          ffmpegPath = altPath;
+          break;
+        }
+      }
+      
+      // Final fallback - use the original path from ffmpeg-static
+      if (!fsSync.existsSync(ffmpegPath)) {
+        ffmpegPath = require('ffmpeg-static');
+      }
+    }
+  } else {
+    // For development, use the normal ffmpeg-static path
+    ffmpegPath = require('ffmpeg-static');
+  }
+  
   const ffmpeg_lib = require('fluent-ffmpeg');
   ffmpeg_lib.setFfmpegPath(ffmpegPath);
   ffmpeg = ffmpeg_lib;
+  
+  console.log('🎬 FFmpeg path:', ffmpegPath);
+  console.log('🎬 FFmpeg exists:', fsSync.existsSync(ffmpegPath));
 } catch (e) {
   console.log('FFmpeg not available:', e.message);
 }
@@ -716,6 +751,51 @@ ipcMain.handle('split-gif', async (event, { inputPath, options = {} }) => {
       });
     }
     
+    // Create ZIP if requested
+    let zipUrl = null;
+    let zipPath = null;
+    if (options.createZip && frames.length > 0) {
+      const zipFileName = `gif_frames_${Date.now()}.zip`;
+      zipPath = path.join(tempDir, zipFileName);
+      
+      try {
+        await new Promise((resolveZip, rejectZip) => {
+          const output = fsSync.createWriteStream(zipPath);
+          const archive = archiver('zip', { zlib: { level: 9 } });
+          
+          output.on('close', () => {
+            console.log(`📦 ZIP created: ${archive.pointer()} total bytes`);
+            resolveZip();
+          });
+          
+          archive.on('error', (err) => {
+            console.error('❌ ZIP creation error:', err);
+            rejectZip(err);
+          });
+          
+          archive.pipe(output);
+          
+          // Add all frame files to ZIP
+          frames.forEach((frame) => {
+            if (fsSync.existsSync(frame.path)) {
+              archive.file(frame.path, { name: frame.filename });
+              console.log(`📁 Added to ZIP: ${frame.filename}`);
+            }
+          });
+          
+          archive.finalize();
+        });
+        
+        const normalizedZipPath = zipPath.replace(/\\/g, '/');
+        zipUrl = normalizedZipPath.startsWith('/') ? `file://${normalizedZipPath}` : `file:///${normalizedZipPath}`;
+        console.log('📦 ZIP created successfully:', zipPath);
+        
+      } catch (zipError) {
+        console.error('❌ Failed to create ZIP:', zipError);
+        // Continue without ZIP if creation fails
+      }
+    }
+    
     console.log('✅ GIF splitting completed');
     
     return {
@@ -723,7 +803,9 @@ ipcMain.handle('split-gif', async (event, { inputPath, options = {} }) => {
       frames: frames,
       frameCount: frames.length,
       outputDir: outputDir,
-      message: `Successfully split GIF into ${frames.length} frames`
+      zipUrl: zipUrl,
+      zipPath: zipPath,
+      message: `Successfully split GIF into ${frames.length} frames${zipUrl ? ' and created ZIP' : ''}`
     };
     
   } catch (error) {
@@ -987,11 +1069,68 @@ ipcMain.handle('split-video', async (event, { inputPath, options = {} }) => {
           });
         }
         
+        // Create ZIP if requested
+        let zipUrl = null;
+        let zipPath = null;
+        if (options.createZip && segments.length > 0) {
+          const zipFileName = `video_segments_${Date.now()}.zip`;
+          zipPath = path.join(tempDir, zipFileName);
+          
+          try {
+            await new Promise((resolveZip, rejectZip) => {
+              const output = fsSync.createWriteStream(zipPath);
+              const archive = archiver('zip', { zlib: { level: 9 } });
+              
+              output.on('close', () => {
+                console.log(`📦 ZIP created: ${archive.pointer()} total bytes`);
+                resolveZip();
+              });
+              
+              archive.on('warning', (err) => {
+                if (err.code === 'ENOENT') {
+                  console.warn('⚠️ ZIP warning:', err);
+                } else {
+                  console.error('❌ ZIP creation error:', err);
+                  rejectZip(err);
+                }
+              });
+              
+              archive.on('error', (err) => {
+                console.error('❌ ZIP creation error:', err);
+                rejectZip(err);
+              });
+              
+              archive.pipe(output);
+              
+              // Add all segment files to ZIP
+              for (const segment of segments) {
+                if (fsSync.existsSync(segment.path)) {
+                  archive.file(segment.path, { name: segment.filename });
+                  console.log(`📁 Added to ZIP: ${segment.filename}`);
+                }
+              }
+              
+              archive.finalize();
+            });
+            
+            // Create file URL for the ZIP
+            const normalizedZipPath = zipPath.replace(/\\/g, '/');
+            zipUrl = normalizedZipPath.startsWith('/') ? `file://${normalizedZipPath}` : `file:///${normalizedZipPath}`;
+            console.log('📦 ZIP created successfully:', zipPath);
+            
+          } catch (zipError) {
+            console.error('❌ Failed to create ZIP:', zipError);
+            // Continue without ZIP if creation fails
+          }
+        }
+        
         const result = {
           success: true,
           segments: segments,
           outputDir: outputDir,
           segmentCount: segments.length,
+          zipUrl: zipUrl,
+          zipPath: zipPath,
           message: `Video successfully split into ${segments.length} segments`
         };
         
@@ -1587,6 +1726,51 @@ ipcMain.handle('extract-gif-frames', async (event, { inputPath, options = {} }) 
       });
     }
     
+    // Create ZIP if requested
+    let zipUrl = null;
+    let zipPath = null;
+    if (options.createZip && frames.length > 0) {
+      const zipFileName = `gif_frames_${Date.now()}.zip`;
+      zipPath = path.join(tempDir, zipFileName);
+      
+      try {
+        await new Promise((resolveZip, rejectZip) => {
+          const output = fsSync.createWriteStream(zipPath);
+          const archive = archiver('zip', { zlib: { level: 9 } });
+          
+          output.on('close', () => {
+            console.log(`📦 ZIP created: ${archive.pointer()} total bytes`);
+            resolveZip();
+          });
+          
+          archive.on('error', (err) => {
+            console.error('❌ ZIP creation error:', err);
+            rejectZip(err);
+          });
+          
+          archive.pipe(output);
+          
+          // Add all frame files to ZIP
+          frames.forEach((frame) => {
+            if (fsSync.existsSync(frame.path)) {
+              archive.file(frame.path, { name: frame.filename });
+              console.log(`📁 Added to ZIP: ${frame.filename}`);
+            }
+          });
+          
+          archive.finalize();
+        });
+        
+        const normalizedZipPath = zipPath.replace(/\\/g, '/');
+        zipUrl = normalizedZipPath.startsWith('/') ? `file://${normalizedZipPath}` : `file:///${normalizedZipPath}`;
+        console.log('📦 ZIP created successfully:', zipPath);
+        
+      } catch (zipError) {
+        console.error('❌ Failed to create ZIP:', zipError);
+        // Continue without ZIP if creation fails
+      }
+    }
+    
     console.log('✅ GIF frame extraction completed');
     
     return {
@@ -1594,7 +1778,9 @@ ipcMain.handle('extract-gif-frames', async (event, { inputPath, options = {} }) 
       frames: frames,
       frameCount: frames.length,
       outputDir: outputDir,
-      message: `Extracted ${frames.length} frames from GIF`
+      zipUrl: zipUrl,
+      zipPath: zipPath,
+      message: `Extracted ${frames.length} frames from GIF${zipUrl ? ' and created ZIP' : ''}`
     };
     
   } catch (error) {
