@@ -37,6 +37,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   decodeWebp: (data) => ipcRenderer.invoke('decodeWebp', data),
   batchConvertImages: (data) => ipcRenderer.invoke('batch-convert-images', data),
   
+  // Modern format operations
+  createApngSequence: (data) => ipcRenderer.invoke('createApngSequence', data),
+  convertToAvifModern: (data) => ipcRenderer.invoke('convertToAvifModern', data),
+  convertToJxl: (data) => ipcRenderer.invoke('convertToJxl', data),
+  compareModernFormats: (data) => ipcRenderer.invoke('compareModernFormats', data),
+  
+  // Format conversion operations
+  convertImageFormat: (data) => ipcRenderer.invoke('convert-image-format', data),
+  markdownToPdf: (data) => ipcRenderer.invoke('markdown-to-pdf', data),
+  pdfToMarkdown: (data) => ipcRenderer.invoke('pdf-to-markdown', data),
+  textToMarkdown: (data) => ipcRenderer.invoke('text-to-markdown', data),
+  imagesToPdf: (data) => ipcRenderer.invoke('images-to-pdf', data),
+  
+  // Video operations
+  getVideoInfo: (data) => ipcRenderer.invoke('getVideoInfo', data),
+  extractVideoFrames: (data) => ipcRenderer.invoke('extractVideoFrames', data),
+  extractGifFrames: (data) => ipcRenderer.invoke('extractGifFrames', data),
+  
   // GIF from video
   createGifFromVideo: (data) => ipcRenderer.invoke('createGifFromVideo', data),
   

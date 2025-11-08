@@ -40,6 +40,37 @@ const safeElectronCall = async (method, ...args) => {
 };
 
 /**
+ * Helper function to handle File/Blob objects for Electron IPC
+ * Converts File/Blob to temporary file path that can be serialized
+ */
+const prepareFileForElectron = async (file, prefix = 'temp') => {
+  if (file instanceof File || file instanceof Blob) {
+    // Convert File/Blob to ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    
+    // Create temp filename with proper extension
+    const ext = file.name ? file.name.split('.').pop() : (file.type ? file.type.split('/')[1] : 'bin');
+    const tempFileName = `${prefix}_${Date.now()}.${ext}`;
+    
+    // Save file via Electron
+    const tempResult = await safeElectronCall('writeFile', {
+      filePath: tempFileName,
+      data: arrayBuffer
+    });
+    
+    if (tempResult.success && tempResult.filePath) {
+      console.log(`✅ Temp file saved:`, tempResult.filePath);
+      return tempResult.filePath;
+    } else {
+      throw new Error(`Failed to save temp file: ${file.name || 'unknown'}`);
+    }
+  } else {
+    // Assume it's already a path
+    return file;
+  }
+};
+
+/**
  * DESKTOP-ONLY API - No web fallbacks
  */
 export const api = {
@@ -303,7 +334,37 @@ export const api = {
    */
   async addText(file, text, options = {}) {
     ensureDesktop('addText');
-    return safeElectronCall('addTextToImage', { file, text, options });
+    
+    try {
+      console.log('✍️ Adding text to image...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_image');
+      console.log('📂 Input image path:', inputPath);
+      
+      // Add text via Electron
+      const result = await safeElectronCall('addTextToImage', {
+        inputPath: inputPath,
+        text: text,
+        options: {
+          fontSize: options.fontSize ? parseInt(options.fontSize) : 24,
+          fontColor: options.fontColor || '#ffffff',
+          position: options.position || 'center',
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ Text added to image:', result);
+      } else {
+        console.error('❌ Text addition failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Text addition error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -319,15 +380,74 @@ export const api = {
    */
   async addTextToImage(file, text, options = {}) {
     ensureDesktop('addTextToImage');
-    return safeElectronCall('addTextToImage', { file, text, options });
+    
+    try {
+      console.log('✍️ Adding text to image...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_image');
+      console.log('📂 Input image path:', inputPath);
+      
+      // Add text via Electron
+      const result = await safeElectronCall('addTextToImage', {
+        inputPath: inputPath,
+        text: text,
+        options: {
+          fontSize: options.fontSize ? parseInt(options.fontSize) : 24,
+          fontColor: options.fontColor || '#ffffff',
+          position: options.position || 'center',
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ Text added to image:', result);
+      } else {
+        console.error('❌ Text addition failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Text addition error:', error);
+      throw error;
+    }
   },
 
   /**
-   * Convert to WebP Advanced - DESKTOP ONLY
+   * Convert to WebP (Advanced) - DESKTOP ONLY
    */
   async convertToWebpAdvanced(file, options = {}) {
     ensureDesktop('convertToWebpAdvanced');
-    return safeElectronCall('convertToWebpAdvanced', { file, options });
+    
+    try {
+      console.log('🎨 Starting WebP advanced conversion...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_image');
+      console.log('📂 Input image path:', inputPath);
+      
+      // Convert via Electron
+      const result = await safeElectronCall('convertToWebpAdvanced', {
+        inputPath: inputPath,
+        options: {
+          quality: options.quality ? parseInt(options.quality) : 80,
+          lossless: options.lossless || false,
+          preset: options.preset || 'default',
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ WebP advanced conversion completed:', result);
+      } else {
+        console.error('❌ WebP advanced conversion failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ WebP advanced conversion error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -335,7 +455,42 @@ export const api = {
    */
   async batchConvertImages(files, options = {}) {
     ensureDesktop('batchConvertImages');
-    return safeElectronCall('batchConvertImages', { files, options });
+    
+    try {
+      console.log('🎨 Starting batch image conversion...');
+      
+      // Convert all files to paths
+      const inputPaths = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const inputPath = await prepareFileForElectron(file, `temp_batch_${i}`);
+        inputPaths.push(inputPath);
+      }
+      
+      console.log('📂 Input image paths:', inputPaths);
+      
+      // Convert via Electron
+      const result = await safeElectronCall('batchConvertImages', {
+        inputPaths: inputPaths,
+        options: {
+          format: options.format || 'webp',
+          quality: options.quality ? parseInt(options.quality) : 80,
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ Batch conversion completed:', result);
+      } else {
+        console.error('❌ Batch conversion failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Batch conversion error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -343,15 +498,78 @@ export const api = {
    */
   async createApngSequence(files, options = {}) {
     ensureDesktop('createApngSequence');
-    return safeElectronCall('createApngSequence', { files, options });
+    
+    try {
+      console.log('🎞️ Starting APNG sequence creation...');
+      
+      // Convert all files to paths
+      const inputPaths = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const inputPath = await prepareFileForElectron(file, `temp_apng_${i}`);
+        inputPaths.push(inputPath);
+      }
+      
+      console.log('📂 Input image paths:', inputPaths);
+      
+      // Create APNG via Electron
+      const result = await safeElectronCall('createApngSequence', {
+        inputPaths: inputPaths,
+        options: {
+          delay: options.delay ? parseInt(options.delay) : 100,
+          loop: options.loop !== false,
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ APNG sequence creation completed:', result);
+      } else {
+        console.error('❌ APNG sequence creation failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ APNG sequence creation error:', error);
+      throw error;
+    }
   },
 
   /**
-   * Convert to AVIF Modern - DESKTOP ONLY
+   * Convert to AVIF (Modern) - DESKTOP ONLY
    */
   async convertToAvifModern(file, options = {}) {
     ensureDesktop('convertToAvifModern');
-    return safeElectronCall('convertToAvifModern', { file, options });
+    
+    try {
+      console.log('🎨 Starting AVIF conversion...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_image');
+      console.log('📂 Input image path:', inputPath);
+      
+      // Convert via Electron
+      const result = await safeElectronCall('convertToAvifModern', {
+        inputPath: inputPath,
+        options: {
+          quality: options.quality ? parseInt(options.quality) : 80,
+          speed: options.speed ? parseInt(options.speed) : 6,
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ AVIF conversion completed:', result);
+      } else {
+        console.error('❌ AVIF conversion failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ AVIF conversion error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -359,7 +577,35 @@ export const api = {
    */
   async convertToJxl(file, options = {}) {
     ensureDesktop('convertToJxl');
-    return safeElectronCall('convertToJxl', { file, options });
+    
+    try {
+      console.log('🎨 Starting JPEG XL conversion...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_image');
+      console.log('📂 Input image path:', inputPath);
+      
+      // Convert via Electron
+      const result = await safeElectronCall('convertToJxl', {
+        inputPath: inputPath,
+        options: {
+          quality: options.quality ? parseInt(options.quality) : 80,
+          effort: options.effort ? parseInt(options.effort) : 7,
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ JPEG XL conversion completed:', result);
+      } else {
+        console.error('❌ JPEG XL conversion failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ JPEG XL conversion error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -367,15 +613,92 @@ export const api = {
    */
   async compareModernFormats(file, options = {}) {
     ensureDesktop('compareModernFormats');
-    return safeElectronCall('compareModernFormats', { file, options });
+    
+    try {
+      console.log('🎨 Starting modern format comparison...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_image');
+      console.log('📂 Input image path:', inputPath);
+      
+      // Compare via Electron
+      const result = await safeElectronCall('compareModernFormats', {
+        inputPath: inputPath,
+        options: {
+          formats: options.formats || ['webp', 'avif', 'jxl'],
+          quality: options.quality ? parseInt(options.quality) : 80,
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ Modern format comparison completed:', result);
+      } else {
+        console.error('❌ Modern format comparison failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Modern format comparison error:', error);
+      throw error;
+    }
   },
 
   /**
-   * Get video info - DESKTOP ONLY
+   * Get video information - DESKTOP ONLY
    */
   async getVideoInfo(file) {
     ensureDesktop('getVideoInfo');
-    return safeElectronCall('getVideoInfo', { file });
+    
+    try {
+      console.log('🎬 Getting video info...');
+      
+      let inputPath;
+      
+      if (file instanceof File || file instanceof Blob) {
+        // Convert File/Blob to ArrayBuffer
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // Create temp filename with proper extension
+        const ext = file.name ? file.name.split('.').pop() : 'mp4';
+        const tempFileName = `temp_video_${Date.now()}.${ext}`;
+        
+        // Save file via Electron
+        const tempResult = await safeElectronCall('writeFile', {
+          filePath: tempFileName,
+          data: arrayBuffer
+        });
+        
+        if (tempResult.success && tempResult.filePath) {
+          inputPath = tempResult.filePath;
+          console.log(`✅ Temp video file saved:`, tempResult.filePath);
+        } else {
+          throw new Error(`Failed to save temp video file: ${file.name || 'unknown'}`);
+        }
+      } else {
+        // Assume it's already a path
+        inputPath = file;
+      }
+      
+      console.log('📂 Input video path:', inputPath);
+      
+      // Get video info via Electron
+      const result = await safeElectronCall('getVideoInfo', {
+        inputPath: inputPath
+      });
+      
+      if (result.success) {
+        console.log('✅ Video info retrieved:', result);
+      } else {
+        console.error('❌ Video info failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Video info error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -406,7 +729,36 @@ export const api = {
    */
   async splitGif(file, options = {}) {
     ensureDesktop('splitGif');
-    return safeElectronCall('splitGif', { file, options });
+    
+    try {
+      console.log('✂️ Starting GIF split...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_gif');
+      console.log('📂 Input GIF path:', inputPath);
+      
+      // Split GIF via Electron
+      const result = await safeElectronCall('splitGif', {
+        inputPath: inputPath,
+        options: {
+          maxFrames: options.maxFrames ? parseInt(options.maxFrames) : undefined,
+          startFrame: options.startFrame ? parseInt(options.startFrame) : 0,
+          endFrame: options.endFrame ? parseInt(options.endFrame) : undefined,
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ GIF split completed:', result);
+      } else {
+        console.error('❌ GIF split failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ GIF split error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -421,7 +773,62 @@ export const api = {
    */
   async splitVideo(file, options = {}) {
     ensureDesktop('splitVideo');
-    return safeElectronCall('splitVideo', { file, options });
+    
+    try {
+      console.log('🎬 Starting video split...');
+      
+      let inputPath;
+      
+      if (file instanceof File || file instanceof Blob) {
+        // Convert File/Blob to ArrayBuffer
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // Create temp filename with proper extension
+        const ext = file.name ? file.name.split('.').pop() : 'mp4';
+        const tempFileName = `temp_video_${Date.now()}.${ext}`;
+        
+        // Save file via Electron
+        const tempResult = await safeElectronCall('writeFile', {
+          filePath: tempFileName,
+          data: arrayBuffer
+        });
+        
+        if (tempResult.success && tempResult.filePath) {
+          inputPath = tempResult.filePath;
+          console.log(`✅ Temp video file saved:`, tempResult.filePath);
+        } else {
+          throw new Error(`Failed to save temp video file: ${file.name || 'unknown'}`);
+        }
+      } else {
+        // Assume it's already a path
+        inputPath = file;
+      }
+      
+      console.log('📂 Input video path:', inputPath);
+      
+      // Split video via Electron
+      const result = await safeElectronCall('splitVideo', {
+        inputPath: inputPath,
+        options: {
+          duration: options.duration ? parseFloat(options.duration) : undefined,
+          startTime: options.startTime ? parseFloat(options.startTime) : 0,
+          segmentLength: options.segmentLength ? parseFloat(options.segmentLength) : 10,
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ Video split completed:', result);
+      } else {
+        console.error('❌ Video split failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Video split error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -436,7 +843,63 @@ export const api = {
    */
   async extractVideoFrames(file, options = {}) {
     ensureDesktop('extractVideoFrames');
-    return safeElectronCall('extractVideoFrames', { file, options });
+    
+    try {
+      console.log('🎬 Starting video frame extraction...');
+      
+      let inputPath;
+      
+      if (file instanceof File || file instanceof Blob) {
+        // Convert File/Blob to ArrayBuffer
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // Create temp filename with proper extension
+        const ext = file.name ? file.name.split('.').pop() : 'mp4';
+        const tempFileName = `temp_video_${Date.now()}.${ext}`;
+        
+        // Save file via Electron
+        const tempResult = await safeElectronCall('writeFile', {
+          filePath: tempFileName,
+          data: arrayBuffer
+        });
+        
+        if (tempResult.success && tempResult.filePath) {
+          inputPath = tempResult.filePath;
+          console.log(`✅ Temp video file saved:`, tempResult.filePath);
+        } else {
+          throw new Error(`Failed to save temp video file: ${file.name || 'unknown'}`);
+        }
+      } else {
+        // Assume it's already a path
+        inputPath = file;
+      }
+      
+      console.log('📂 Input video path:', inputPath);
+      
+      // Extract frames via Electron
+      const result = await safeElectronCall('extractVideoFrames', {
+        inputPath: inputPath,
+        options: {
+          fps: options.fps ? parseFloat(options.fps) : 1,
+          startTime: options.startTime ? parseFloat(options.startTime) : 0,
+          duration: options.duration ? parseFloat(options.duration) : undefined,
+          outputFormat: options.outputFormat || 'png',
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ Video frame extraction completed:', result);
+      } else {
+        console.error('❌ Video frame extraction failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Video frame extraction error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -451,7 +914,37 @@ export const api = {
    */
   async extractGifFrames(file, options = {}) {
     ensureDesktop('extractGifFrames');
-    return safeElectronCall('extractGifFrames', { file, options });
+    
+    try {
+      console.log('🎬 Starting GIF frame extraction...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_gif');
+      console.log('📂 Input GIF path:', inputPath);
+      
+      // Extract frames via Electron
+      const result = await safeElectronCall('extractGifFrames', {
+        inputPath: inputPath,
+        options: {
+          maxFrames: options.maxFrames ? parseInt(options.maxFrames) : undefined,
+          startFrame: options.startFrame ? parseInt(options.startFrame) : 0,
+          endFrame: options.endFrame ? parseInt(options.endFrame) : undefined,
+          outputFormat: options.outputFormat || 'png',
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ GIF frame extraction completed:', result);
+      } else {
+        console.error('❌ GIF frame extraction failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ GIF frame extraction error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -466,7 +959,34 @@ export const api = {
    */
   async convertToWebp(file, options = {}) {
     ensureDesktop('convertToWebp');
-    return safeElectronCall('convertToWebp', { file, options });
+    
+    try {
+      console.log('🎨 Starting WebP conversion...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_image');
+      console.log('📂 Input image path:', inputPath);
+      
+      // Convert via Electron
+      const result = await safeElectronCall('convertToWebp', {
+        inputPath: inputPath,
+        options: {
+          quality: options.quality ? parseInt(options.quality) : 80,
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ WebP conversion completed:', result);
+      } else {
+        console.error('❌ WebP conversion failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ WebP conversion error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -474,7 +994,34 @@ export const api = {
    */
   async decodeWebp(file, options = {}) {
     ensureDesktop('decodeWebp');
-    return safeElectronCall('decodeWebp', { file, options });
+    
+    try {
+      console.log('🎨 Starting WebP decode...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_webp');
+      console.log('📂 Input WebP path:', inputPath);
+      
+      // Decode via Electron
+      const result = await safeElectronCall('decodeWebp', {
+        inputPath: inputPath,
+        options: {
+          outputFormat: options.outputFormat || 'png',
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ WebP decode completed:', result);
+      } else {
+        console.error('❌ WebP decode failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ WebP decode error:', error);
+      throw error;
+    }
   },
 
   /**
@@ -482,7 +1029,35 @@ export const api = {
    */
   async describeImage(file, options = {}) {
     ensureDesktop('describeImage');
-    return safeElectronCall('describeImage', { file, options });
+    
+    try {
+      console.log('🤖 Starting image description...');
+      
+      const inputPath = await prepareFileForElectron(file, 'temp_image');
+      console.log('📂 Input image path:', inputPath);
+      
+      // Describe via Electron
+      const result = await safeElectronCall('describeImage', {
+        inputPath: inputPath,
+        options: {
+          language: options.language || 'en',
+          detail: options.detail || 'standard',
+          ...options
+        }
+      });
+      
+      if (result.success) {
+        console.log('✅ Image description completed:', result);
+      } else {
+        console.error('❌ Image description failed:', result.message);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ Image description error:', error);
+      throw error;
+    }
   },
 
   /**

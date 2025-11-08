@@ -1061,15 +1061,15 @@ ipcMain.handle('createGifFromVideo', async (event, { inputPath, outputPath, opti
 });
 
 // Convert to WebP
-ipcMain.handle('convertToWebp', async (event, { file, options = {} }) => {
-  console.log('🔄 Converting to WebP:', file);
+ipcMain.handle('convertToWebp', async (event, { inputPath, options = {} }) => {
+  console.log('🔄 Converting to WebP:', inputPath);
   
   try {
     if (!sharp) {
       throw new Error('Sharp not available');
     }
 
-    const inputFilePath = path.isAbsolute(file) ? file : path.join(tempDir, file);
+    const inputFilePath = path.isAbsolute(inputPath) ? inputPath : path.join(tempDir, inputPath);
     const outputPath = path.join(tempDir, `converted_webp_${Date.now()}.webp`);
     
     let sharpInstance = sharp(inputFilePath);
@@ -1098,16 +1098,16 @@ ipcMain.handle('convertToWebp', async (event, { file, options = {} }) => {
 });
 
 // Decode WebP
-ipcMain.handle('decodeWebp', async (event, { file, options = {} }) => {
-  console.log('🔄 Decoding WebP:', file);
+ipcMain.handle('decodeWebp', async (event, { inputPath, options = {} }) => {
+  console.log('🔄 Decoding WebP:', inputPath);
   
   try {
     if (!sharp) {
       throw new Error('Sharp not available');
     }
 
-    const inputFilePath = path.isAbsolute(file) ? file : path.join(tempDir, file);
-    const outputPath = path.join(tempDir, `decoded_webp_${Date.now()}.png`);
+  const inputFilePath = path.isAbsolute(inputPath) ? inputPath : path.join(tempDir, inputPath);
+  const outputPath = path.join(tempDir, `decoded_webp_${Date.now()}.png`);
     
     await sharp(inputFilePath)
       .png()
@@ -1126,8 +1126,8 @@ ipcMain.handle('decodeWebp', async (event, { file, options = {} }) => {
 });
 
 // Describe image (placeholder - would need AI integration)
-ipcMain.handle('describeImage', async (event, { file, options = {} }) => {
-  console.log('🤖 Describing image:', file);
+ipcMain.handle('describeImage', async (event, { inputPath, options = {} }) => {
+  console.log('🤖 Describing image:', inputPath);
   
   // Placeholder implementation
   return {
@@ -1947,6 +1947,566 @@ ipcMain.handle('batch-convert-images', async (event, { inputPaths, format, optio
   } catch (error) {
     console.error('❌ Batch conversion failed:', error);
     throw new Error(`Batch conversion failed: ${error.message}`);
+  }
+});
+
+// Convert image format handler
+ipcMain.handle('convert-image-format', async (event, { inputPath, format, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp not available');
+  }
+
+  try {
+    const inputFileName = path.basename(inputPath, path.extname(inputPath));
+    const outputFileName = `${inputFileName}_converted.${format}`;
+    const outputPath = path.join(tempDir, outputFileName);
+
+    let sharpInstance = sharp(inputPath);
+
+    // Apply options
+    if (options.resize) {
+      sharpInstance = sharpInstance.resize(options.resize.width, options.resize.height, {
+        fit: options.resize.fit || 'inside',
+        withoutEnlargement: options.resize.withoutEnlargement !== false
+      });
+    }
+
+    if (options.rotate) {
+      sharpInstance = sharpInstance.rotate(options.rotate);
+    }
+
+    // Format-specific options
+    switch (format.toLowerCase()) {
+      case 'webp':
+        sharpInstance = sharpInstance.webp({ 
+          quality: options.quality || 85,
+          effort: options.effort || 4,
+          lossless: options.lossless || false
+        });
+        break;
+      case 'jpeg':
+      case 'jpg':
+        sharpInstance = sharpInstance.jpeg({ 
+          quality: options.quality || 85,
+          progressive: options.progressive || false
+        });
+        break;
+      case 'png':
+        sharpInstance = sharpInstance.png({ 
+          quality: options.quality || 100,
+          progressive: options.progressive || false
+        });
+        break;
+      case 'avif':
+        sharpInstance = sharpInstance.avif({ 
+          quality: options.quality || 85,
+          effort: options.effort || 4
+        });
+        break;
+      default:
+        throw new Error(`Unsupported format: ${format}`);
+    }
+
+    await sharpInstance.toFile(outputPath);
+
+    return {
+      success: true,
+      filePath: outputPath,
+      fileName: outputFileName,
+      url: `file:///${outputPath.replace(/\\/g, '/')}`
+    };
+
+  } catch (error) {
+    console.error('❌ Image format conversion failed:', error);
+    throw new Error(`Image format conversion failed: ${error.message}`);
+  }
+});
+
+// Markdown to PDF handler
+ipcMain.handle('markdown-to-pdf', async (event, { inputPath, options = {} }) => {
+  try {
+    const fs = require('fs').promises;
+    const markdownContent = await fs.readFile(inputPath, 'utf8');
+    
+    const inputFileName = path.basename(inputPath, path.extname(inputPath));
+    const outputFileName = `${inputFileName}_converted.pdf`;
+    const outputPath = path.join(tempDir, outputFileName);
+
+    // For now, return a placeholder since full PDF generation requires additional libraries
+    // This can be enhanced with libraries like puppeteer or markdown-pdf
+    await fs.writeFile(outputPath.replace('.pdf', '.html'), `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Converted Markdown</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; }
+          pre { background: #f4f4f4; padding: 10px; border-radius: 4px; }
+        </style>
+      </head>
+      <body>
+        <pre>${markdownContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+      </body>
+      </html>
+    `);
+
+    return {
+      success: true,
+      filePath: outputPath.replace('.pdf', '.html'),
+      fileName: outputFileName.replace('.pdf', '.html'),
+      url: `file:///${outputPath.replace(/\\/g, '/').replace('.pdf', '.html')}`,
+      note: 'Converted to HTML format (PDF generation requires additional setup)'
+    };
+
+  } catch (error) {
+    console.error('❌ Markdown to PDF conversion failed:', error);
+    throw new Error(`Markdown to PDF conversion failed: ${error.message}`);
+  }
+});
+
+// PDF to Markdown handler
+ipcMain.handle('pdf-to-markdown', async (event, { inputPath, options = {} }) => {
+  try {
+    const fs = require('fs').promises;
+    
+    const inputFileName = path.basename(inputPath, path.extname(inputPath));
+    const outputFileName = `${inputFileName}_converted.md`;
+    const outputPath = path.join(tempDir, outputFileName);
+
+    // For now, return a placeholder since full PDF extraction requires additional libraries
+    // This can be enhanced with libraries like pdf-parse or pdf2pic
+    await fs.writeFile(outputPath, `# Converted from PDF: ${inputFileName}
+
+This is a placeholder conversion. PDF text extraction requires additional libraries like:
+- pdf-parse
+- pdf2pic
+- pdfjs-dist
+
+Original file: ${inputPath}
+Converted on: ${new Date().toISOString()}
+`);
+
+    return {
+      success: true,
+      filePath: outputPath,
+      fileName: outputFileName,
+      url: `file:///${outputPath.replace(/\\/g, '/')}`,
+      note: 'Placeholder conversion (PDF extraction requires additional setup)'
+    };
+
+  } catch (error) {
+    console.error('❌ PDF to Markdown conversion failed:', error);
+    throw new Error(`PDF to Markdown conversion failed: ${error.message}`);
+  }
+});
+
+// Text to Markdown handler
+ipcMain.handle('text-to-markdown', async (event, { inputPath, options = {} }) => {
+  try {
+    const fs = require('fs').promises;
+    const textContent = await fs.readFile(inputPath, 'utf8');
+    
+    const inputFileName = path.basename(inputPath, path.extname(inputPath));
+    const outputFileName = `${inputFileName}_converted.md`;
+    const outputPath = path.join(tempDir, outputFileName);
+
+    // Convert text to basic markdown format
+    const lines = textContent.split('\n');
+    let markdownContent = `# ${inputFileName}\n\n`;
+    
+    lines.forEach(line => {
+      const trimmedLine = line.trim();
+      if (trimmedLine) {
+        // Simple conversion - each paragraph becomes a markdown paragraph
+        markdownContent += `${trimmedLine}\n\n`;
+      }
+    });
+
+    await fs.writeFile(outputPath, markdownContent);
+
+    return {
+      success: true,
+      filePath: outputPath,
+      fileName: outputFileName,
+      url: `file:///${outputPath.replace(/\\/g, '/')}`
+    };
+
+  } catch (error) {
+    console.error('❌ Text to Markdown conversion failed:', error);
+    throw new Error(`Text to Markdown conversion failed: ${error.message}`);
+  }
+});
+
+// Images to PDF handler
+ipcMain.handle('images-to-pdf', async (event, { inputPaths, options = {} }) => {
+  try {
+    const fs = require('fs').promises;
+    
+    const outputFileName = `combined_images_${Date.now()}.pdf`;
+    const outputPath = path.join(tempDir, outputFileName);
+
+    // For now, create an HTML file that can be converted to PDF
+    // This can be enhanced with libraries like jsPDF or puppeteer
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Combined Images</title>
+        <style>
+          body { margin: 0; padding: 20px; }
+          .image-page { page-break-after: always; text-align: center; margin-bottom: 20px; }
+          .image-page:last-child { page-break-after: auto; }
+          img { max-width: 100%; max-height: 90vh; object-fit: contain; }
+          .image-title { margin-bottom: 10px; font-family: Arial, sans-serif; }
+        </style>
+      </head>
+      <body>
+    `;
+
+    inputPaths.forEach((imagePath, index) => {
+      const fileName = path.basename(imagePath);
+      htmlContent += `
+        <div class="image-page">
+          <h3 class="image-title">${fileName}</h3>
+          <img src="file:///${imagePath.replace(/\\/g, '/')}" alt="${fileName}" />
+        </div>
+      `;
+    });
+
+    htmlContent += `
+      </body>
+      </html>
+    `;
+
+    const htmlPath = outputPath.replace('.pdf', '.html');
+    await fs.writeFile(htmlPath, htmlContent);
+
+    return {
+      success: true,
+      filePath: htmlPath,
+      fileName: outputFileName.replace('.pdf', '.html'),
+      url: `file:///${htmlPath.replace(/\\/g, '/')}`,
+      note: 'Converted to HTML format (PDF generation requires additional setup)',
+      imageCount: inputPaths.length
+    };
+
+  } catch (error) {
+    console.error('❌ Images to PDF conversion failed:', error);
+    throw new Error(`Images to PDF conversion failed: ${error.message}`);
+  }
+});
+
+// Create APNG sequence handler
+ipcMain.handle('createApngSequence', async (event, { inputPaths, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp not available');
+  }
+
+  try {
+    const outputFileName = `apng_sequence_${Date.now()}.png`;
+    const outputPath = path.join(tempDir, outputFileName);
+
+    // For now, create the first image as APNG is not fully supported by Sharp
+    // This would require specialized APNG libraries
+    await sharp(inputPaths[0])
+      .png({ quality: options.quality || 100 })
+      .toFile(outputPath);
+
+    return {
+      success: true,
+      filePath: outputPath,
+      fileName: outputFileName,
+      url: `file:///${outputPath.replace(/\\/g, '/')}`,
+      note: 'Created static PNG (APNG animation requires specialized libraries)',
+      frameCount: inputPaths.length
+    };
+
+  } catch (error) {
+    console.error('❌ APNG sequence creation failed:', error);
+    throw new Error(`APNG sequence creation failed: ${error.message}`);
+  }
+});
+
+// Convert to AVIF Modern handler
+ipcMain.handle('convertToAvifModern', async (event, { inputPath, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp not available');
+  }
+
+  try {
+    const inputFileName = path.basename(inputPath, path.extname(inputPath));
+    const outputFileName = `${inputFileName}_avif.avif`;
+    const outputPath = path.join(tempDir, outputFileName);
+
+    await sharp(inputPath)
+      .avif({
+        quality: options.quality || 80,
+        effort: options.effort || 4,
+        chromaSubsampling: options.chromaSubsampling || '4:2:0'
+      })
+      .toFile(outputPath);
+
+    return {
+      success: true,
+      filePath: outputPath,
+      fileName: outputFileName,
+      url: `file:///${outputPath.replace(/\\/g, '/')}`
+    };
+
+  } catch (error) {
+    console.error('❌ AVIF conversion failed:', error);
+    throw new Error(`AVIF conversion failed: ${error.message}`);
+  }
+});
+
+// Convert to JXL handler
+ipcMain.handle('convertToJxl', async (event, { inputPath, options = {} }) => {
+  try {
+    const inputFileName = path.basename(inputPath, path.extname(inputPath));
+    const outputFileName = `${inputFileName}_jxl.jxl`;
+    const outputPath = path.join(tempDir, outputFileName);
+
+    // JXL is not supported by Sharp yet, so we'll create a placeholder
+    const fs = require('fs').promises;
+    await fs.writeFile(outputPath.replace('.jxl', '.txt'), `
+JXL (JPEG XL) Conversion Placeholder
+
+Original file: ${inputPath}
+Target format: JXL
+Options: ${JSON.stringify(options, null, 2)}
+
+Note: JXL format support requires specialized libraries that are not yet integrated.
+Consider using WebP or AVIF for modern compression with current setup.
+
+Created: ${new Date().toISOString()}
+`);
+
+    return {
+      success: true,
+      filePath: outputPath.replace('.jxl', '.txt'),
+      fileName: outputFileName.replace('.jxl', '.txt'),
+      url: `file:///${outputPath.replace(/\\/g, '/').replace('.jxl', '.txt')}`,
+      note: 'JXL format not yet supported - placeholder created'
+    };
+
+  } catch (error) {
+    console.error('❌ JXL conversion failed:', error);
+    throw new Error(`JXL conversion failed: ${error.message}`);
+  }
+});
+
+// Compare modern formats handler
+ipcMain.handle('compareModernFormats', async (event, { inputPath, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp not available');
+  }
+
+  try {
+    const inputFileName = path.basename(inputPath, path.extname(inputPath));
+    const results = [];
+
+    // Convert to multiple formats for comparison
+    const formats = ['webp', 'avif', 'png', 'jpeg'];
+    
+    for (const format of formats) {
+      try {
+        const outputFileName = `${inputFileName}_compare.${format}`;
+        const outputPath = path.join(tempDir, outputFileName);
+
+        let sharpInstance = sharp(inputPath);
+
+        switch (format) {
+          case 'webp':
+            sharpInstance = sharpInstance.webp({ quality: options.quality || 85 });
+            break;
+          case 'avif':
+            sharpInstance = sharpInstance.avif({ quality: options.quality || 80 });
+            break;
+          case 'png':
+            sharpInstance = sharpInstance.png({ quality: options.quality || 100 });
+            break;
+          case 'jpeg':
+            sharpInstance = sharpInstance.jpeg({ quality: options.quality || 85 });
+            break;
+        }
+
+        await sharpInstance.toFile(outputPath);
+
+        const stats = await require('fs').promises.stat(outputPath);
+        
+        results.push({
+          format,
+          filePath: outputPath,
+          fileName: outputFileName,
+          url: `file:///${outputPath.replace(/\\/g, '/')}`,
+          size: stats.size,
+          sizeKB: Math.round(stats.size / 1024)
+        });
+
+      } catch (formatError) {
+        results.push({
+          format,
+          error: formatError.message,
+          success: false
+        });
+      }
+    }
+
+    return {
+      success: true,
+      comparisons: results,
+      originalFile: inputPath
+    };
+
+  } catch (error) {
+    console.error('❌ Format comparison failed:', error);
+    throw new Error(`Format comparison failed: ${error.message}`);
+  }
+});
+
+// Get video info handler
+ipcMain.handle('getVideoInfo', async (event, { inputPath }) => {
+  if (!ffmpeg) {
+    throw new Error('FFmpeg not available');
+  }
+
+  try {
+    return new Promise((resolve, reject) => {
+      ffmpeg(inputPath)
+        .ffprobe((err, metadata) => {
+          if (err) {
+            console.error('❌ Video info extraction failed:', err);
+            reject(new Error(`Video info extraction failed: ${err.message}`));
+            return;
+          }
+
+          const videoStream = metadata.streams.find(stream => stream.codec_type === 'video');
+          const audioStream = metadata.streams.find(stream => stream.codec_type === 'audio');
+
+          const info = {
+            success: true,
+            duration: metadata.format.duration,
+            size: metadata.format.size,
+            bitrate: metadata.format.bit_rate,
+            format: metadata.format.format_name,
+            video: videoStream ? {
+              codec: videoStream.codec_name,
+              width: videoStream.width,
+              height: videoStream.height,
+              fps: eval(videoStream.r_frame_rate) || 0,
+              pixelFormat: videoStream.pix_fmt
+            } : null,
+            audio: audioStream ? {
+              codec: audioStream.codec_name,
+              sampleRate: audioStream.sample_rate,
+              channels: audioStream.channels,
+              bitrate: audioStream.bit_rate
+            } : null
+          };
+
+          resolve(info);
+        });
+    });
+
+  } catch (error) {
+    console.error('❌ Video info extraction failed:', error);
+    throw new Error(`Video info extraction failed: ${error.message}`);
+  }
+});
+
+// Extract video frames handler
+ipcMain.handle('extractVideoFrames', async (event, { inputPath, options = {} }) => {
+  if (!ffmpeg) {
+    throw new Error('FFmpeg not available');
+  }
+
+  try {
+    const framePrefix = `frames_${Date.now()}`;
+    const framePattern = path.join(tempDir, `${framePrefix}_%04d.png`);
+
+    return new Promise((resolve, reject) => {
+      let command = ffmpeg(inputPath)
+        .output(framePattern)
+        .outputOptions(['-vf', `fps=${options.fps || 1}`]);
+
+      if (options.startTime) {
+        command = command.seekInput(options.startTime);
+      }
+
+      if (options.duration) {
+        command = command.duration(options.duration);
+      }
+
+      command
+        .on('end', async () => {
+          try {
+            const fs = require('fs').promises;
+            const files = await fs.readdir(tempDir);
+            const frameFiles = files
+              .filter(file => file.startsWith(framePrefix) && file.endsWith('.png'))
+              .map(file => {
+                const fullPath = path.join(tempDir, file);
+                return {
+                  fileName: file,
+                  filePath: fullPath,
+                  url: `file:///${fullPath.replace(/\\/g, '/')}`
+                };
+              });
+
+            resolve({
+              success: true,
+              frames: frameFiles,
+              frameCount: frameFiles.length
+            });
+
+          } catch (error) {
+            reject(new Error(`Failed to list extracted frames: ${error.message}`));
+          }
+        })
+        .on('error', (err) => {
+          console.error('❌ Video frame extraction failed:', err);
+          reject(new Error(`Video frame extraction failed: ${err.message}`));
+        })
+        .run();
+    });
+
+  } catch (error) {
+    console.error('❌ Video frame extraction failed:', error);
+    throw new Error(`Video frame extraction failed: ${error.message}`);
+  }
+});
+
+// Extract GIF frames handler
+ipcMain.handle('extractGifFrames', async (event, { inputPath, options = {} }) => {
+  if (!sharp) {
+    throw new Error('Sharp not available');
+  }
+
+  try {
+    // For GIF frame extraction, we'll use a simpler approach
+    // This is a placeholder - full GIF frame extraction requires specialized libraries
+    const framePrefix = `gif_frames_${Date.now()}`;
+    const outputPath = path.join(tempDir, `${framePrefix}_frame_0.png`);
+
+    // Convert first frame to PNG as placeholder
+    await sharp(inputPath)
+      .png()
+      .toFile(outputPath);
+
+    return {
+      success: true,
+      frames: [{
+        fileName: path.basename(outputPath),
+        filePath: outputPath,
+        url: `file:///${outputPath.replace(/\\/g, '/')}`
+      }],
+      frameCount: 1,
+      note: 'Single frame extracted (full GIF animation extraction requires specialized libraries)'
+    };
+
+  } catch (error) {
+    console.error('❌ GIF frame extraction failed:', error);
+    throw new Error(`GIF frame extraction failed: ${error.message}`);
   }
 });
 
