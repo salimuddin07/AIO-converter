@@ -44,9 +44,20 @@ asarUnpack:
   - "**/node_modules/fluent-ffmpeg/**/*"
 
 # Node modules that need native compilation
-buildDependenciesFromSource: true
-npmRebuild: true
-nodeGypRebuild: true
+buildDependenciesFromSource: false
+npmRebuild: false
+nodeGypRebuild: false
+
+# Disable code signing to avoid permission issues
+win:
+  certificateFile: null
+  certificateSha1: null
+  sign: null
+  signAndEditExecutable: false
+  signDlls: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
 
 # Windows-specific configuration
 win:

@@ -74,3 +74,5 @@ desktop.ini
 # Generated frame extraction directories
 video_frames_*
 gif_frames_*
+
+locales/

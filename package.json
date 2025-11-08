@@ -117,9 +117,9 @@
   },
   "dependencies": {
     "archiver": "^7.0.1",
-    "gif-encoder-2": "^1.0.5",
-    "sharp": "^0.33.2",
     "ffmpeg-static": "^5.2.0",
-    "fluent-ffmpeg": "^2.1.2"
+    "fluent-ffmpeg": "^2.1.2",
+    "gif-encoder-2": "^1.0.5",
+    "sharp": "^0.33.2"
   }
 }
