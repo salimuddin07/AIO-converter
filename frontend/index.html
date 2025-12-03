@@ -16,6 +16,9 @@
     <meta name="revisit-after" content="7 days" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     
+    <!-- Content Security Policy for Electron Security -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; font-src 'self' data:; connect-src 'self' file:; media-src 'self' blob: data: file:; object-src 'none'; frame-src 'none';" />
+    
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://github.com/salimuddin07/AIO-converter" />

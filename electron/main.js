@@ -98,7 +98,9 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: false, // Temporarily disable for local file access
+      webSecurity: true, // Enable web security for production
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
     },
     backgroundColor: '#1a1a2e',
     show: false,
