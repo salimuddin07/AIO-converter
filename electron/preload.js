@@ -52,8 +52,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Video operations
   getVideoInfo: (data) => ipcRenderer.invoke('getVideoInfo', data),
-  extractVideoFrames: (data) => ipcRenderer.invoke('extractVideoFrames', data),
-  extractGifFrames: (data) => ipcRenderer.invoke('extractGifFrames', data),
   
   // GIF from video
   createGifFromVideo: (data) => ipcRenderer.invoke('createGifFromVideo', data),
