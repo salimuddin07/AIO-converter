@@ -12,13 +12,20 @@ const archiver = require('archiver'); // For ZIP creation
 const os = require('os'); // For getting Downloads folder
 
 // Import processing libraries directly
-let sharp, ffmpeg, Canvas;
+let sharp, ffmpeg, Canvas, pdfParse;
 
 // Try to load libraries (with fallbacks)
 try {
   sharp = require('sharp');
 } catch (e) {
   console.log('Sharp not available:', e.message);
+}
+
+try {
+  pdfParse = require('pdf-parse');
+  console.log('📄 PDF-Parse loaded successfully');
+} catch (e) {
+  console.log('PDF-Parse not available:', e.message);
 }
 
 try {
@@ -1166,7 +1173,7 @@ ipcMain.handle('createGifFromVideo', async (event, { inputPath, outputPath, opti
     const outputDir = path.dirname(outputFilePath);
     await fs.mkdir(outputDir, { recursive: true });
 
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       let command = ffmpeg(inputPath);
       
       // Apply options
@@ -1179,13 +1186,40 @@ ipcMain.handle('createGifFromVideo', async (event, { inputPath, outputPath, opti
       
       command
         .output(outputFilePath)
-        .on('end', () => {
+        .on('end', async () => {
           console.log('✅ GIF created from video:', outputFilePath);
-          resolve({
-            success: true,
-            outputPath: outputFilePath,
-            message: 'GIF created successfully from video'
-          });
+          
+          try {
+            // Get file stats for size info
+            const stats = await fs.stat(outputFilePath);
+            const filename = path.basename(outputFilePath);
+            
+            resolve({
+              success: true,
+              outputPath: outputFilePath,
+              filePath: outputFilePath,
+              filename: filename,
+              size: stats.size,
+              url: `file:///${outputFilePath.replace(/\\/g, '/')}`,
+              dataUrl: `file:///${outputFilePath.replace(/\\/g, '/')}`,
+              previewUrl: `file:///${outputFilePath.replace(/\\/g, '/')}`,
+              downloadUrl: `file:///${outputFilePath.replace(/\\/g, '/')}`,
+              message: 'GIF created successfully from video'
+            });
+          } catch (statError) {
+            console.error('Error getting file stats:', statError);
+            resolve({
+              success: true,
+              outputPath: outputFilePath,
+              filePath: outputFilePath,
+              filename: path.basename(outputFilePath),
+              url: `file:///${outputFilePath.replace(/\\/g, '/')}`,
+              dataUrl: `file:///${outputFilePath.replace(/\\/g, '/')}`,
+              previewUrl: `file:///${outputFilePath.replace(/\\/g, '/')}`,
+              downloadUrl: `file:///${outputFilePath.replace(/\\/g, '/')}`,
+              message: 'GIF created successfully from video'
+            });
+          }
         })
         .on('error', (error) => {
           console.error('❌ Video to GIF conversion failed:', error);
@@ -2251,33 +2285,106 @@ ipcMain.handle('markdown-to-pdf', async (event, { inputPath, options = {} }) => 
 });
 
 // PDF to Markdown handler
-ipcMain.handle('pdf-to-markdown', async (event, { inputPath, options = {} }) => {
+// PDF to Markdown conversion - supports multiple PDFs
+ipcMain.handle('pdf-to-markdown', async (event, { inputPaths, options = {} }) => {
   try {
-    const fs = require('fs').promises;
+    // Check if pdf-parse is available
+    if (!pdfParse) {
+      throw new Error('PDF-Parse library is not available. Please install pdf-parse.');
+    }
     
-    const inputFileName = path.basename(inputPath, path.extname(inputPath));
-    const outputFileName = `${inputFileName}_converted.md`;
-    const outputPath = path.join(tempDir, outputFileName);
-
-    // For now, return a placeholder since full PDF extraction requires additional libraries
-    // This can be enhanced with libraries like pdf-parse or pdf2pic
-    await fs.writeFile(outputPath, `# Converted from PDF: ${inputFileName}
-
-This is a placeholder conversion. PDF text extraction requires additional libraries like:
-- pdf-parse
-- pdf2pic
-- pdfjs-dist
-
-Original file: ${inputPath}
-Converted on: ${new Date().toISOString()}
-`);
-
+    // Ensure inputPaths is an array
+    const paths = Array.isArray(inputPaths) ? inputPaths : [inputPaths];
+    const results = [];
+    
+    console.log(`📄 Converting ${paths.length} PDF(s) to Markdown...`);
+    
+    for (let i = 0; i < paths.length; i++) {
+      const inputPath = paths[i];
+      const inputFileName = path.basename(inputPath, path.extname(inputPath));
+      const outputFileName = `${inputFileName}.md`;
+      const outputPath = path.join(tempDir, outputFileName);
+      
+      try {
+        console.log(`Processing PDF ${i + 1}/${paths.length}: ${inputFileName}`);
+        
+        // Read PDF file
+        const dataBuffer = await fs.readFile(inputPath);
+        
+        // Parse PDF
+        const pdfData = await pdfParse(dataBuffer);
+        
+        // Create markdown content
+        let markdownContent = `# ${inputFileName}\n\n`;
+        markdownContent += `*Converted from PDF*\n\n`;
+        markdownContent += `**Pages:** ${pdfData.numpages}\n\n`;
+        markdownContent += `---\n\n`;
+        
+        // Extract and format text
+        let text = pdfData.text;
+        
+        // Clean up text
+        text = text
+          .replace(/\r\n/g, '\n')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+        
+        // Split into paragraphs and format
+        const paragraphs = text.split('\n\n');
+        
+        paragraphs.forEach(paragraph => {
+          const trimmed = paragraph.trim();
+          if (trimmed) {
+            // Check if it's a potential header (short, all caps or title case)
+            if (trimmed.length < 100 && /^[A-Z][A-Z\s]{3,}$/.test(trimmed)) {
+              markdownContent += `## ${trimmed}\n\n`;
+            } else if (trimmed.length < 80 && /^\d+\./.test(trimmed)) {
+              markdownContent += `## ${trimmed}\n\n`;
+            } else {
+              // Regular paragraph
+              markdownContent += `${trimmed}\n\n`;
+            }
+          }
+        });
+        
+        // Write output file
+        await fs.writeFile(outputPath, markdownContent, 'utf8');
+        
+        console.log(`✅ Successfully converted: ${outputFileName}`);
+        
+        results.push({
+          success: true,
+          filePath: outputPath,
+          fileName: outputFileName,
+          originalName: path.basename(inputPath),
+          url: `file:///${outputPath.replace(/\\/g, '/')}`,
+          pages: pdfData.numpages,
+          content: markdownContent
+        });
+        
+      } catch (pdfError) {
+        console.error(`❌ Failed to convert ${inputFileName}:`, pdfError);
+        results.push({
+          success: false,
+          fileName: inputFileName,
+          originalName: path.basename(inputPath),
+          error: pdfError.message
+        });
+      }
+    }
+    
+    // If single file, return single result
+    if (paths.length === 1) {
+      return results[0];
+    }
+    
+    // For multiple files, return all results
     return {
       success: true,
-      filePath: outputPath,
-      fileName: outputFileName,
-      url: `file:///${outputPath.replace(/\\/g, '/')}`,
-      note: 'Placeholder conversion (PDF extraction requires additional setup)'
+      results: results,
+      total: results.length,
+      successful: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length
     };
 
   } catch (error) {

@@ -131,7 +131,7 @@ export const api = {
       const outputFileName = `gif_output_${Date.now()}.gif`;
       
       // Create GIF via Electron
-      const result = await safeElectronCall('createGifFromImages', {
+      const result = await safeElectronCall('create-gif-from-images', {
         inputPaths: imagePaths,
         outputPath: outputFileName,
         options: {
@@ -1095,6 +1095,47 @@ export const api = {
   async getAppInfo() {
     ensureDesktop('getAppInfo');
     return safeElectronCall('getAppInfo');
+  },
+
+  /**
+   * Convert PDF to Markdown - DESKTOP ONLY
+   * Supports single or multiple PDF files
+   */
+  async convertPdfToMarkdown(files, options = {}) {
+    ensureDesktop('convertPdfToMarkdown');
+    
+    try {
+      // Ensure files is an array
+      const fileArray = Array.isArray(files) ? files : [files];
+      console.log(`📄 Converting ${fileArray.length} PDF(s) to Markdown...`);
+      
+      // Convert all files to paths
+      const inputPaths = [];
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        const inputPath = await prepareFileForElectron(file, `temp_pdf_${i}`);
+        inputPaths.push(inputPath);
+        console.log(`📂 Prepared PDF ${i + 1}/${fileArray.length}:`, inputPath);
+      }
+      
+      // Convert via Electron
+      const result = await safeElectronCall('pdf-to-markdown', {
+        inputPaths: inputPaths,
+        options: options
+      });
+      
+      if (result.success) {
+        console.log('✅ PDF to Markdown conversion completed:', result);
+      } else {
+        console.error('❌ PDF to Markdown conversion failed:', result.message || result.error);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('❌ PDF to Markdown conversion error:', error);
+      throw error;
+    }
   }
 };
 
@@ -1166,7 +1207,8 @@ export const {
   openFileDialog,
   downloadFile,
   saveFile,
-  getAppInfo
+  getAppInfo,
+  convertPdfToMarkdown
 } = api;
 
 export default api;
