@@ -132,6 +132,42 @@ export default function App() {
             <p>Test Electron backend integration</p>
           </div>
           
+          <div className="tool-card" onClick={() => setCurrentTool('video-to-gif')}>
+            <div className="tool-icon">🎥</div>
+            <h3>Video to GIF</h3>
+            <p>Convert videos to animated GIFs</p>
+          </div>
+          
+          <div className="tool-card" onClick={() => setCurrentTool('apng-maker')}>
+            <div className="tool-icon">🎬</div>
+            <h3>APNG Studio</h3>
+            <p>Create animated PNG files</p>
+          </div>
+          
+          <div className="tool-card" onClick={() => setCurrentTool('avif-converter')}>
+            <div className="tool-icon">📸</div>
+            <h3>AVIF Converter</h3>
+            <p>Modern AVIF image format</p>
+          </div>
+          
+          <div className="tool-card" onClick={() => setCurrentTool('jxl-converter')}>
+            <div className="tool-icon">🌟</div>
+            <h3>JXL Converter</h3>
+            <p>JPEG XL next-gen format</p>
+          </div>
+          
+          <div className="tool-card" onClick={() => setCurrentTool('optimize')}>
+            <div className="tool-icon">⚡</div>
+            <h3>Image Optimizer</h3>
+            <p>Reduce file sizes efficiently</p>
+          </div>
+          
+          <div className="tool-card" onClick={() => setCurrentTool('electron-test')}>
+            <div className="tool-icon">🧪</div>
+            <h3>API Test</h3>
+            <p>Test Electron integration</p>
+          </div>
+          
           <div className="tool-card coffee-card" onClick={() => setCurrentTool('buy-me-coffee')}>
             <div className="tool-icon">☕</div>
             <h3>Support Us</h3>
@@ -203,6 +239,8 @@ export default function App() {
         return <ElectronApiTest />;
       case 'buy-me-coffee':
         return <BuyMeCoffee />;
+      case 'electron-test':
+        return <ElectronApiTest />;
       case 'home':
       default:
         return renderHome();

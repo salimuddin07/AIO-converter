@@ -92,13 +92,41 @@ const VideoToGifConverter = () => {
           throw new Error('Selected file is not a video. Please choose a supported video file.');
         }
 
-        result = await realAPI.videoToGif(file);
+        // Check if we're in Electron mode
+        const isElectron = typeof window !== 'undefined' && window.electronAPI !== undefined;
+        
+        if (isElectron) {
+          // In Electron mode, convert directly and get the result
+          result = await realAPI.videoToGif(file, {
+            quality: 80,
+            fps: 10,
+            startTime: 0,
+            duration: 5 // Convert first 5 seconds by default
+          });
+          
+          // Handle Electron result format
+          if (result.success) {
+            setUploadResult({
+              type: 'electron',
+              outputPath: result.outputPath,
+              dataUrl: result.dataUrl || result.url || `file:///${result.outputPath}`,
+              filename: result.filename || 'converted.gif',
+              message: result.message || 'Video converted to GIF successfully'
+            });
+          } else {
+            throw new Error(result.error || 'Conversion failed');
+          }
+        } else {
+          // Browser mode - use the old workflow
+          result = await realAPI.videoToGif(file);
+          setUploadResult(result);
+        }
       } else if (url) {
-        // For URL upload
+        // URL upload only works in browser mode
         result = await realAPI.uploadVideoFromUrl(url);
+        setUploadResult(result);
       }
       
-      setUploadResult(result);
     } catch (error) {
       console.error('Upload error:', error);
       alert(`Upload failed: ${error.message}`);
@@ -108,64 +136,60 @@ const VideoToGifConverter = () => {
   };
 
   if (uploadResult) {
-    // Check if we're in Electron mode and handle results differently
-    if (realAPI.isElectron && uploadResult.success) {
-      // Electron mode - show direct result with preview and download
+    // Check if this is an Electron result
+    if (uploadResult.type === 'electron') {
       return (
         <div id="main">
-          <h1>Video to GIF Converter - Conversion Complete!</h1>
+          <h1>✅ Video to GIF Conversion Complete</h1>
           
-          <div className="conversion-result">
-            <div className="result-info">
-              <h2>✅ Conversion Successful!</h2>
-              <p>{uploadResult.message || 'Video successfully converted to GIF'}</p>
-              
-              {uploadResult.filename && (
-                <p><strong>File:</strong> {uploadResult.filename}</p>
-              )}
-              
-              {uploadResult.size && (
-                <p><strong>Size:</strong> {(uploadResult.size / 1024 / 1024).toFixed(2)} MB</p>
-              )}
-            </div>
+          <div style={{ margin: '20px 0', padding: '20px', background: '#f0f8ff', border: '1px solid #c0e0ff', borderRadius: '8px' }}>
+            <h2>Your GIF is ready!</h2>
+            <p>{uploadResult.message}</p>
             
-            {(uploadResult.dataUrl || uploadResult.previewUrl || uploadResult.url) && (
-              <div className="result-preview">
-                <h3>Preview:</h3>
+            {uploadResult.dataUrl && (
+              <div style={{ textAlign: 'center', margin: '20px 0' }}>
                 <img 
-                  src={uploadResult.dataUrl || uploadResult.previewUrl || uploadResult.url} 
+                  src={uploadResult.dataUrl} 
                   alt="Converted GIF"
-                  style={{maxWidth: '100%', maxHeight: '400px', border: '1px solid #ddd'}}
+                  style={{ maxWidth: '100%', maxHeight: '400px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  onError={(e) => {
+                    console.error('Failed to load GIF preview:', e.target.src);
+                    e.target.style.display = 'none';
+                  }}
                 />
               </div>
             )}
             
-            <div className="result-actions">
-              {(uploadResult.downloadUrl || uploadResult.dataUrl || uploadResult.url) && (
-                <a 
-                  href={uploadResult.downloadUrl || uploadResult.dataUrl || uploadResult.url}
-                  download={uploadResult.filename || 'converted.gif'}
-                  className="btn primary"
-                  style={{marginRight: '10px'}}
-                >
-                  📥 Download GIF
-                </a>
-              )}
+            <div style={{ textAlign: 'center', margin: '20px 0' }}>
+              <a 
+                href={uploadResult.dataUrl}
+                download={uploadResult.filename}
+                className="btn primary"
+                style={{ textDecoration: 'none', margin: '10px' }}
+              >
+                📥 Download GIF
+              </a>
               
               <button 
-                onClick={() => setUploadResult(null)} 
                 className="btn secondary"
+                onClick={() => setUploadResult(null)}
+                style={{ margin: '10px' }}
               >
                 🔄 Convert Another Video
               </button>
             </div>
+            
+            <div style={{ fontSize: '12px', color: '#666', textAlign: 'center' }}>
+              <p>📁 File saved to: {uploadResult.outputPath}</p>
+              <p>💡 Tip: Right-click the GIF and "Save As..." to save it anywhere</p>
+            </div>
           </div>
         </div>
       );
-    } else {
-      // Browser mode - use VideoResults component
-      return <VideoResults result={uploadResult} onBack={() => setUploadResult(null)} />;
     }
+    
+    // Browser mode - use VideoResults
+    return <VideoResults result={uploadResult} onBack={() => setUploadResult(null)} />;
   }
 
   return (

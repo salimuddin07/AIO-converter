@@ -1,6 +1,6 @@
 /**
- * DESKTOP-ONLY API CLIENT - Pure Electron IPC (NO HTTP/WEB SUPPORT)
- * This app is DESKTOP ONLY - all functionality requires Electron
+ * UNIFIED API CLIENT - Automatically uses Electron IPC or HTTP based on environment
+ * This replaces the old apiConfig.js system completely
  */
 
 // Check if we're running in Electron
@@ -15,1160 +15,1061 @@ const isElectron = () => {
   }
 };
 
-// Desktop-only error thrower
-const ensureDesktop = (functionName) => {
-  if (!isElectron()) {
-    throw new Error(`❌ ${functionName} requires the desktop app. This is NOT a web application.`);
-  }
-};
+// Fallback HTTP API base URL (for browser mode)
+const HTTP_API_BASE = 'http://localhost:3003';
 
 /**
  * Safe Electron API caller with error handling
  */
 const safeElectronCall = async (method, ...args) => {
-  ensureDesktop(method);
-  
   try {
-    if (!window.electronAPI || typeof window.electronAPI[method] !== 'function') {
+    if (!isElectron() || !window.electronAPI || typeof window.electronAPI[method] !== 'function') {
       throw new Error(`Electron API method ${method} not available`);
     }
     return await window.electronAPI[method](...args);
   } catch (error) {
-    console.error(`❌ Electron API call failed for ${method}:`, error);
+    console.error(`Electron API call failed for ${method}:`, error);
     throw error;
   }
 };
 
 /**
- * Helper function to handle File/Blob objects for Electron IPC
- * Converts File/Blob to temporary file path that can be serialized
- */
-const prepareFileForElectron = async (file, prefix = 'temp') => {
-  if (file instanceof File || file instanceof Blob) {
-    // Convert File/Blob to ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
-    
-    // Create temp filename with proper extension
-    const ext = file.name ? file.name.split('.').pop() : (file.type ? file.type.split('/')[1] : 'bin');
-    const tempFileName = `${prefix}_${Date.now()}.${ext}`;
-    
-    // Save file via Electron
-    const tempResult = await safeElectronCall('writeFile', {
-      filePath: tempFileName,
-      data: arrayBuffer
-    });
-    
-    if (tempResult.success && tempResult.filePath) {
-      console.log(`✅ Temp file saved:`, tempResult.filePath);
-      return tempResult.filePath;
-    } else {
-      throw new Error(`Failed to save temp file: ${file.name || 'unknown'}`);
-    }
-  } else {
-    // Assume it's already a path
-    return file;
-  }
-};
-
-/**
- * DESKTOP-ONLY API - No web fallbacks
+ * Unified API that works in both Electron and browser environments
  */
 export const api = {
   
-  // Environment detection
+  // Environment detection - use getter to make it dynamic
   get isElectron() {
     return isElectron();
   },
   
   /**
-   * Create GIF from images - DESKTOP ONLY
+   * Create GIF from images
    */
   async createGifFromImages(files, options = {}) {
-    ensureDesktop('createGifFromImages');
+    const inElectron = isElectron();
     console.log('🎬 Creating GIF from', files.length, 'images');
+    console.log('📱 Running in Electron:', inElectron);
+    console.log('🔧 window.electronAPI available:', typeof window !== 'undefined' && !!window.electronAPI);
     
-    try {
-      // Convert File objects to temporary files for Electron
-      const imagePaths = [];
+    if (inElectron) {
+      // Electron mode - use IPC
+      console.log('📱 Using Electron IPC for GIF creation');
       
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (file instanceof File) {
-          console.log(`💾 Saving temp file ${i + 1}/${files.length}:`, file.name);
-          
-          // Convert to ArrayBuffer
-          const arrayBuffer = await file.arrayBuffer();
-          
-          // Create temp filename with proper extension
-          const ext = file.name.split('.').pop() || 'jpg';
-          const tempFileName = `temp_gif_${Date.now()}_${i}.${ext}`;
-          
-          // Save file via Electron
-          const tempResult = await safeElectronCall('writeFile', {
-            filePath: tempFileName,
-            data: arrayBuffer
-          });
-          
-          if (tempResult.success && tempResult.filePath) {
-            imagePaths.push(tempResult.filePath);
-            console.log(`✅ Temp file saved:`, tempResult.filePath);
-          } else {
-            throw new Error(`Failed to save temp file: ${file.name}`);
-          }
-        } else {
-          // Assume it's already a path
-          imagePaths.push(file);
-        }
-      }
-      
-      if (imagePaths.length === 0) {
-        throw new Error('No valid image files provided');
-      }
-      
-      console.log('📂 Temp files created:', imagePaths);
-      
-      // Create output filename
-      const outputFileName = `gif_output_${Date.now()}.gif`;
-      
-      // Create GIF via Electron
-      const result = await safeElectronCall('create-gif-from-images', {
-        inputPaths: imagePaths,
-        outputPath: outputFileName,
-        options: {
-          width: options.width ? parseInt(options.width) : undefined,
-          height: options.height ? parseInt(options.height) : undefined,
-          quality: parseInt(options.quality) || 80,
-          fps: parseInt(options.fps) || 10,
-          loop: options.loop !== false,
-          delay: options.delay ? parseInt(options.delay) : undefined,
-          frameDelay: options.frameDelay ? parseInt(options.frameDelay) : undefined,
-          frameDelays: options.frameDelays ? JSON.parse(options.frameDelays) : null,
-          fit: options.fit || 'inside'
-        }
-      });
-      
-      console.log('✅ GIF created successfully via Electron:', result);
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Electron GIF creation failed:', error);
-      throw new Error(`GIF creation failed: ${error.message}`);
-    }
-  },
-
-  /**
-   * Create GIF from video - DESKTOP ONLY
-   */
-  async createGifFromVideo(file, options = {}) {
-    ensureDesktop('createGifFromVideo');
-    console.log('🎬 Creating GIF from video:', file.name || 'unknown');
-    
-    try {
-      // Save video file temporarily if it's a File object
-      let videoPath;
-      
-      if (file instanceof File) {
-        const arrayBuffer = await file.arrayBuffer();
-        const ext = file.name.split('.').pop() || 'mp4';
-        const tempFileName = `temp_video_${Date.now()}.${ext}`;
+      try {
+        // Convert File objects to temporary files for Electron
+        const imagePaths = [];
         
-        const tempResult = await safeElectronCall('writeFile', {
-          filePath: tempFileName,
-          data: arrayBuffer
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (file instanceof File) {
+            console.log(`💾 Saving temp file ${i + 1}/${files.length}:`, file.name);
+            
+            // Convert to ArrayBuffer
+            const arrayBuffer = await file.arrayBuffer();
+            
+            // Create temp filename with proper extension
+            const ext = file.name.split('.').pop() || 'jpg';
+            const tempFileName = `temp_gif_${Date.now()}_${i}.${ext}`;
+            
+            // Save file via Electron
+            const tempResult = await window.electronAPI.writeFile({
+              filePath: tempFileName,
+              data: arrayBuffer
+            });
+            
+            if (tempResult.success && tempResult.filePath) {
+              imagePaths.push(tempResult.filePath);
+              console.log(`✅ Temp file saved:`, tempResult.filePath);
+            } else {
+              throw new Error(`Failed to save temp file: ${file.name}`);
+            }
+          } else {
+            // Assume it's already a path
+            imagePaths.push(file);
+          }
+        }
+        
+        if (imagePaths.length === 0) {
+          throw new Error('No valid image files provided');
+        }
+        
+        console.log('📂 Temp files created:', imagePaths);
+        
+        // Create output filename
+        const outputFileName = `gif_output_${Date.now()}.gif`;
+        
+        // Create GIF via Electron
+        const result = await window.electronAPI.createGifFromImages({
+          inputPaths: imagePaths,
+          outputPath: outputFileName,
+          options: {
+            width: options.width || 500,
+            height: options.height || 300,
+            quality: options.quality || 80,
+            fps: options.fps || 10,
+            loop: options.loop !== false
+          }
         });
         
-        if (tempResult.success && tempResult.filePath) {
-          videoPath = tempResult.filePath;
-        } else {
-          throw new Error(`Failed to save temp video file: ${file.name}`);
-        }
-      } else {
-        videoPath = file;
+        console.log('✅ GIF created successfully via Electron:', result);
+        return result;
+        
+      } catch (error) {
+        console.error('❌ Electron GIF creation failed:', error);
+        throw new Error(`GIF creation failed: ${error.message}`);
       }
       
-      const result = await safeElectronCall('createGifFromVideo', {
-        inputPath: videoPath,
-        outputPath: `gif_from_video_${Date.now()}.gif`,
-        options
-      });
+    } else {
+      // Browser mode - use HTTP API
+      console.log('🌐 Using HTTP API for GIF creation');
       
-      console.log('✅ GIF from video created successfully:', result);
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Video to GIF conversion failed:', error);
-      throw new Error(`Video to GIF conversion failed: ${error.message}`);
+      try {
+        const formData = new FormData();
+        
+        // Add files
+        files.forEach((file, index) => {
+          formData.append('images', file);
+        });
+        
+        // Add options
+        Object.entries(options).forEach(([key, value]) => {
+          formData.append(key, value);
+        });
+        
+        const response = await fetch(`${HTTP_API_BASE}/api/enhanced-gif/images-to-gif`, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.blob();
+        console.log('✅ GIF created successfully via HTTP API');
+        return result;
+        
+      } catch (error) {
+        console.error('❌ HTTP GIF creation failed:', error);
+        throw new Error(`GIF creation failed: ${error.message}`);
+      }
     }
   },
 
   /**
-   * Convert image - DESKTOP ONLY
+   * Convert image
    */
   async convertImage(file, options = {}) {
-    ensureDesktop('convertImage');
     console.log('🖼️ Converting image:', file.name || 'unknown');
     
-    try {
-      // Save image file temporarily if it's a File object
-      let imagePath;
+    if (isElectron()) {
+      // Electron mode
+      console.log('📱 Using Electron IPC for image conversion');
       
-      if (file instanceof File) {
-        const arrayBuffer = await file.arrayBuffer();
-        const ext = file.name.split('.').pop() || 'jpg';
-        const tempFileName = `temp_image_${Date.now()}.${ext}`;
+      try {
+        let inputPath;
+        if (file instanceof File) {
+          const arrayBuffer = await file.arrayBuffer();
+          const tempResult = await window.electronAPI.writeFile({
+            filePath: `temp_convert_${Date.now()}_${file.name}`,
+            data: arrayBuffer
+          });
+          inputPath = tempResult.filePath;
+        } else {
+          inputPath = file;
+        }
         
-        const tempResult = await safeElectronCall('writeFile', {
-          filePath: tempFileName,
-          data: arrayBuffer
+        const result = await window.electronAPI.convertImage({
+          inputPath,
+          outputPath: `converted_${Date.now()}.${options.format || 'png'}`,
+          format: options.format || 'png',
+          quality: options.quality || 80,
+          width: options.width,
+          height: options.height
         });
         
-        if (tempResult.success && tempResult.filePath) {
-          imagePath = tempResult.filePath;
-        } else {
-          throw new Error(`Failed to save temp image file: ${file.name}`);
-        }
-      } else {
-        imagePath = file;
+        console.log('✅ Image converted successfully via Electron');
+        return result;
+        
+      } catch (error) {
+        console.error('❌ Electron image conversion failed:', error);
+        throw new Error(`Image conversion failed: ${error.message}`);
       }
       
-      const result = await safeElectronCall('convertImage', {
-        inputPath: imagePath,
-        outputPath: `converted_image_${Date.now()}.${options.format || 'jpg'}`,
-        options
-      });
+    } else {
+      // Browser mode
+      console.log('🌐 Using HTTP API for image conversion');
       
-      console.log('✅ Image converted successfully:', result);
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Image conversion failed:', error);
-      throw new Error(`Image conversion failed: ${error.message}`);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        Object.entries(options).forEach(([key, value]) => {
+          if (value !== undefined) {
+            formData.append(key, value);
+          }
+        });
+        
+        const response = await fetch(`${HTTP_API_BASE}/api/convert`, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.blob();
+        console.log('✅ Image converted successfully via HTTP API');
+        return result;
+        
+      } catch (error) {
+        console.error('❌ HTTP image conversion failed:', error);
+        throw new Error(`Image conversion failed: ${error.message}`);
+      }
     }
   },
 
   /**
-   * Convert video - DESKTOP ONLY
+   * Convert video
    */
   async convertVideo(file, options = {}) {
-    ensureDesktop('convertVideo');
     console.log('🎥 Converting video:', file.name || 'unknown');
     
-    try {
-      // Save video file temporarily if it's a File object
-      let videoPath;
+    if (isElectron()) {
+      // Electron mode
+      console.log('📱 Using Electron IPC for video conversion');
       
-      if (file instanceof File) {
-        const arrayBuffer = await file.arrayBuffer();
-        const ext = file.name.split('.').pop() || 'mp4';
-        const tempFileName = `temp_video_${Date.now()}.${ext}`;
+      try {
+        let inputPath;
+        if (file instanceof File) {
+          const arrayBuffer = await file.arrayBuffer();
+          const tempResult = await window.electronAPI.writeFile({
+            filePath: `temp_video_${Date.now()}_${file.name}`,
+            data: arrayBuffer
+          });
+          inputPath = tempResult.filePath;
+        } else {
+          inputPath = file;
+        }
         
-        const tempResult = await safeElectronCall('writeFile', {
-          filePath: tempFileName,
-          data: arrayBuffer
+        const result = await window.electronAPI.convertVideo({
+          inputPath,
+          outputPath: `converted_video_${Date.now()}.${options.outputFormat || options.format || 'mp4'}`,
+          format: options.outputFormat || options.format || 'mp4',
+          options: {
+            quality: options.quality || 'medium',
+            width: options.width,
+            height: options.height,
+            fps: options.fps,
+            startTime: options.startTime,
+            duration: options.duration
+          }
         });
         
-        if (tempResult.success && tempResult.filePath) {
-          videoPath = tempResult.filePath;
-        } else {
-          throw new Error(`Failed to save temp video file: ${file.name}`);
+        if (result.success && result.outputPath) {
+          // Add file URL for preview/download
+          const normalizedPath = result.outputPath.replace(/\\/g, '/');
+          const fileUrl = normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+          
+          result.dataUrl = fileUrl;
+          result.url = fileUrl;
+          result.previewUrl = fileUrl;
+          result.downloadUrl = fileUrl;
+          result.filename = result.outputPath.split(/[/\\]/).pop();
         }
-      } else {
-        videoPath = file;
+        
+        console.log('✅ Video converted successfully via Electron:', result);
+        return result;
+        
+      } catch (error) {
+        console.error('❌ Electron video conversion failed:', error);
+        throw new Error(`Video conversion failed: ${error.message}`);
       }
       
-      const result = await safeElectronCall('convertVideo', {
-        inputPath: videoPath,
-        outputPath: `converted_video_${Date.now()}.${options.format || 'mp4'}`,
-        options
-      });
-      
-      console.log('✅ Video converted successfully:', result);
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Video conversion failed:', error);
-      throw new Error(`Video conversion failed: ${error.message}`);
-    }
-  },
-
-  /**
-   * Generic convert function - DESKTOP ONLY
-   */
-  async convert(file, options = {}) {
-    ensureDesktop('convert');
-    
-    // Determine if it's image or video based on file type
-    const fileName = file.name || file;
-    const ext = fileName.split('.').pop()?.toLowerCase() || '';
-    
-    const imageFormats = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff'];
-    const videoFormats = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv'];
-    
-    if (imageFormats.includes(ext)) {
-      return this.convertImage(file, options);
-    } else if (videoFormats.includes(ext)) {
-      return this.convertVideo(file, options);
     } else {
-      throw new Error(`Unsupported file format: ${ext}`);
-    }
-  },
-
-  /**
-   * Resize image - DESKTOP ONLY
-   */
-  async resize(file, options = {}) {
-    ensureDesktop('resize');
-    return this.convertImage(file, { ...options, operation: 'resize' });
-  },
-
-  /**
-   * Rotate image - DESKTOP ONLY
-   */
-  async rotate(file, options = {}) {
-    ensureDesktop('rotate');
-    return this.convertImage(file, { ...options, operation: 'rotate' });
-  },
-
-  /**
-   * Add text to image - DESKTOP ONLY
-   */
-  async addText(file, text, options = {}) {
-    ensureDesktop('addText');
-    
-    try {
-      console.log('✍️ Adding text to image...');
+      // Browser mode
+      console.log('🌐 Using HTTP API for video conversion');
       
-      const inputPath = await prepareFileForElectron(file, 'temp_image');
-      console.log('📂 Input image path:', inputPath);
-      
-      // Add text via Electron
-      const result = await safeElectronCall('addTextToImage', {
-        inputPath: inputPath,
-        text: text,
-        options: {
-          fontSize: options.fontSize ? parseInt(options.fontSize) : 24,
-          fontColor: options.fontColor || '#ffffff',
-          position: options.position || 'center',
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ Text added to image:', result);
-      } else {
-        console.error('❌ Text addition failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Text addition error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Text to image - DESKTOP ONLY
-   */
-  async textToImage(text, options = {}) {
-    ensureDesktop('textToImage');
-    return safeElectronCall('textToImage', { text, options });
-  },
-
-  /**
-   * Add text to image - DESKTOP ONLY
-   */
-  async addTextToImage(file, text, options = {}) {
-    ensureDesktop('addTextToImage');
-    
-    try {
-      console.log('✍️ Adding text to image...');
-      
-      const inputPath = await prepareFileForElectron(file, 'temp_image');
-      console.log('📂 Input image path:', inputPath);
-      
-      // Add text via Electron
-      const result = await safeElectronCall('addTextToImage', {
-        inputPath: inputPath,
-        text: text,
-        options: {
-          fontSize: options.fontSize ? parseInt(options.fontSize) : 24,
-          fontColor: options.fontColor || '#ffffff',
-          position: options.position || 'center',
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ Text added to image:', result);
-      } else {
-        console.error('❌ Text addition failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Text addition error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Convert to WebP (Advanced) - DESKTOP ONLY
-   */
-  async convertToWebpAdvanced(file, options = {}) {
-    ensureDesktop('convertToWebpAdvanced');
-    
-    try {
-      console.log('🎨 Starting WebP advanced conversion...');
-      
-      const inputPath = await prepareFileForElectron(file, 'temp_image');
-      console.log('📂 Input image path:', inputPath);
-      
-      // Convert via Electron
-      const result = await safeElectronCall('convertToWebpAdvanced', {
-        inputPath: inputPath,
-        options: {
-          quality: options.quality ? parseInt(options.quality) : 80,
-          lossless: options.lossless || false,
-          preset: options.preset || 'default',
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ WebP advanced conversion completed:', result);
-      } else {
-        console.error('❌ WebP advanced conversion failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ WebP advanced conversion error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Batch convert images - DESKTOP ONLY
-   */
-  async batchConvertImages(files, options = {}) {
-    ensureDesktop('batchConvertImages');
-    
-    try {
-      console.log('🎨 Starting batch image conversion...');
-      
-      // Convert all files to paths
-      const inputPaths = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const inputPath = await prepareFileForElectron(file, `temp_batch_${i}`);
-        inputPaths.push(inputPath);
-      }
-      
-      console.log('📂 Input image paths:', inputPaths);
-      
-      // Convert via Electron
-      const result = await safeElectronCall('batchConvertImages', {
-        inputPaths: inputPaths,
-        options: {
-          format: options.format || 'webp',
-          quality: options.quality ? parseInt(options.quality) : 80,
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ Batch conversion completed:', result);
-      } else {
-        console.error('❌ Batch conversion failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Batch conversion error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Create APNG sequence - DESKTOP ONLY
-   */
-  async createApngSequence(files, options = {}) {
-    ensureDesktop('createApngSequence');
-    
-    try {
-      console.log('🎞️ Starting APNG sequence creation...');
-      
-      // Convert all files to paths
-      const inputPaths = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const inputPath = await prepareFileForElectron(file, `temp_apng_${i}`);
-        inputPaths.push(inputPath);
-      }
-      
-      console.log('📂 Input image paths:', inputPaths);
-      
-      // Create APNG via Electron
-      const result = await safeElectronCall('createApngSequence', {
-        inputPaths: inputPaths,
-        options: {
-          delay: options.delay ? parseInt(options.delay) : 100,
-          loop: options.loop !== false,
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ APNG sequence creation completed:', result);
-      } else {
-        console.error('❌ APNG sequence creation failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ APNG sequence creation error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Convert to AVIF (Modern) - DESKTOP ONLY
-   */
-  async convertToAvifModern(file, options = {}) {
-    ensureDesktop('convertToAvifModern');
-    
-    try {
-      console.log('🎨 Starting AVIF conversion...');
-      
-      const inputPath = await prepareFileForElectron(file, 'temp_image');
-      console.log('📂 Input image path:', inputPath);
-      
-      // Convert via Electron
-      const result = await safeElectronCall('convertToAvifModern', {
-        inputPath: inputPath,
-        options: {
-          quality: options.quality ? parseInt(options.quality) : 80,
-          speed: options.speed ? parseInt(options.speed) : 6,
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ AVIF conversion completed:', result);
-      } else {
-        console.error('❌ AVIF conversion failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ AVIF conversion error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Convert to JXL - DESKTOP ONLY
-   */
-  async convertToJxl(file, options = {}) {
-    ensureDesktop('convertToJxl');
-    
-    try {
-      console.log('🎨 Starting JPEG XL conversion...');
-      
-      const inputPath = await prepareFileForElectron(file, 'temp_image');
-      console.log('📂 Input image path:', inputPath);
-      
-      // Convert via Electron
-      const result = await safeElectronCall('convertToJxl', {
-        inputPath: inputPath,
-        options: {
-          quality: options.quality ? parseInt(options.quality) : 80,
-          effort: options.effort ? parseInt(options.effort) : 7,
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ JPEG XL conversion completed:', result);
-      } else {
-        console.error('❌ JPEG XL conversion failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ JPEG XL conversion error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Compare modern formats - DESKTOP ONLY
-   */
-  async compareModernFormats(file, options = {}) {
-    ensureDesktop('compareModernFormats');
-    
-    try {
-      console.log('🎨 Starting modern format comparison...');
-      
-      const inputPath = await prepareFileForElectron(file, 'temp_image');
-      console.log('📂 Input image path:', inputPath);
-      
-      // Compare via Electron
-      const result = await safeElectronCall('compareModernFormats', {
-        inputPath: inputPath,
-        options: {
-          formats: options.formats || ['webp', 'avif', 'jxl'],
-          quality: options.quality ? parseInt(options.quality) : 80,
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ Modern format comparison completed:', result);
-      } else {
-        console.error('❌ Modern format comparison failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Modern format comparison error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Get video information - DESKTOP ONLY
-   */
-  async getVideoInfo(file) {
-    ensureDesktop('getVideoInfo');
-    
-    try {
-      console.log('🎬 Getting video info...');
-      
-      let inputPath;
-      
-      if (file instanceof File || file instanceof Blob) {
-        // Convert File/Blob to ArrayBuffer
-        const arrayBuffer = await file.arrayBuffer();
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
         
-        // Create temp filename with proper extension
-        const ext = file.name ? file.name.split('.').pop() : 'mp4';
-        const tempFileName = `temp_video_${Date.now()}.${ext}`;
-        
-        // Save file via Electron
-        const tempResult = await safeElectronCall('writeFile', {
-          filePath: tempFileName,
-          data: arrayBuffer
+        Object.entries(options).forEach(([key, value]) => {
+          if (value !== undefined) {
+            formData.append(key, value);
+          }
         });
         
-        if (tempResult.success && tempResult.filePath) {
-          inputPath = tempResult.filePath;
-          console.log(`✅ Temp video file saved:`, tempResult.filePath);
-        } else {
-          throw new Error(`Failed to save temp video file: ${file.name || 'unknown'}`);
-        }
-      } else {
-        // Assume it's already a path
-        inputPath = file;
-      }
-      
-      console.log('📂 Input video path:', inputPath);
-      
-      // Get video info via Electron
-      const result = await safeElectronCall('getVideoInfo', {
-        inputPath: inputPath
-      });
-      
-      if (result.success) {
-        console.log('✅ Video info retrieved:', result);
-      } else {
-        console.error('❌ Video info failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Video info error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Convert video to GIF - DESKTOP ONLY
-   */
-  async convertVideoToGif(file, options = {}) {
-    ensureDesktop('convertVideoToGif');
-    return this.createGifFromVideo(file, options);
-  },
-
-  /**
-   * Video to GIF - DESKTOP ONLY
-   */
-  async videoToGif(file, options = {}) {
-    ensureDesktop('videoToGif');
-    return this.createGifFromVideo(file, options);
-  },
-
-  /**
-   * Upload video from URL - DESKTOP ONLY (Not implemented - no web support)
-   */
-  async uploadVideoFromUrl() {
-    throw new Error('URL uploads are not supported in desktop-only mode');
-  },
-
-  /**
-   * Split GIF - DESKTOP ONLY
-   */
-  async splitGif(file, options = {}) {
-    ensureDesktop('splitGif');
-    
-    try {
-      console.log('✂️ Starting GIF split...');
-      
-      const inputPath = await prepareFileForElectron(file, 'temp_gif');
-      console.log('📂 Input GIF path:', inputPath);
-      
-      // Split GIF via Electron
-      const result = await safeElectronCall('splitGif', {
-        inputPath: inputPath,
-        options: {
-          maxFrames: options.maxFrames ? parseInt(options.maxFrames) : undefined,
-          startFrame: options.startFrame ? parseInt(options.startFrame) : 0,
-          endFrame: options.endFrame ? parseInt(options.endFrame) : undefined,
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ GIF split completed:', result);
-      } else {
-        console.error('❌ GIF split failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ GIF split error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Split GIF from URL - DESKTOP ONLY (Not implemented - no web support)
-   */
-  async splitGifFromUrl() {
-    throw new Error('URL uploads are not supported in desktop-only mode');
-  },
-
-  /**
-   * Split video - DESKTOP ONLY
-   */
-  async splitVideo(file, options = {}) {
-    ensureDesktop('splitVideo');
-    
-    try {
-      console.log('🎬 Starting video split...');
-      
-      let inputPath;
-      
-      if (file instanceof File || file instanceof Blob) {
-        // Convert File/Blob to ArrayBuffer
-        const arrayBuffer = await file.arrayBuffer();
-        
-        // Create temp filename with proper extension
-        const ext = file.name ? file.name.split('.').pop() : 'mp4';
-        const tempFileName = `temp_video_${Date.now()}.${ext}`;
-        
-        // Save file via Electron
-        const tempResult = await safeElectronCall('writeFile', {
-          filePath: tempFileName,
-          data: arrayBuffer
+        const response = await fetch(`${HTTP_API_BASE}/api/video/convert`, {
+          method: 'POST',
+          body: formData
         });
         
-        if (tempResult.success && tempResult.filePath) {
-          inputPath = tempResult.filePath;
-          console.log(`✅ Temp video file saved:`, tempResult.filePath);
-        } else {
-          throw new Error(`Failed to save temp video file: ${file.name || 'unknown'}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-      } else {
-        // Assume it's already a path
-        inputPath = file;
-      }
-      
-      console.log('📂 Input video path:', inputPath);
-      
-      // Split video via Electron
-      const result = await safeElectronCall('splitVideo', {
-        inputPath: inputPath,
-        options: {
-          duration: options.duration ? parseFloat(options.duration) : undefined,
-          startTime: options.startTime ? parseFloat(options.startTime) : 0,
-          segmentLength: options.segmentLength ? parseFloat(options.segmentLength) : 10,
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ Video split completed:', result);
-      } else {
-        console.error('❌ Video split failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Video split error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Split video from URL - DESKTOP ONLY (Not implemented - no web support)
-   */
-  async splitVideoFromUrl() {
-    throw new Error('URL uploads are not supported in desktop-only mode');
-  },
-
-  /**
-   * Extract video frames - DESKTOP ONLY
-   */
-  async extractVideoFrames(file, options = {}) {
-    ensureDesktop('extractVideoFrames');
-    
-    try {
-      console.log('🎬 Starting video frame extraction...');
-      
-      let inputPath;
-      
-      if (file instanceof File || file instanceof Blob) {
-        // Convert File/Blob to ArrayBuffer
-        const arrayBuffer = await file.arrayBuffer();
         
-        // Create temp filename with proper extension
-        const ext = file.name ? file.name.split('.').pop() : 'mp4';
-        const tempFileName = `temp_video_${Date.now()}.${ext}`;
+        const result = await response.blob();
+        console.log('✅ Video converted successfully via HTTP API');
+        return result;
         
-        // Save file via Electron
-        const tempResult = await safeElectronCall('writeFile', {
-          filePath: tempFileName,
-          data: arrayBuffer
-        });
-        
-        if (tempResult.success && tempResult.filePath) {
-          inputPath = tempResult.filePath;
-          console.log(`✅ Temp video file saved:`, tempResult.filePath);
-        } else {
-          throw new Error(`Failed to save temp video file: ${file.name || 'unknown'}`);
-        }
-      } else {
-        // Assume it's already a path
-        inputPath = file;
+      } catch (error) {
+        console.error('❌ HTTP video conversion failed:', error);
+        throw new Error(`Video conversion failed: ${error.message}`);
       }
-      
-      console.log('📂 Input video path:', inputPath);
-      
-      // Extract frames via Electron
-      const result = await safeElectronCall('extract-video-frames', {
-        inputPath: inputPath,
-        options: {
-          fps: options.fps ? parseFloat(options.fps) : 1,
-          startTime: options.startTime ? parseFloat(options.startTime) : 0,
-          duration: options.duration ? parseFloat(options.duration) : undefined,
-          outputFormat: options.outputFormat || 'png',
-          createZip: options.createZip,
-          maxFrames: options.maxFrames,
-          extractionMode: options.extractionMode,
-          intervalMs: options.intervalMs,
-          quality: options.quality,
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ Video frame extraction completed:', result);
-      } else {
-        console.error('❌ Video frame extraction failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Video frame extraction error:', error);
-      throw error;
     }
   },
 
   /**
-   * Extract video frames from URL - DESKTOP ONLY (Not implemented - no web support)
-   */
-  async extractVideoFramesFromUrl() {
-    throw new Error('URL uploads are not supported in desktop-only mode');
-  },
-
-  /**
-   * Extract GIF frames - DESKTOP ONLY
-   */
-  async extractGifFrames(file, options = {}) {
-    ensureDesktop('extractGifFrames');
-    
-    try {
-      console.log('🎬 Starting GIF frame extraction...');
-      
-      const inputPath = await prepareFileForElectron(file, 'temp_gif');
-      console.log('📂 Input GIF path:', inputPath);
-      
-      // Extract frames via Electron
-      const result = await safeElectronCall('extractGifFrames', {
-        inputPath: inputPath,
-        options: {
-          maxFrames: options.maxFrames ? parseInt(options.maxFrames) : undefined,
-          startFrame: options.startFrame ? parseInt(options.startFrame) : 0,
-          endFrame: options.endFrame ? parseInt(options.endFrame) : undefined,
-          outputFormat: options.outputFormat || 'png',
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ GIF frame extraction completed:', result);
-      } else {
-        console.error('❌ GIF frame extraction failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ GIF frame extraction error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Extract GIF frames from URL - DESKTOP ONLY (Not implemented - no web support)
-   */
-  async extractGifFramesFromUrl() {
-    throw new Error('URL uploads are not supported in desktop-only mode');
-  },
-
-  /**
-   * Convert to WebP - DESKTOP ONLY
-   */
-  async convertToWebp(file, options = {}) {
-    ensureDesktop('convertToWebp');
-    
-    try {
-      console.log('🎨 Starting WebP conversion...');
-      
-      const inputPath = await prepareFileForElectron(file, 'temp_image');
-      console.log('📂 Input image path:', inputPath);
-      
-      // Convert via Electron
-      const result = await safeElectronCall('convertToWebp', {
-        inputPath: inputPath,
-        options: {
-          quality: options.quality ? parseInt(options.quality) : 80,
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ WebP conversion completed:', result);
-      } else {
-        console.error('❌ WebP conversion failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ WebP conversion error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Decode WebP - DESKTOP ONLY
-   */
-  async decodeWebp(file, options = {}) {
-    ensureDesktop('decodeWebp');
-    
-    try {
-      console.log('🎨 Starting WebP decode...');
-      
-      const inputPath = await prepareFileForElectron(file, 'temp_webp');
-      console.log('📂 Input WebP path:', inputPath);
-      
-      // Decode via Electron
-      const result = await safeElectronCall('decodeWebp', {
-        inputPath: inputPath,
-        options: {
-          outputFormat: options.outputFormat || 'png',
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ WebP decode completed:', result);
-      } else {
-        console.error('❌ WebP decode failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ WebP decode error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Describe image - DESKTOP ONLY
-   */
-  async describeImage(file, options = {}) {
-    ensureDesktop('describeImage');
-    
-    try {
-      console.log('🤖 Starting image description...');
-      
-      const inputPath = await prepareFileForElectron(file, 'temp_image');
-      console.log('📂 Input image path:', inputPath);
-      
-      // Describe via Electron
-      const result = await safeElectronCall('describeImage', {
-        inputPath: inputPath,
-        options: {
-          language: options.language || 'en',
-          detail: options.detail || 'standard',
-          ...options
-        }
-      });
-      
-      if (result.success) {
-        console.log('✅ Image description completed:', result);
-      } else {
-        console.error('❌ Image description failed:', result.message);
-      }
-      
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Image description error:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Open file dialog - DESKTOP ONLY
+   * Show file picker
    */
   async openFileDialog(options = {}) {
-    ensureDesktop('openFileDialog');
-    return safeElectronCall('openDialog', options);
+    if (isElectron()) {
+      return await window.electronAPI.openDialog(options);
+    } else {
+      // Browser file input fallback
+      return new Promise((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        if (options.filters) {
+          input.accept = options.filters.map(f => f.extensions.map(e => `.${e}`).join(',')).join(',');
+        }
+        input.multiple = options.properties?.includes('multiSelections');
+        
+        input.onchange = (e) => {
+          const files = Array.from(e.target.files || []);
+          resolve({
+            canceled: files.length === 0,
+            filePaths: files.map(f => URL.createObjectURL(f)),
+            files: files
+          });
+        };
+        
+        input.click();
+      });
+    }
   },
 
   /**
-   * Download file - DESKTOP ONLY (Save file to user's preferred location)
+   * Create GIF from video
    */
-  async downloadFile(data, filename) {
-    ensureDesktop('downloadFile');
-    return safeElectronCall('saveFileDialog', { data, filename });
-  },
-
-  /**
-   * Save file - DESKTOP ONLY
-   */
-  async saveFile(data, filename) {
-    ensureDesktop('saveFile');
-    return safeElectronCall('saveFileDialog', { data, filename });
-  },
-
-  /**
-   * Get app info - DESKTOP ONLY
-   */
-  async getAppInfo() {
-    ensureDesktop('getAppInfo');
-    return safeElectronCall('getAppInfo');
-  },
-
-  /**
-   * Convert PDF to Markdown - DESKTOP ONLY
-   * Supports single or multiple PDF files
-   */
-  async convertPdfToMarkdown(files, options = {}) {
-    ensureDesktop('convertPdfToMarkdown');
+  async createGifFromVideo(file, options = {}) {
+    console.log('🎬 Creating GIF from video:', file.name);
     
-    try {
-      // Ensure files is an array
-      const fileArray = Array.isArray(files) ? files : [files];
-      console.log(`📄 Converting ${fileArray.length} PDF(s) to Markdown...`);
+    if (isElectron()) {
+      // Use the general convertVideo method
+      return await this.convertVideo(file, {
+        ...options,
+        outputFormat: 'gif'
+      });
+    } else {
+      // Browser mode - use HTTP API
+      const formData = new FormData();
+      formData.append('video', file);
       
-      // Convert all files to paths
-      const inputPaths = [];
-      for (let i = 0; i < fileArray.length; i++) {
-        const file = fileArray[i];
-        const inputPath = await prepareFileForElectron(file, `temp_pdf_${i}`);
-        inputPaths.push(inputPath);
-        console.log(`📂 Prepared PDF ${i + 1}/${fileArray.length}:`, inputPath);
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/gif/create-from-video`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Video to GIF creation failed: ${response.statusText}`);
       }
       
-      // Convert via Electron
-      const result = await safeElectronCall('pdf-to-markdown', {
-        inputPaths: inputPaths,
+      return await response.json();
+    }
+  },
+
+  /**
+   * General convert method (for backward compatibility)
+   */
+  async convert(file, format, quality = 0.9) {
+    return await this.convertImage(file, {
+      outputFormat: format,
+      quality: quality
+    });
+  },
+
+  /**
+   * Resize image
+   */
+  async resize(file, width, height, maintainAspectRatio = true) {
+    return await this.convertImage(file, {
+      width: width,
+      height: height,
+      fit: maintainAspectRatio ? 'inside' : 'fill'
+    });
+  },
+
+  /**
+   * Rotate image
+   */
+  async rotate(file, degrees) {
+    return await this.convertImage(file, {
+      rotate: degrees
+    });
+  },
+
+  /**
+   * Add text to image
+   */
+  async addText(file, text, options = {}) {
+    if (isElectron()) {
+      // Text addition not implemented in desktop mode yet
+      throw new Error('Text addition feature is not available in desktop mode yet');
+    } else {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('text', text);
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/text/add-to-image`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Text addition failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Create APNG sequence
+   */
+  async createApngSequence(files, options = {}) {
+    if (isElectron()) {
+      // APNG creation not implemented in desktop mode yet
+      throw new Error('APNG creation feature is not available in desktop mode yet');
+    } else {
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append(`images`, file);
+      });
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/modern/create-apng`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`APNG creation failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Convert to AVIF modern format
+   */
+  async convertToAvifModern(files, options = {}) {
+    if (isElectron()) {
+      // Use general convertImage method for each file
+      const results = [];
+      for (const file of files) {
+        const result = await this.convertImage(file, {
+          ...options,
+          outputFormat: 'avif'
+        });
+        results.push(result);
+      }
+      return { results };
+    } else {
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append(`images`, file);
+      });
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/modern/convert-to-avif`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`AVIF conversion failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Convert to JXL format
+   */
+  async convertToJxl(files, options = {}) {
+    if (isElectron()) {
+      // JXL conversion not implemented in desktop mode yet
+      throw new Error('JXL conversion feature is not available in desktop mode yet');
+    } else {
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append(`images`, file);
+      });
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/modern/convert-to-jxl`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`JXL conversion failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Compare modern formats
+   */
+  async compareModernFormats(file) {
+    if (isElectron()) {
+      // Modern format comparison not implemented in desktop mode yet
+      throw new Error('Modern format comparison feature is not available in desktop mode yet');
+    } else {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/modern/compare-formats`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Format comparison failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Get video info
+   */
+  async getVideoInfo(videoId) {
+    if (isElectron()) {
+      // Video info not implemented in desktop mode yet
+      throw new Error('Video info feature is not available in desktop mode yet');
+    } else {
+      const response = await fetch(`${HTTP_API_BASE}/api/video/info/${videoId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Video info failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Convert video to GIF (with settings)
+   */
+  async convertVideoToGif(videoId, settings = {}) {
+    if (isElectron()) {
+      // Video to GIF conversion not implemented in desktop mode yet
+      throw new Error('Video to GIF conversion feature is not available in desktop mode yet');
+    } else {
+      const response = await fetch(`${HTTP_API_BASE}/api/video/convert-to-gif/${videoId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Video to GIF conversion failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Convert video to GIF
+   */
+  async videoToGif(file, options = {}) {
+    console.log('🎬 Converting video to GIF:', file.name);
+    
+    if (isElectron()) {
+      // Use the general convertVideo method
+      return await this.convertVideo(file, {
+        ...options,
+        outputFormat: 'gif'
+      });
+    } else {
+      // Browser mode - use HTTP API
+      const formData = new FormData();
+      formData.append('video', file);
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/video/convert-to-gif`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Video to GIF conversion failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Upload video from URL
+   */
+  async uploadVideoFromUrl(url, options = {}) {
+    if (isElectron()) {
+      throw new Error('uploadVideoFromUrl not supported in Electron mode');
+    } else {
+      const response = await fetch(`${HTTP_API_BASE}/api/video/upload-from-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, ...options })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Video upload from URL failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Split GIF into frames
+   */
+  async splitGif(file, options = {}) {
+    console.log('✂️ Splitting GIF:', file.name);
+    
+    if (isElectron()) {
+      // Convert File to temp file for Electron
+      const arrayBuffer = await file.arrayBuffer();
+      const tempFileName = `temp_gif_${Date.now()}.gif`;
+      
+      const tempResult = await window.electronAPI.writeFile({
+        filePath: tempFileName,
+        data: arrayBuffer
+      });
+      
+      if (!tempResult.success) {
+        throw new Error('Failed to save temp file for GIF splitting');
+      }
+      
+      // Call Electron API to split GIF
+      const result = await window.electronAPI.splitGif({
+        inputPath: tempResult.filePath,
         options: options
       });
       
-      if (result.success) {
-        console.log('✅ PDF to Markdown conversion completed:', result);
-      } else {
-        console.error('❌ PDF to Markdown conversion failed:', result.message || result.error);
+      return result;
+    } else {
+      // Browser mode - use HTTP API
+      const formData = new FormData();
+      formData.append('gif', file);
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/split/gif`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`GIF splitting failed: ${response.statusText}`);
       }
       
-      return result;
+      return await response.json();
+    }
+  },
+
+  /**
+   * Split GIF from URL
+   */
+  async splitGifFromUrl(url, options = {}) {
+    if (isElectron()) {
+      throw new Error('splitGifFromUrl not supported in Electron mode');
+    } else {
+      const response = await fetch(`${HTTP_API_BASE}/api/split/gif-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, ...options })
+      });
       
-    } catch (error) {
-      console.error('❌ PDF to Markdown conversion error:', error);
-      throw error;
+      if (!response.ok) {
+        throw new Error(`GIF splitting from URL failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Split video into segments
+   */
+  async splitVideo(file, options = {}) {
+    console.log('✂️ Splitting video:', file.name);
+    
+    if (isElectron()) {
+      // Convert File to temp file for Electron
+      const arrayBuffer = await file.arrayBuffer();
+      const ext = file.name.split('.').pop() || 'mp4';
+      const tempFileName = `temp_video_${Date.now()}.${ext}`;
+      
+      const tempResult = await window.electronAPI.writeFile({
+        filePath: tempFileName,
+        data: arrayBuffer
+      });
+      
+      if (!tempResult.success) {
+        throw new Error('Failed to save temp file for video splitting');
+      }
+      
+      // Call Electron API to split video
+      console.log('🎬 Calling electron splitVideo with options:', options);
+      const result = await window.electronAPI.splitVideo({
+        inputPath: tempResult.filePath,
+        options: options
+      });
+      
+      console.log('🎬 Electron splitVideo result:', result);
+      console.log('🎬 Result segments count:', result?.segments?.length || 0);
+      
+      return result;
+    } else {
+      // Browser mode - use HTTP API
+      const formData = new FormData();
+      formData.append('video', file);
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/split/video`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Video splitting failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Split video from URL
+   */
+  async splitVideoFromUrl(url, options = {}) {
+    if (isElectron()) {
+      throw new Error('splitVideoFromUrl not supported in Electron mode');
+    } else {
+      const response = await fetch(`${HTTP_API_BASE}/api/split/video-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, ...options })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Video splitting from URL failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Convert to WebP format
+   */
+  async convertToWebp(files, options = {}) {
+    console.log('🔄 Converting to WebP:', files.length, 'files');
+    
+    if (isElectron()) {
+      // In Electron, use the general convertImage method
+      const results = [];
+      for (const file of files) {
+        const result = await this.convertImage(file, {
+          ...options,
+          outputFormat: 'webp'
+        });
+        results.push(result);
+      }
+      return { results };
+    } else {
+      // Browser mode - use HTTP API
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append(`images`, file);
+      });
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/webp/convert`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`WebP conversion failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Decode WebP format
+   */
+  async decodeWebp(files, options = {}) {
+    console.log('🔄 Decoding WebP:', files.length, 'files');
+    
+    if (isElectron()) {
+      // In Electron, use the general convertImage method
+      const results = [];
+      for (const file of files) {
+        const result = await this.convertImage(file, {
+          ...options,
+          outputFormat: options.outputFormat || 'png'
+        });
+        results.push(result);
+      }
+      return { results };
+    } else {
+      // Browser mode - use HTTP API
+      const formData = new FormData();
+      files.forEach((file, index) => {
+        formData.append(`images`, file);
+      });
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/webp/decode`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`WebP decoding failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Download file from endpoint or path
+   */
+  async downloadFile(endpoint) {
+    if (isElectron()) {
+      // In Electron, files should be handled directly without HTTP requests
+      // This method shouldn't be used in Electron mode - files should be saved directly
+      throw new Error('downloadFile not supported in Electron mode - use saveFile instead');
+    } else {
+      // Browser mode - use HTTP API
+      const url = `${HTTP_API_BASE}${endpoint}`;
+      const response = await fetch(url, { mode: 'cors' });
+      
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      return { blob, url };
+    }
+  },
+
+  /**
+   * Save file
+   */
+  async saveFile(data, filename) {
+    if (isElectron()) {
+      return await window.electronAPI.writeFile({
+        filePath: filename,
+        data: data
+      });
+    } else {
+      // Browser download
+      const blob = new Blob([data]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      return { success: true, filePath: filename };
+    }
+  },
+
+  /**
+   * Copy file (Electron only)
+   */
+  async copyFile(sourcePath, destPath) {
+    if (isElectron()) {
+      return await window.electronAPI.copyFile({
+        sourcePath: sourcePath,
+        destPath: destPath
+      });
+    } else {
+      throw new Error('copyFile is only available in Electron mode');
+    }
+  },
+
+  /**
+   * Describe image (AI feature)
+   */
+  async describeImage(imageName) {
+    if (isElectron()) {
+      // AI features not supported in desktop mode
+      throw new Error('Image description feature is not available in desktop mode');
+    } else {
+      const response = await fetch(`${HTTP_API_BASE}/api/ai/describe-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageName })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Image description failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    }
+  },
+
+  /**
+   * Get app info
+   */
+  async getAppInfo() {
+    if (isElectron()) {
+      return await window.electronAPI.getAppInfo();
+    } else {
+      return {
+        name: 'AIO Converter',
+        version: '1.0.1',
+        mode: 'browser',
+        isElectron: false
+      };
+    }
+  },
+
+  /**
+   * Convert text to Markdown
+   */
+  async convertTextToMd(file, options = {}) {
+    console.log('📝 Converting text to Markdown:', file.name);
+    
+    if (isElectron()) {
+      // Electron mode - not implemented yet
+      throw new Error('Text to Markdown conversion is not available in desktop mode yet');
+    } else {
+      // Browser mode - use HTTP API
+      const formData = new FormData();
+      formData.append('textFile', file);
+      
+      Object.keys(options).forEach(key => {
+        formData.append(key, options[key]);
+      });
+      
+      const response = await fetch(`${HTTP_API_BASE}/api/text/text-to-md`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Text to Markdown conversion failed: ${response.statusText}`);
+      }
+      
+      return await response.json();
     }
   }
 };
 
-// Export for backwards compatibility
+// Export legacy compatibility
 export const realAPI = api;
 
-// No web URLs in desktop-only mode
-export const getApiUrl = () => {
-  throw new Error('❌ API URLs are not supported in desktop-only mode');
+/**
+ * Get API URL - Updated to handle Electron mode properly
+ */
+export const getApiUrl = (endpoint) => {
+  if (isElectron()) {
+    // In Electron mode, most API endpoints don't make sense as URLs
+    // Return empty string to prevent trying to fetch them
+    console.warn('⚠️ getApiUrl called in Electron mode with endpoint:', endpoint);
+    return '';
+  }
+  return `${HTTP_API_BASE}${endpoint}`;
 };
 
+/**
+ * Resolve URL for display purposes (images, videos, etc.)
+ */
 export const resolveDisplayUrl = (path) => {
-  if (!path) return '';
+  console.log('🔗 resolveDisplayUrl called with:', path);
   
-  // In desktop mode, convert file paths to file:// URLs for display
+  if (!path) return '';
+  if (path.startsWith('data:')) return path;
+  if (path.startsWith('file://')) {
+    console.log('🔗 Already file:// URL:', path);
+    return path;
+  }
+  if (path.startsWith('http')) return path;
+  
+  // In Electron mode, handle file paths properly
   if (isElectron()) {
-    // If it's already a URL, return as-is
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('blob:') || path.startsWith('data:')) {
-      return path;
+    // If it's a full file path (contains \ or /), convert to file:// URL
+    if ((path.includes('\\') || path.includes('/')) && !path.startsWith('blob:')) {
+      // Normalize path separators and ensure proper file:// format
+      const normalizedPath = path.replace(/\\/g, '/');
+      let fileUrl;
+      
+      if (!normalizedPath.startsWith('/')) {
+        fileUrl = `file:///${normalizedPath}`;
+      } else {
+        fileUrl = `file://${normalizedPath}`;
+      }
+      
+      console.log('🔗 Converted to file URL:', path, '→', fileUrl);
+      return fileUrl;
     }
     
-    // If it's already a file:// URL, return as-is
-    if (path.startsWith('file://')) {
-      return path;
-    }
-    
-    // Convert local path to file:// URL
-    const normalizedPath = path.replace(/\\/g, '/');
-    return normalizedPath.startsWith('/') ? `file://${normalizedPath}` : `file:///${normalizedPath}`;
+    // If it's an API endpoint path, return empty string
+    return '';
   }
   
-  // Fallback for non-Electron environments
-  return path;
+  return `${HTTP_API_BASE}${path}`;
 };
 
 // Export individual functions for convenience
@@ -1181,10 +1082,6 @@ export const {
   resize,
   rotate,
   addText,
-  textToImage,
-  addTextToImage,
-  convertToWebpAdvanced,
-  batchConvertImages,
   createApngSequence,
   convertToAvifModern,
   convertToJxl,
@@ -1197,18 +1094,13 @@ export const {
   splitGifFromUrl,
   splitVideo,
   splitVideoFromUrl,
-  extractVideoFrames,
-  extractVideoFramesFromUrl,
-  extractGifFrames,
-  extractGifFramesFromUrl,
   convertToWebp,
   decodeWebp,
   describeImage,
   openFileDialog,
   downloadFile,
   saveFile,
-  getAppInfo,
-  convertPdfToMarkdown
+  getAppInfo
 } = api;
 
 export default api;
