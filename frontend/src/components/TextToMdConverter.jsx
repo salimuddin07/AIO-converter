@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { DownloadButton } from './DownloadManager.jsx';
 
 const SAMPLE_TEXT = `AIO Convert - Professional Media Converter
 
@@ -287,18 +288,12 @@ export default function TextToMdConverter() {
     }));
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!convertedMarkdown) return;
     
     const blob = new Blob([convertedMarkdown], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${fileName || 'converted-text'}.md`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const result = await downloadFile(blob, `${fileName || 'converted-text'}.md`);
+    showDownloadNotification(result);
   };
 
   const handleCopy = async () => {

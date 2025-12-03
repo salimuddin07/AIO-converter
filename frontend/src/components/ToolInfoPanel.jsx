@@ -8,13 +8,13 @@ const TOOL_GUIDES = {
       'Upload or drag-and-drop the images you want to animate. The order shown is the playback order.',
       'Adjust frame delays globally or per frame to control the animation speed.',
       'Tweak optional settings such as output size, looping behaviour, or fit mode.',
-      'Hit “Create GIF” and wait for the in-browser encoder to stitch the frames together.',
+      'Hit "Create GIF" and wait for the desktop app to process and stitch the frames together.',
       'Preview the result right in the app and download it directly when you are happy.'
     ],
     tips: [
       'Use the include toggles to temporarily skip frames without deleting them.',
       'Longer delays (higher milliseconds) slow the animation down.',
-      'The tool keeps everything local—no files ever leave your browser.'
+      'Everything processes locally on your desktop—no files uploaded anywhere.'
     ]
   },
   'video-to-gif': {
@@ -24,18 +24,18 @@ const TOOL_GUIDES = {
       'Upload a video file and pick the start time plus the duration you want to keep.',
       'Choose the target resolution, frames-per-second, and quality preset.',
       'Apply optional effects such as brightness, contrast, or palette optimisation.',
-      'Start the conversion; the backend extracts frames, encodes the GIF, then streams it back.',
-      'Preview the generated GIF in the results panel and download it locally.'
+      'Start the conversion; the desktop app processes frames, encodes the GIF, then saves it locally.',
+      'Preview the generated GIF in the results panel and download it to your computer.'
     ],
     tips: [
       'Shorter clips (5–10 seconds) create smaller files and look smoother.',
       'Lowering FPS reduces file size if your GIF is too heavy.',
-      'Animated results are deleted from the server immediately after delivery.'
+      'Generated animations are saved to your chosen download location.'
     ]
   },
   'image-converter': {
     title: 'Image converter guide',
-    summary: 'Batch convert images into new formats or compress them for the web.',
+    summary: 'Batch convert images into new formats or optimize them.',
     steps: [
       'Drop one or more images into the conversion queue.',
       'Choose the output format (PNG, JPG, WebP, etc.) and any quality settings.',
@@ -44,9 +44,9 @@ const TOOL_GUIDES = {
       'Download the processed images straight from the results grid.'
     ],
     tips: [
-      'Stick with WebP for the best balance of size and quality.',
+      'Use WebP for the best balance of size and quality.',
       'Use the preview thumbnails to confirm orientation and transparency.',
-      'Processed files are streamed back instantly—no archives stored server-side.'
+      'All processing happens on your desktop—files never leave your computer.'
     ]
   },
   'pdf-to-md': {
@@ -61,7 +61,8 @@ const TOOL_GUIDES = {
     ],
     tips: [
       'Large PDFs may take a moment—watch the progress indicator for updates.',
-      'Disable layout preservation for blog-friendly Markdown output.'
+      'Disable layout preservation for simple Markdown output.',
+      'All processing happens locally on your desktop for complete privacy.'
     ]
   },
   'md-to-pdf': {
@@ -75,7 +76,8 @@ const TOOL_GUIDES = {
     ],
     tips: [
       'Use code fences (```language) to highlight syntax automatically.',
-      'Enable “smart pagination” for long-form articles.'
+      'Enable "smart pagination" for long-form articles.',
+      'All rendering happens locally for fast, private document generation.'
     ]
   },
   'image-to-pdf': {
@@ -145,12 +147,13 @@ const TOOL_GUIDES = {
     ],
     tips: [
       'Use lossless mode for graphics requiring crisp lines.',
-      'Mix and match formats in one batch—the converter handles everything.'
+      'Mix and match formats in one batch—the desktop app handles everything.',
+      'All conversion happens locally with no file uploads required.'
     ]
   },
   'apng-maker': {
     title: 'APNG studio usage',
-    summary: 'Produce animated PNGs for high-fidelity web motion.',
+    summary: 'Produce animated PNGs for high-fidelity animations.',
     steps: [
       'Upload PNG frames or leverage the editor to generate them.',
       'Pick frame duration, looping, and colour optimisations.',
@@ -158,7 +161,8 @@ const TOOL_GUIDES = {
     ],
     tips: [
       'APNG is great for transparent UI animations where GIF falls short.',
-      'Keep frame counts moderate to avoid heavy downloads.'
+      'Keep frame counts moderate to avoid heavy file sizes.',
+      'Desktop processing ensures maximum quality with no compression artifacts.'
     ]
   },
   'avif-converter': {
@@ -172,7 +176,8 @@ const TOOL_GUIDES = {
     ],
     tips: [
       'Lower quality values (<35) keep files tiny while staying sharp for photos.',
-      'Browsers without AVIF support will fall back to PNG/JPG when you convert back.'
+      'Fallback to PNG/JPG is automatically handled when viewing in older browsers.',
+      'Desktop processing provides optimal AVIF encoding for maximum efficiency.'
     ]
   },
   'jxl-converter': {
@@ -182,11 +187,12 @@ const TOOL_GUIDES = {
       'Add images and tweak encoding speed vs. quality sliders.',
       'Enable animation support if you are converting multi-frame sources.',
       'Kick off the conversion and preview the result.',
-      'Download the JXL output, ready for modern browser tests.'
+      'Download the JXL output, ready for testing in supported applications.'
     ],
     tips: [
       'JPEG XL handles high dynamic range exceptionally well—try it on RAW exports.',
-      'Keep a fallback conversion handy for legacy browsers.'
+      'Keep a fallback conversion handy for older applications.',
+      'Desktop encoding provides the highest quality JPEG XL output available.'
     ]
   },
   home: {

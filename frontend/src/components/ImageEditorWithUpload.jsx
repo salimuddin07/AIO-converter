@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ImageEditor from './ImageEditor.jsx';
 import { ImageCropTool, ImageResizeTool, ImageRotateTool } from './ImageTransformTools.jsx';
+import { DownloadButton } from './DownloadManager.jsx';
 
 const ImageEditorWithUpload = ({ tool = 'edit' }) => {
   const [imageUrl, setImageUrl] = useState(null);
@@ -95,13 +96,10 @@ const ImageEditorWithUpload = ({ tool = 'edit' }) => {
       const response = await fetch(editedImageData);
       const blob = await response.blob();
       
-      const downloadLink = document.createElement('a');
-      downloadLink.href = URL.createObjectURL(blob);
-      downloadLink.download = `edited_${file?.name || 'image.png'}`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-      URL.revokeObjectURL(downloadLink.href);
+      const filename = `edited_${file?.name || 'image.png'}`;
+      const result = await downloadFile(blob, filename);
+      showDownloadNotification(result);
+      
     } catch (error) {
       console.error('Save error:', error);
       alert('Failed to save image');

@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { gsap } from 'gsap';
 import { NotificationService } from '../utils/NotificationService.js';
 import { realAPI, resolveDisplayUrl } from '../utils/unifiedAPI.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 export default function EnhancedGifCreator({ onClose }) {
   const [activeTab, setActiveTab] = useState('video');
@@ -113,13 +114,17 @@ export default function EnhancedGifCreator({ onClose }) {
       } else if (activeTab === 'images') {
         // Prepare image options
         const imageOptions = {
-          fps: options.fps,
+          fps: parseInt(options.fps) || 15,
           quality: options.quality,
           loop: 'true'
         };
         
-        if (options.width) imageOptions.width = options.width;
-        if (options.height) imageOptions.height = options.height;
+        if (options.width && options.width.toString().trim()) {
+          imageOptions.width = parseInt(options.width);
+        }
+        if (options.height && options.height.toString().trim()) {
+          imageOptions.height = parseInt(options.height);
+        }
 
         result = await realAPI.createGifFromImages(files, imageOptions);
       }
@@ -146,19 +151,6 @@ export default function EnhancedGifCreator({ onClose }) {
       NotificationService.error('GIF Creation Failed', error.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const downloadResult = () => {
-    if (result && result.result) {
-      const link = document.createElement('a');
-      link.href = resolveDisplayUrl(result.result.downloadUrl || result.result.dataUrl || result.result.url);
-      link.download = result.result.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      NotificationService.toast('Download started!', 'success');
     }
   };
 
@@ -493,13 +485,13 @@ export default function EnhancedGifCreator({ onClose }) {
               Size: {(result.result.size / 1024).toFixed(1)} KB
             </p>
             
-            <motion.button
-              onClick={downloadResult}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <DownloadButton
+              data={result.result.downloadUrl || result.result.dataUrl || result.result.url}
+              filename={result.result.filename || 'gif-output.gif'}
+              buttonText="📥 Download GIF"
               style={{
                 padding: '12px 24px',
-                background: '#28a745',
+                backgroundColor: '#28a745',
                 color: 'white',
                 border: 'none',
                 borderRadius: '8px',
@@ -507,9 +499,18 @@ export default function EnhancedGifCreator({ onClose }) {
                 fontWeight: '500',
                 cursor: 'pointer'
               }}
-            >
-              📥 Download GIF
-            </motion.button>
+              onDownloadStart={(filename) => {
+                console.log(`Starting GIF download: ${filename}`);
+              }}
+              onDownloadComplete={(result) => {
+                console.log(`GIF downloaded: ${result.filePath}`);
+                NotificationService.success('GIF downloaded successfully!');
+              }}
+              onDownloadError={(error) => {
+                console.error(`GIF download failed: ${error.message}`);
+                NotificationService.error(`Download failed: ${error.message}`);
+              }}
+            />
           </motion.div>
         )}
       </AnimatePresence>

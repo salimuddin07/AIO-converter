@@ -23,16 +23,61 @@ contextBridge.exposeInMainWorld('electronAPI', {
   splitGif: (data) => ipcRenderer.invoke('split-gif', data),
   splitVideo: (data) => ipcRenderer.invoke('split-video', data),
   
+  // Frame extraction operations
+  extractVideoFrames: (data) => ipcRenderer.invoke('extract-video-frames', data),
+  extractGifFrames: (data) => ipcRenderer.invoke('extract-gif-frames', data),
+  
+  // Text operations
+  textToImage: (data) => ipcRenderer.invoke('text-to-image', data),
+  addTextToImage: (data) => ipcRenderer.invoke('add-text-to-image', data),
+  
+  // Advanced WebP operations
+  convertToWebpAdvanced: (data) => ipcRenderer.invoke('convert-to-webp-advanced', data),
+  convertToWebp: (data) => ipcRenderer.invoke('convertToWebp', data),
+  decodeWebp: (data) => ipcRenderer.invoke('decodeWebp', data),
+  batchConvertImages: (data) => ipcRenderer.invoke('batch-convert-images', data),
+  
+  // Modern format operations
+  createApngSequence: (data) => ipcRenderer.invoke('createApngSequence', data),
+  convertToAvifModern: (data) => ipcRenderer.invoke('convertToAvifModern', data),
+  convertToJxl: (data) => ipcRenderer.invoke('convertToJxl', data),
+  compareModernFormats: (data) => ipcRenderer.invoke('compareModernFormats', data),
+  
+  // Format conversion operations
+  convertImageFormat: (data) => ipcRenderer.invoke('convert-image-format', data),
+  markdownToPdf: (data) => ipcRenderer.invoke('markdown-to-pdf', data),
+  pdfToMarkdown: (data) => ipcRenderer.invoke('pdf-to-markdown', data),
+  textToMarkdown: (data) => ipcRenderer.invoke('text-to-markdown', data),
+  imagesToPdf: (data) => ipcRenderer.invoke('images-to-pdf', data),
+  
+  // Video operations
+  getVideoInfo: (data) => ipcRenderer.invoke('getVideoInfo', data),
+  
+  // GIF from video
+  createGifFromVideo: (data) => ipcRenderer.invoke('createGifFromVideo', data),
+  
+  // AI features
+  describeImage: (data) => ipcRenderer.invoke('describeImage', data),
+  
   // Dialogs
   openDialog: (options) => ipcRenderer.invoke('dialog:open', options),
   saveDialog: (options) => ipcRenderer.invoke('dialog:save', options),
+  saveFileDialog: (data) => ipcRenderer.invoke('saveFileDialog', data),
   showMessage: (options) => ipcRenderer.invoke('dialog:message', options),
   
   // Shell
   openPath: (path) => ipcRenderer.invoke('shell:open', path),
+  showItemInFolder: (path) => ipcRenderer.invoke('shell:showItemInFolder', path),
+  
+  // Direct Downloads
+  downloadDirect: (data) => ipcRenderer.invoke('download:direct', data),
+  copyToDownloads: (data) => ipcRenderer.invoke('download:copyToDownloads', data),
+  onDownloadProgress: (callback) => {
+    ipcRenderer.on('download:progress', (event, data) => callback(data));
+  },
   
   // App info
-  getAppInfo: () => ipcRenderer.invoke('app:info'),
+  getAppInfo: () => ipcRenderer.invoke('getAppInfo'),
   
   // Video serving for preview
   serveVideo: (filePath) => ipcRenderer.invoke('serve-video', filePath),

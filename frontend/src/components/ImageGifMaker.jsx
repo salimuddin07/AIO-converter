@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
 import { api as realAPI, resolveDisplayUrl } from '../utils/unifiedAPI.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 const SPEED_PRESETS = {
   slow: { label: 'Slow', delay: 140 },
@@ -299,15 +300,15 @@ export default function ImageGifMaker() {
     try {
       progressToast.update({ message: `Uploading ${activeFrames.length} frame${activeFrames.length === 1 ? '' : 's'}`, progress: 30 });
       const payload = {
-        fps: options.fps,
+        fps: parseInt(options.fps) || 12,
         quality: options.quality,
         loop: options.loop ? 'true' : 'false'
       };
 
-      if (options.width) payload.width = options.width;
-      if (options.height) payload.height = options.height;
-      if (options.frameDelay) payload.delay = options.frameDelay;
-      if (options.loopCount && options.loopCount !== 'infinite') payload.loopCount = options.loopCount;
+      if (options.width && options.width.trim()) payload.width = parseInt(options.width);
+      if (options.height && options.height.trim()) payload.height = parseInt(options.height);
+      if (options.frameDelay) payload.delay = parseInt(options.frameDelay);
+      if (options.loopCount && options.loopCount !== 'infinite') payload.loopCount = parseInt(options.loopCount);
       if (options.fit) payload.fit = options.fit;
 
       const frameDelays = activeFrames.map((frame) => sanitizeDelay(frame.delay, options.frameDelay));
@@ -346,49 +347,6 @@ export default function ImageGifMaker() {
     } finally {
       progressToast.close();
       setIsProcessing(false);
-    }
-  };
-
-  const downloadResult = async () => {
-    if (!result?.result) return;
-    const { dataUrl, downloadUrl, url, filename, outputPath } = result.result;
-    const targetUrl = dataUrl || downloadUrl || url;
-    
-    if (!targetUrl) {
-      NotificationService.toast('No downloadable result is available yet.', 'info');
-      return;
-    }
-
-    try {
-      if (realAPI.isElectron && outputPath) {
-        // In Electron mode, use the save dialog via unified API
-        const options = {
-          defaultPath: filename || 'image-sequence.gif',
-          filters: [
-            { name: 'GIF Images', extensions: ['gif'] },
-            { name: 'All Files', extensions: ['*'] }
-          ]
-        };
-        
-        const saveResult = await window.electronAPI.saveDialog(options);
-        
-        if (!saveResult.canceled && saveResult.filePath) {
-          // Copy the file to the chosen location
-          await realAPI.copyFile(outputPath, saveResult.filePath);
-          NotificationService.success('GIF saved successfully!');
-        }
-      } else {
-        // Browser mode - use regular download
-        const link = document.createElement('a');
-        link.href = resolveUrl(targetUrl);
-        link.download = filename || 'image-sequence.gif';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } catch (error) {
-      console.error('Download failed:', error);
-      NotificationService.error(`Download failed: ${error.message}`);
     }
   };
 
@@ -690,7 +648,22 @@ export default function ImageGifMaker() {
             />
           </div>
           <div className="result-actions">
-            <button type="button" onClick={downloadResult}>Download GIF</button>
+            <DownloadButton
+              data={result?.result?.outputPath || result?.result?.dataUrl || result?.result?.downloadUrl || result?.result?.url}
+              filename={result?.result?.filename || 'image-sequence.gif'}
+              buttonText="Download GIF"
+              onDownloadStart={(filename) => {
+                console.log(`Starting GIF download: ${filename}`);
+              }}
+              onDownloadComplete={(result) => {
+                console.log(`GIF downloaded: ${result.filePath}`);
+                NotificationService.success('GIF downloaded successfully!');
+              }}
+              onDownloadError={(error) => {
+                console.error(`GIF download failed: ${error.message}`);
+                NotificationService.error(`Download failed: ${error.message}`);
+              }}
+            />
             <button type="button" onClick={reset}>Create another</button>
           </div>
         </section>

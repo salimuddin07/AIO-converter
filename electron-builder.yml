@@ -13,10 +13,8 @@ directories:
 files:
   - electron/**/*
   - frontend/dist/**/*
-  - backend/src/**/*
-  - backend/server.js
-  - backend/package.json
   - package.json
+  - node_modules/**/*
   - "!**/*.md"
   - "!**/*.map"
   - "!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}"
@@ -31,11 +29,7 @@ files:
 
 # Extra resources to copy (ffmpeg, fonts, etc.)
 extraResources:
-  - from: backend/node_modules/ffmpeg-static
-    to: ffmpeg
-    filter:
-      - "**/*"
-  - from: backend/node_modules/ffprobe-static
+  - from: node_modules/ffmpeg-static
     to: ffmpeg
     filter:
       - "**/*"
@@ -46,6 +40,24 @@ asarUnpack:
   - "**/node_modules/sharp/**/*"
   - "**/node_modules/canvas/**/*"
   - "**/node_modules/@img/**/*"
+  - "**/node_modules/ffmpeg-static/**/*"
+  - "**/node_modules/fluent-ffmpeg/**/*"
+
+# Node modules that need native compilation
+buildDependenciesFromSource: false
+npmRebuild: false
+nodeGypRebuild: false
+
+# Disable code signing to avoid permission issues
+win:
+  certificateFile: null
+  certificateSha1: null
+  sign: null
+  signAndEditExecutable: false
+  signDlls: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
 
 # Windows-specific configuration
 win:

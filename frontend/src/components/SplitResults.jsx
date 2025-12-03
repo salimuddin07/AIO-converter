@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { resolveDisplayUrl, api } from '../utils/unifiedAPI.js';
+import { DownloadButton, DownloadLink } from './DownloadManager.jsx';
 
 const toAbsoluteUrl = (path) => {
   if (!path) return null;
@@ -259,15 +260,47 @@ const SecureVideo = ({ filePath, ...props }) => {
   );
 };
 
-const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation }) => (
+const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation, zipUrl, zipPath }) => {
+  console.log('🔍 GifResultsSection props:', { 
+    framesCount: frames?.length, 
+    onDownloadZip: !!onDownloadZip, 
+    zipUrl, 
+    zipPath,
+    hasZipData: !!(zipUrl || zipPath)
+  });
+  
+  return (
   <div className="split-results">
     <h2>Extracted Frames ({frames.length} frames)</h2>
 
     <div className="action-buttons" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-      {onDownloadZip && (
-        <button className="btn primary" onClick={onDownloadZip}>
-          Download frames as ZIP
-        </button>
+      {onDownloadZip && (zipUrl || zipPath) && (
+        <>
+          <DownloadButton
+            data={zipUrl}
+            filename={zipPath ? zipPath.split(/[\\/]/).pop() : 'frames.zip'}
+            buttonText="Quick Download ZIP"
+            className="btn primary"
+          />
+          <DownloadButton
+            data={zipPath}
+            filename={zipPath ? zipPath.split(/[\\/]/).pop() : 'frames.zip'}
+            filters={[{ name: 'ZIP Files', extensions: ['zip'] }]}
+            buttonText="Save ZIP As"
+            className="btn primary"
+            style={{ marginLeft: 8 }}
+          />
+        </>
+      )}
+      {!onDownloadZip && (
+        <div style={{ color: 'red', fontSize: '12px' }}>
+          DEBUG: onDownloadZip is missing
+        </div>
+      )}
+      {onDownloadZip && !(zipUrl || zipPath) && (
+        <div style={{ color: 'red', fontSize: '12px' }}>
+          DEBUG: ZIP data missing - zipUrl: {String(zipUrl)}, zipPath: {String(zipPath)}
+        </div>
       )}
       {onEditAnimation && (
         <button className="btn secondary" onClick={onEditAnimation}>
@@ -321,15 +354,25 @@ const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation }) => (
             {frame.width && frame.height ? `${frame.width}×${frame.height}px` : null}
           </div>
 
-          <div className="frame-actions" style={{ marginTop: '5px' }}>
-            <a
-              href={frame.downloadUrl || frame.previewUrl}
-              download={frame.filename}
+          <div className="frame-actions" style={{ marginTop: '5px', display: 'flex', gap: '6px' }}>
+            <DownloadLink
+              data={frame.downloadUrl || frame.previewUrl}
+              filename={frame.filename}
+              buttonText="Quick Download"
               className="btn small"
               style={{ fontSize: '10px', padding: '3px 8px', textDecoration: 'none' }}
-            >
-              Download
-            </a>
+            />
+            <DownloadButton
+              data={frame.path}
+              filename={frame.filename}
+              filters={[
+                { name: 'Image Files', extensions: ['png', 'jpg', 'jpeg', 'webp'] },
+                { name: 'All Files', extensions: ['*'] }
+              ]}
+              buttonText="Save As"
+              className="btn small"
+              style={{ fontSize: '10px', padding: '3px 8px' }}
+            />
           </div>
         </div>
       ))}
@@ -353,9 +396,10 @@ const GifResultsSection = ({ frames, onDownloadZip, onEditAnimation }) => (
       </ul>
     </div>
   </div>
-);
+  );
+};
 
-const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
+const VideoResultsSection = ({ segments, meta, onDownloadZip, zipUrl, zipPath }) => {
   const [segmentList, setSegmentList] = useState(segments);
   const videoMeta = meta?.metadata?.video || {};
   const audioMeta = meta?.metadata?.audio;
@@ -390,9 +434,22 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
 
       <div className="action-buttons" style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         {onDownloadZip && (
-          <button className="btn primary" onClick={onDownloadZip}>
-            Download clips as ZIP
-          </button>
+          <>
+            <DownloadButton
+              data={zipUrl}
+              filename={zipPath ? zipPath.split(/[\\/]/).pop() : 'videos.zip'}
+              buttonText="Quick Download ZIP"
+              className="btn primary"
+            />
+            <DownloadButton
+              data={zipPath}
+              filename={zipPath ? zipPath.split(/[\\/]/).pop() : 'videos.zip'}
+              filters={[{ name: 'ZIP Files', extensions: ['zip'] }]}
+              buttonText="Save ZIP As"
+              className="btn primary"
+              style={{ marginLeft: 8 }}
+            />
+          </>
         )}
       </div>
 
@@ -478,15 +535,25 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
               </div>
             </div>
 
-            <div style={{ marginTop: '10px' }}>
-              <a
-                href={segment.downloadUrl || segment.previewUrl}
-                download={segment.filename}
+            <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+              <DownloadLink
+                data={segment.downloadUrl || segment.previewUrl}
+                filename={segment.filename}
+                buttonText="Quick Download"
                 className="btn small"
                 style={{ fontSize: '11px', padding: '5px 10px', textDecoration: 'none' }}
-              >
-                Download clip
-              </a>
+              />
+              <DownloadButton
+                data={segment.path}
+                filename={segment.filename}
+                filters={[
+                  { name: 'Video Files', extensions: ['mp4', 'webm', 'avi', 'mov', 'mkv'] },
+                  { name: 'All Files', extensions: ['*'] }
+                ]}
+                buttonText="Save As"
+                className="btn small"
+                style={{ fontSize: '11px', padding: '5px 10px' }}
+              />
             </div>
           </div>
         ))}
@@ -514,8 +581,8 @@ const VideoResultsSection = ({ segments, meta, onDownloadZip }) => {
   );
 };
 
-export default function SplitResults({ type, items, meta, onEditAnimation, onDownloadZip }) {
-  console.log('🔍 SplitResults received:', { type, items: items?.length || 0, meta });
+export default function SplitResults({ type, items, meta, onEditAnimation, onDownloadZip, zipUrl, zipPath }) {
+  console.log('🔍 SplitResults received:', { type, items: items?.length || 0, meta, zipUrl, zipPath });
   console.log('🔍 Raw items:', items);
   
   const normalizedItems = useMemo(
@@ -545,8 +612,8 @@ export default function SplitResults({ type, items, meta, onEditAnimation, onDow
   }
 
   if (type === 'video') {
-    return <VideoResultsSection segments={normalizedItems} meta={meta} onDownloadZip={onDownloadZip} />;
+    return <VideoResultsSection segments={normalizedItems} meta={meta} onDownloadZip={onDownloadZip} zipUrl={zipUrl} zipPath={zipPath} />;
   }
 
-  return <GifResultsSection frames={normalizedItems} onDownloadZip={onDownloadZip} onEditAnimation={onEditAnimation} />;
+  return <GifResultsSection frames={normalizedItems} onDownloadZip={onDownloadZip} onEditAnimation={onEditAnimation} zipUrl={zipUrl} zipPath={zipPath} />;
 }

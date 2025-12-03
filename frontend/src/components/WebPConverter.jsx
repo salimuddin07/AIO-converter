@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { NotificationService } from '../utils/NotificationService.js';
 import { api as realAPI } from '../utils/unifiedAPI.js';
+import { DownloadButton } from './DownloadManager.jsx';
 import '../aio-convert-style.css';
 
 const WebPConverter = () => {
@@ -132,13 +133,24 @@ const WebPConverter = () => {
     }
   };
 
-  const downloadFile = (downloadUrl, filename) => {
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadSingleFile = async (downloadUrl, filename) => {
+    try {
+      if (downloadUrl.startsWith('file://')) {
+        // File path - use path-based download
+        const filePath = downloadUrl.replace('file://', '');
+        const result = await downloadFileFromPath(filePath, filename);
+        showDownloadNotification(result);
+      } else {
+        // Fetch and download
+        const response = await fetch(downloadUrl);
+        const blob = await response.blob();
+        const result = await downloadFile(blob, filename);
+        showDownloadNotification(result);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      NotificationService.error('Download failed: ' + error.message);
+    }
   };
 
   const downloadAllAsZip = async () => {
@@ -428,7 +440,7 @@ const WebPConverter = () => {
                         )}
                       </div>
                       <button
-                        onClick={() => downloadFile(
+                        onClick={() => downloadSingleFile(
                           result.downloadUrl || conversionResults.file?.downloadUrl, 
                           result.converted || conversionResults.file?.converted
                         )}

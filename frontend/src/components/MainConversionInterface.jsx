@@ -1,11 +1,8 @@
 import { useState, useRef } from 'react';
 import { NotificationService } from '../utils/NotificationService.js';
 import { api as realAPI } from '../utils/unifiedAPI.js';
-
-// Legacy compatibility for downloadFile and validateFile
-const downloadFile = async (data, filename) => {
-  return await realAPI.saveFile(data, filename);
-};
+import { downloadFileWithStatus, downloadFileFromPathWithStatus } from '../utils/downloadUtils.js';
+import { DownloadButton } from './DownloadManager.jsx';
 
 const validateFile = (file) => {
   // Basic file validation
@@ -380,15 +377,23 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
                         : ''
                       }
                     </p>
-                    <button 
+                    <DownloadButton
+                      data={result.processedFile}
+                      filename={result.processedFile?.name || `processed_${result.originalName}`}
+                      buttonText="📥 Download"
                       className="download-button"
-                      onClick={() => downloadFile(
-                        result.processedFile, 
-                        result.processedFile?.name || `processed_${result.originalName}`
-                      )}
-                    >
-                      📥 Download
-                    </button>
+                      onDownloadStart={(filename) => {
+                        console.log(`Starting download: ${filename}`);
+                      }}
+                      onDownloadComplete={(result) => {
+                        console.log(`Download completed: ${result.filePath}`);
+                        NotificationService.success('File downloaded successfully!');
+                      }}
+                      onDownloadError={(error) => {
+                        console.error(`Download failed: ${error.message}`);
+                        NotificationService.error(`Download failed: ${error.message}`);
+                      }}
+                    />
                   </div>
                 </div>
               ))}

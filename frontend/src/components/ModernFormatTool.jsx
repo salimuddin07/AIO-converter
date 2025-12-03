@@ -2,11 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { NotificationService } from '../utils/NotificationService.js';
 import { api as realAPI } from '../utils/unifiedAPI.js';
-
-// Legacy compatibility for downloadFile
-const downloadFile = async (data, filename) => {
-  return await realAPI.saveFile(data, filename);
-};
+import { DownloadButton } from './DownloadManager.jsx';
 
 const FORMAT_CONFIG = {
   apng: {
@@ -583,12 +579,12 @@ const ModernFormatTool = ({ format }) => {
           <h3>🎉 APNG ready</h3>
           <p>Frames: {sequenceResult.frameCount || files.length}</p>
           <p>Size: {bytesToSize(sequenceResult.size)}</p>
-          <button
+          <DownloadButton
+            data={sequenceResult.downloadUrl}
+            filename={sequenceResult.outputName || 'animation.png'}
+            buttonText="Download animation"
             className="download-btn"
-            onClick={() => downloadFile(sequenceResult.downloadUrl, sequenceResult.outputName || 'animation.png')}
-          >
-            Download animation
-          </button>
+          />
           {sequenceResult.note && <p className="note">{sequenceResult.note}</p>}
         </div>
       );
@@ -611,12 +607,12 @@ const ModernFormatTool = ({ format }) => {
                   <div className="result-meta">Savings: {result.compression}</div>
                 )}
               </div>
-              <button
+              <DownloadButton
+                data={result.downloadUrl}
+                filename={result.outputName || `converted-${result.originalName}`}
+                buttonText="Download"
                 className="download-btn"
-                onClick={() => downloadFile(result.downloadUrl, result.outputName || `converted-${result.originalName}`)}
-              >
-                Download
-              </button>
+              />
             </li>
           ))}
         </ul>
@@ -643,12 +639,12 @@ const ModernFormatTool = ({ format }) => {
                 <>
                   <p>{bytesToSize(value.size)}</p>
                   <p>Savings: {value.savings}</p>
-                  <button
+                  <DownloadButton
+                    data={value.downloadUrl}
+                    filename={`${comparison.originalName}.${key}`}
+                    buttonText="Download"
                     className="download-btn"
-                    onClick={() => downloadFile(value.downloadUrl, `${comparison.originalName}.${key}`)}
-                  >
-                    Download
-                  </button>
+                  />
                 </>
               )}
             </div>

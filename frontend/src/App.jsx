@@ -12,6 +12,8 @@ import ImageEditorWithUpload from './components/ImageEditorWithUpload.jsx';
 import ImageOptimizer from './components/ImageOptimizer.jsx';
 import WebPConverter from './components/WebPConverter.jsx';
 import GifSplitter from './components/GifSplitter.jsx';
+import TimedVideoSplitter from './components/TimedVideoSplitter.jsx';
+import FrameSplitter from './components/FrameSplitter.jsx';
 import { ApngStudio, AvifStudio, JxlStudio } from './components/ModernFormatTool.jsx';
 import ToolInfoPanel from './components/ToolInfoPanel.jsx';
 import BuyMeCoffee from './components/BuyMeCoffee.jsx';
@@ -32,6 +34,12 @@ export default function App() {
             <div className="tool-icon">🖼️</div>
             <h3>GIF Maker</h3>
             <p>Combine images into animated GIFs</p>
+          </div>
+
+          <div className="tool-card" onClick={() => setCurrentTool('video-to-gif')}>
+            <div className="tool-icon">🎬</div>
+            <h3>Video to GIF</h3>
+            <p>Convert videos to animated GIFs</p>
           </div>
           
           <div className="tool-card" onClick={() => setCurrentTool('image-converter')}>
@@ -69,17 +77,59 @@ export default function App() {
             <h3>Image Editor</h3>
             <p>Resize, crop, and edit images</p>
           </div>
+
+          <div className="tool-card" onClick={() => setCurrentTool('optimize')}>
+            <div className="tool-icon">⚡</div>
+            <h3>Image Optimizer</h3>
+            <p>Compress and optimize images</p>
+          </div>
           
           <div className="tool-card" onClick={() => setCurrentTool('split')}>
             <div className="tool-icon">✂️</div>
             <h3>GIF Splitter</h3>
             <p>Extract frames from GIFs</p>
           </div>
+
+          <div className="tool-card" onClick={() => setCurrentTool('frame-splitter')}>
+            <div className="tool-icon">🎞️</div>
+            <h3>Frame Splitter</h3>
+            <p>Extract every frame from videos & GIFs</p>
+          </div>
+
+          <div className="tool-card" onClick={() => setCurrentTool('timed-video-split')}>
+            <div className="tool-icon">🎬</div>
+            <h3>Timed Video Splitter</h3>
+            <p>Split videos at precise time intervals</p>
+          </div>
           
           <div className="tool-card" onClick={() => setCurrentTool('webp-maker')}>
             <div className="tool-icon">🖼️</div>
             <h3>WebP Converter</h3>
             <p>Convert to/from WebP format</p>
+          </div>
+
+          <div className="tool-card" onClick={() => setCurrentTool('apng-maker')}>
+            <div className="tool-icon">🎨</div>
+            <h3>APNG Studio</h3>
+            <p>Create animated PNG files</p>
+          </div>
+
+          <div className="tool-card" onClick={() => setCurrentTool('avif-converter')}>
+            <div className="tool-icon">🔧</div>
+            <h3>AVIF Converter</h3>
+            <p>Convert to modern AVIF format</p>
+          </div>
+
+          <div className="tool-card" onClick={() => setCurrentTool('jxl-converter')}>
+            <div className="tool-icon">🚀</div>
+            <h3>JXL Converter</h3>
+            <p>Convert to JPEG XL format</p>
+          </div>
+
+          <div className="tool-card" onClick={() => setCurrentTool('api-test')} style={{backgroundColor: '#f0f8ff', border: '2px solid #4169e1'}}>
+            <div className="tool-icon">🔬</div>
+            <h3>API Test</h3>
+            <p>Test Electron backend integration</p>
           </div>
           
           <div className="tool-card" onClick={() => setCurrentTool('video-to-gif')}>
@@ -173,6 +223,10 @@ export default function App() {
         return <ImageEditorWithUpload tool="effects" />;
       case 'split':
         return <GifSplitter />;
+      case 'frame-splitter':
+        return <FrameSplitter />;
+      case 'timed-video-split':
+        return <TimedVideoSplitter />;
       case 'webp-maker':
         return <WebPConverter />;
       case 'apng-maker':
@@ -181,6 +235,8 @@ export default function App() {
         return <AvifStudio />;
       case 'jxl-converter':
         return <JxlStudio />;
+      case 'api-test':
+        return <ElectronApiTest />;
       case 'buy-me-coffee':
         return <BuyMeCoffee />;
       case 'electron-test':
