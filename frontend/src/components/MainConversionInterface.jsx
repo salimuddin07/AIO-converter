@@ -28,7 +28,6 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
   const fileInputRef = useRef(null);
   const [urlInput, setUrlInput] = useState('');
   const [showEnhancedGifCreator, setShowEnhancedGifCreator] = useState(false);
-  const [showApiTest, setShowApiTest] = useState(false);
   const activeTool = typeof currentTool === 'string' && currentTool.trim() ? currentTool : 'home';
 
   const toolCategories = {
@@ -76,15 +75,6 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
         description: 'Reduce GIF file size and improve performance',
         icon: '⚡',
         formats: ['GIF'] 
-      }
-    ],
-    'Debug Tools': [
-      { 
-        id: 'api-test', 
-        title: 'API Connection Test', 
-        description: 'Test frontend-backend API connectivity',
-        icon: '🔧',
-        formats: [] 
       }
     ]
   };
@@ -226,8 +216,6 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
                     onClick={() => {
                       if (tool.id === 'enhanced-gif-creator') {
                         setShowEnhancedGifCreator(true);
-                      } else if (tool.id === 'api-test') {
-                        setShowApiTest(true);
                       } else {
                         setCurrentTool(tool.id);
                       }
@@ -832,47 +820,6 @@ export default function MainConversionInterface({ currentTool, setCurrentTool, l
       {/* Enhanced GIF Creator Modal */}
       {showEnhancedGifCreator && (
         <EnhancedGifCreator onClose={() => setShowEnhancedGifCreator(false)} />
-      )}
-
-      {/* API Test Component */}
-      {showApiTest && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '20px',
-            maxWidth: '800px',
-            maxHeight: '600px',
-            overflow: 'auto'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2>API Integration Test</h2>
-              <button 
-                onClick={() => setShowApiTest(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer'
-                }}
-              >
-                ✕
-              </button>
-            </div>
-            <ApiTest />
-          </div>
-        </div>
       )}
     </div>
   );

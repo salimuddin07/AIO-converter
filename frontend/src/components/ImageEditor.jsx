@@ -124,8 +124,7 @@ const IMAGE_TOOLS = {
   rotate: { label: 'Rotate', icon: '↻' },
   flip: { label: 'Flip', icon: '⇄' },
   resize: { label: 'Resize', icon: '⤡' },
-  skew: { label: 'Skew', icon: '◊' },
-  removeBackground: { label: 'Remove BG', icon: '🗑️' }
+  skew: { label: 'Skew', icon: '◊' }
 };
 
 const ERASER_SHAPES = {
@@ -1204,100 +1203,7 @@ const ImageEditor = ({
     layerRef.current.getLayer().batchDraw();
   };
 
-  const handleAIBackgroundRemoval = async () => {
-    if (!stageRef.current || !layerRef.current) {
-      alert('No image loaded for background removal');
-      return;
-    }
-
-    try {
-      // Capture history before applying AI background removal
-      captureHistorySnapshot();
-      
-      // Get the current canvas as a data URL
-      const dataURL = stageRef.current.toDataURL({
-        mimeType: 'image/png',
-        quality: 1.0,
-        pixelRatio: 1
-      });
-
-      // Convert data URL to blob
-      const response = await fetch(dataURL);
-      const blob = await response.blob();
-
-      // Create FormData for API request
-      const formData = new FormData();
-      formData.append('image', blob, 'image.png');
-
-      // Show loading indicator
-      const originalText = document.activeElement?.textContent;
-      if (document.activeElement && document.activeElement.textContent === 'Remove BG') {
-        document.activeElement.textContent = 'Processing...';
-        document.activeElement.disabled = true;
-      }
-
-      // Check if we're in Electron mode
-      const isElectron = typeof window !== 'undefined' && window.electronAPI !== undefined;
-      
-      if (isElectron) {
-        // Electron mode - AI background removal not supported locally
-        alert('❌ AI Background Removal is not available in desktop mode.\n\nThis feature requires cloud AI processing and is only available in the web browser version with backend server running.');
-        setIsProcessingBgRemoval(false);
-        return;
-      }
-
-      // Make API request to backend (browser mode only)
-      const apiResponse = await fetch('http://localhost:3003/api/ai/remove-background', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!apiResponse.ok) {
-        throw new Error(`API request failed: ${apiResponse.status}`);
-      }
-
-      const result = await apiResponse.blob();
-      
-      // Create object URL for the processed image
-      const processedImageURL = URL.createObjectURL(result);
-      
-      // Load the processed image into the canvas
-      const img = new Image();
-      img.onload = () => {
-        // Clear the current layer
-        layerRef.current.destroyChildren();
-        
-        // Add the processed image
-        const konvaImage = new window.Konva.Image({
-          x: 0,
-          y: 0,
-          image: img,
-          width: img.width,
-          height: img.height,
-        });
-        
-        layerRef.current.add(konvaImage);
-        layerRef.current.batchDraw();
-        
-        // Clean up object URL
-        URL.revokeObjectURL(processedImageURL);
-        
-        console.log('AI background removal completed successfully');
-      };
-      
-      img.src = processedImageURL;
-
-    } catch (error) {
-      console.error('AI background removal failed:', error);
-      alert(`Background removal failed: ${error.message}`);
-    } finally {
-      // Reset button state
-      if (document.activeElement && document.activeElement.disabled) {
-        document.activeElement.textContent = 'Remove BG';
-        document.activeElement.disabled = false;
-      }
-    }
-  };
+  // AI background removal feature removed — desktop app is fully offline.
 
   // Windows Paint-style tool handlers
   const handleImageTransform = (transformType) => {
@@ -1357,9 +1263,6 @@ const ImageEditor = ({
         break;
       case 'skew':
         handleSkew();
-        break;
-      case 'removeBackground':
-        handleRemoveBackground();
         break;
       default:
         console.log('Transform not implemented:', transformType);
@@ -2538,37 +2441,6 @@ const ImageEditor = ({
                 <span>{filter.label}</span>
               </button>
             ))}
-            
-            {/* AI Background Removal */}
-            <button
-              onClick={handleAIBackgroundRemoval}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '2px',
-                padding: '6px',
-                border: '1px solid #6f42c1',
-                borderRadius: '4px',
-                background: '#f8f5ff',
-                color: '#6f42c1',
-                fontSize: '9px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                minWidth: '48px'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#e5d5ff';
-                e.target.style.borderColor = '#6f42c1';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = '#f8f5ff';
-                e.target.style.borderColor = '#6f42c1';
-              }}
-            >
-              <span style={{ fontSize: '12px' }}>🤖</span>
-              <span>Remove BG</span>
-            </button>
           </div>
         </div>
 

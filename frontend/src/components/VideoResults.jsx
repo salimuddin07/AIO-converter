@@ -53,13 +53,7 @@ const VideoResults = ({ result, onBack }) => {
       setConvertResult(convertedResult);
     } catch (error) {
       console.error('Conversion error:', error);
-      const isNetworkError = error instanceof TypeError && (
-        error.message === 'Failed to fetch' || error.message?.includes('NetworkError')
-      );
-      const message = isNetworkError
-        ? 'Cannot reach the conversion service. Please make sure the backend server is running on http://localhost:3003.'
-        : `Conversion failed: ${error.message}`;
-      alert(message);
+      alert(`Conversion failed: ${error.message}`);
     } finally {
       setIsConverting(false);
     }
