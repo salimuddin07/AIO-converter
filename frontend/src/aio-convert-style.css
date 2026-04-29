@@ -293,7 +293,7 @@
 }
 
 .convert-btn {
-  background: linear-gradient(135deg, #2c5aa0, #1e3f73);
+  background: #2563eb;
   color: white;
   border: none;
   padding: 15px 40px;
@@ -301,14 +301,13 @@
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: background 0.15s ease, transform 0.15s ease;
   min-width: 200px;
 }
 
 .convert-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1e3f73, #2c5aa0);
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(44, 90, 160, 0.3);
+  background: #1d4ed8;
+  transform: translateY(-1px);
 }
 
 .convert-btn:disabled {
@@ -329,7 +328,7 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #2c5aa0, #4CAF50);
+  background: #2563eb;
   border-radius: 4px;
   transition: width 0.3s ease;
 }

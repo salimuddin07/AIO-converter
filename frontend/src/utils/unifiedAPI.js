@@ -290,6 +290,66 @@ export const api = {
   },
 
   /**
+   * Returns descriptive info about a modern image format (apng/avif/jxl).
+   * Local lookup — no IPC, no network.
+   */
+  async getModernFormatInfo(format) {
+    const key = String(format || '').toLowerCase();
+    const data = {
+      apng: {
+        format: 'APNG',
+        fullName: 'Animated Portable Network Graphics',
+        description:
+          'APNG is an extension of PNG that supports animation while keeping full alpha transparency. Unlike GIF it offers true 24-bit color and smooth alpha — perfect for high-quality animated stickers, UI animations and logos.',
+        pros: [
+          'Lossless quality with full alpha transparency',
+          '24-bit color (no GIF dithering)',
+          'Backwards compatible with PNG viewers (shows first frame)'
+        ],
+        cons: [
+          'Larger file size than WebP / AVIF for the same animation',
+          'Slightly less universal browser support than GIF'
+        ],
+        bestFor: 'High-fidelity animated icons, stickers and short loops where transparency matters.'
+      },
+      avif: {
+        format: 'AVIF',
+        fullName: 'AV1 Image File Format',
+        description:
+          'AVIF is a modern image format based on the AV1 video codec. It typically produces files 30–50% smaller than JPEG at the same visual quality, with full HDR and alpha support.',
+        pros: [
+          'Excellent compression — far smaller than JPEG/PNG/WebP',
+          'Supports HDR, wide color gamut and transparency',
+          'Supported by all modern browsers (Chrome, Firefox, Safari, Edge)'
+        ],
+        cons: [
+          'Slower to encode than JPEG or WebP',
+          'Some legacy software cannot open it yet'
+        ],
+        bestFor: 'Web images where bandwidth matters, photo galleries, and HDR content.'
+      },
+      jxl: {
+        format: 'JPEG XL',
+        fullName: 'JPEG XL (.jxl)',
+        description:
+          'JPEG XL is a next-generation image format designed to replace JPEG, PNG and GIF in one. It offers state-of-the-art compression, lossless transcoding from existing JPEGs, and progressive decoding.',
+        pros: [
+          'Best-in-class compression for both lossy and lossless',
+          'Can losslessly recompress old JPEGs to ~20% smaller',
+          'Supports animation, alpha, HDR and very large images'
+        ],
+        cons: [
+          'Browser support is still limited (enabled by flag in some)',
+          'Tooling is younger than AVIF / WebP'
+        ],
+        bestFor: 'Archival-quality storage, lossless re-compression of legacy JPEG libraries.'
+      }
+    };
+    const info = data[key] || null;
+    return { format: key, info };
+  },
+
+  /**
    * Get video info — accepts a File OR an absolute path.
    */
   async getVideoInfo(fileOrPath) {
@@ -548,6 +608,7 @@ export const createApngSequence = _bind('createApngSequence');
 export const convertToAvifModern = _bind('convertToAvifModern');
 export const convertToJxl = _bind('convertToJxl');
 export const compareModernFormats = _bind('compareModernFormats');
+export const getModernFormatInfo = _bind('getModernFormatInfo');
 export const getVideoInfo = _bind('getVideoInfo');
 export const convertVideoToGif = _bind('convertVideoToGif');
 export const videoToGif = _bind('videoToGif');

@@ -15,13 +15,9 @@ export default function Header({ currentTool, setCurrentTool }) {
         <div className="logo-section">
           <h1 className="site-logo">
             <a href="#" onClick={(e) => handleNavClick(e, 'home')}>AIO Convert</a>
-            {/* <span className="local-badge">LOCAL</span> */}
+            <span className="offline-badge">OFFLINE</span>
           </h1>
-          <p className="tagline">All-in-One Media Converter</p>
-        </div>
-        
-        <div className="header-ad">
-          <div className="ad-placeholder">Advertisement</div>
+          <p className="tagline">All-in-one media converter — runs entirely on your computer</p>
         </div>
       </div>
 
@@ -51,80 +47,63 @@ export default function Header({ currentTool, setCurrentTool }) {
 
       <style>{`
         .aio-convert-header {
-          background: #ffffffff;
-          border-bottom: 1px solid #ddd;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          background: #ffffff;
+          border-bottom: 1px solid #e5e7eb;
         }
 
         .header-container {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 15px 20px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
+          padding: 18px 24px;
         }
 
         .logo-section {
-          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
         }
 
         .site-logo {
           margin: 0;
-          font-size: 28px;
-          font-weight: bold;
-          position: relative;
+          font-size: 22px;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+          display: flex;
+          align-items: center;
+          gap: 10px;
         }
 
         .site-logo a {
-          color: #e74c3c;
+          color: #0f172a;
           text-decoration: none;
-          font-family: Arial, sans-serif;
         }
 
-        .local-badge {
-          background: #48bb78;
-          color: white;
+        .offline-badge {
+          background: #ecfdf5;
+          color: #047857;
           font-size: 10px;
-          padding: 2px 6px;
+          padding: 2px 8px;
           border-radius: 4px;
-          position: absolute;
-          top: -8px;
-          right: -35px;
-          font-weight: 500;
+          font-weight: 600;
+          letter-spacing: 0.05em;
+          border: 1px solid #a7f3d0;
         }
 
         .tagline {
-          margin: 5px 0 0 0;
-          font-size: 12px;
-          color: #666;
-          font-style: italic;
-        }
-
-        .header-ad {
-          width: 728px;
-          height: 90px;
-          background: #f5f5f5;
-          border: 1px solid #ddd;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .ad-placeholder {
-          color: #999;
-          font-size: 14px;
+          margin: 0;
+          font-size: 13px;
+          color: #64748b;
         }
 
         .main-nav {
-          background: #f8f9fa;
-          border-bottom: 1px solid #dee2e6;
+          background: #f8fafc;
+          border-bottom: 1px solid #e5e7eb;
         }
 
         .nav-links {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 0;
+          padding: 0 12px;
           list-style: none;
           display: flex;
           flex-wrap: wrap;
@@ -137,39 +116,34 @@ export default function Header({ currentTool, setCurrentTool }) {
 
         .nav-link {
           display: block;
-          padding: 12px 15px;
-          color: #495057;
+          padding: 11px 14px;
+          color: #475569;
           text-decoration: none;
-          border-right: 1px solid #dee2e6;
-          transition: all 0.2s ease;
+          transition: color 0.15s ease, background 0.15s ease;
           font-weight: 500;
           cursor: pointer;
+          border-bottom: 2px solid transparent;
         }
 
         .nav-link:hover,
-        .nav-link:focus,
+        .nav-link:focus {
+          color: #2563eb;
+          background: #ffffff;
+        }
+
         .nav-link.active {
-          background: #3498db;
-          color: white;
+          color: #2563eb;
+          background: #ffffff;
+          border-bottom-color: #2563eb;
         }
 
         @media (max-width: 768px) {
           .header-container {
-            flex-direction: column;
-            gap: 15px;
-          }
-
-          .header-ad {
-            width: 100%;
-            height: 60px;
-          }
-
-          .nav-links {
-            justify-content: center;
+            padding: 14px 16px;
           }
 
           .nav-link {
-            padding: 10px 8px;
+            padding: 10px 10px;
             font-size: 12px;
           }
         }

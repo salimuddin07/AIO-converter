@@ -25,8 +25,8 @@ export default function App() {
   const renderHome = () => (
     <div className="welcome-section">
       <div className="container">
-        <h1>🎯 AIO Convert - Professional Media Converter</h1>
-        <p className="lead">Convert, resize, and optimize your media files - 100% locally processed!</p>
+        <h1>AIO Convert</h1>
+        <p className="lead">A professional all-in-one media converter. Convert, resize, and optimize images, videos, GIFs, PDFs and more — fully on your computer, no uploads.</p>
         
         <div className="tool-grid">
           <div className="tool-card" onClick={() => setCurrentTool('gif-maker')}>
@@ -148,26 +148,26 @@ export default function App() {
             <h3>Image Optimizer</h3>
             <p>Reduce file sizes efficiently</p>
           </div>
-          
+
           <div className="tool-card coffee-card" onClick={() => setCurrentTool('buy-me-coffee')}>
             <div className="tool-icon">☕</div>
-            <h3>Support Us</h3>
-            <p>Buy us a coffee to keep improving!</p>
+            <h3>Support the Developer</h3>
+            <p>Buy me a coffee if this tool helped you</p>
           </div>
         </div>
         
         <div className="features-highlight">
           <div className="feature">
             <span className="feature-icon">🔒</span>
-            <span>100% Private - No uploads</span>
+            <span>100% Private — files stay on your computer</span>
           </div>
           <div className="feature">
             <span className="feature-icon">⚡</span>
-            <span>Fast Local Processing</span>
+            <span>Fast local processing</span>
           </div>
           <div className="feature">
             <span className="feature-icon">🌐</span>
-            <span>Works Offline</span>
+            <span>Works fully offline</span>
           </div>
         </div>
       </div>
@@ -245,8 +245,9 @@ export default function App() {
       <style>{`
         .app {
           min-height: 100vh;
-          background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+          background: #f8fafc;
           font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          color: #0f172a;
         }
         
         .main-content {
@@ -286,97 +287,101 @@ export default function App() {
         }
         
         .welcome-section h1 {
-          font-size: 3rem;
-          color: #2d3748;
-          margin-bottom: 20px;
+          font-size: 2.4rem;
+          color: #0f172a;
+          margin-bottom: 12px;
           font-weight: 700;
+          letter-spacing: -0.02em;
         }
         
         .lead {
-          font-size: 1.3rem;
-          color: #4a5568;
-          margin-bottom: 50px;
-          max-width: 600px;
+          font-size: 1.05rem;
+          color: #475569;
+          margin-bottom: 48px;
+          max-width: 640px;
           margin-left: auto;
           margin-right: auto;
         }
         
         .tool-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 30px;
+          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+          gap: 20px;
           margin-bottom: 50px;
         }
         
         .tool-card {
-          background: white;
-          padding: 30px;
-          border-radius: 20px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+          background: #ffffff;
+          padding: 24px;
+          border-radius: 10px;
+          border: 1px solid #e5e7eb;
           cursor: pointer;
-          transition: all 0.3s ease;
+          transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
         }
         
         .tool-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+          transform: translateY(-2px);
+          border-color: #2563eb;
+          box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
         }
         
         .tool-icon {
-          font-size: 3rem;
-          margin-bottom: 20px;
+          font-size: 2.2rem;
+          margin-bottom: 14px;
         }
         
         .tool-card h3 {
-          font-size: 1.5rem;
-          color: #2d3748;
-          margin-bottom: 10px;
+          font-size: 1.1rem;
+          color: #0f172a;
+          margin-bottom: 6px;
+          font-weight: 600;
         }
         
         .tool-card p {
-          color: #718096;
-          font-size: 1rem;
-        }
-        
-        .coffee-card {
-          background: linear-gradient(135deg, #FFDD00 0%, #FFA500 100%);
-          border: 2px solid #FFB347;
-        }
-        
-        .coffee-card:hover {
-          background: linear-gradient(135deg, #FFE55C 0%, #FFB347 100%);
-          transform: translateY(-5px) scale(1.02);
-        }
-        
-        .coffee-card h3,
-        .coffee-card p {
-          color: #2d3748;
-        }
-        
-        .coffee-card .tool-icon {
-          filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.2));
+          color: #64748b;
+          font-size: 0.9rem;
+          margin: 0;
         }
         
         .features-highlight {
           display: flex;
           justify-content: center;
-          gap: 40px;
-          margin-top: 40px;
+          gap: 16px;
+          margin-top: 32px;
           flex-wrap: wrap;
         }
         
         .feature {
           display: flex;
           align-items: center;
-          gap: 10px;
-          background: rgba(255,255,255,0.2);
-          padding: 15px 25px;
-          border-radius: 50px;
-          backdrop-filter: blur(10px);
+          gap: 8px;
+          background: #ffffff;
+          color: #334155;
+          padding: 10px 18px;
+          border-radius: 6px;
+          border: 1px solid #e5e7eb;
+          font-size: 0.9rem;
         }
         
         .feature-icon {
-          font-size: 1.2rem;
+          font-size: 1rem;
+        }
+
+        .coffee-card {
+          background: #fffbeb;
+          border-color: #fcd34d;
+        }
+
+        .coffee-card:hover {
+          border-color: #f59e0b;
+        }
+
+        .coffee-card h3 {
+          color: #92400e;
+        }
+
+        .coffee-card p {
+          color: #b45309;
         }
         
         .tool-info-panel {
