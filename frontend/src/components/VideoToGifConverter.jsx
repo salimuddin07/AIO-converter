@@ -8,6 +8,12 @@ const VideoToGifConverter = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
   const [dragActive, setDragActive] = useState(false);
+  const [gifOptions, setGifOptions] = useState({
+    startTime: 0,
+    duration: 10,
+    fps: 12,
+    width: 480,
+  });
   const fileInputRef = useRef(null);
 
   const handleDrag = (e) => {
@@ -99,9 +105,10 @@ const VideoToGifConverter = () => {
           // In Electron mode, convert directly and get the result
           result = await realAPI.videoToGif(file, {
             quality: 80,
-            fps: 10,
-            startTime: 0,
-            duration: 5 // Convert first 5 seconds by default
+            fps: gifOptions.fps,
+            startTime: gifOptions.startTime,
+            duration: gifOptions.duration,
+            width: gifOptions.width,
           });
           
           // Handle Electron result format
@@ -241,12 +248,66 @@ const VideoToGifConverter = () => {
             • Videos: MP4, WebM, AVI, MPEG, MKV, FLV, OGG, MOV, M4V, WMV, ASF, 3GP<br />
             Max file size: 200GB
           </p>
+
+          <fieldset style={{ marginTop: '16px' }}>
+            <legend>GIF options</legend>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <label>
+                Start time (seconds)<br />
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={gifOptions.startTime}
+                  onChange={(e) => setGifOptions(o => ({ ...o, startTime: parseFloat(e.target.value) || 0 }))}
+                  style={{ width: '100%' }}
+                />
+              </label>
+              <label>
+                Duration (seconds)<br />
+                <input
+                  type="number"
+                  min="1"
+                  max="600"
+                  step="1"
+                  value={gifOptions.duration}
+                  onChange={(e) => setGifOptions(o => ({ ...o, duration: parseInt(e.target.value) || 10 }))}
+                  style={{ width: '100%' }}
+                />
+              </label>
+              <label>
+                FPS (frames per second)<br />
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  step="1"
+                  value={gifOptions.fps}
+                  onChange={(e) => setGifOptions(o => ({ ...o, fps: parseInt(e.target.value) || 12 }))}
+                  style={{ width: '100%' }}
+                />
+              </label>
+              <label>
+                Width (pixels)<br />
+                <input
+                  type="number"
+                  min="64"
+                  max="1920"
+                  step="8"
+                  value={gifOptions.width}
+                  onChange={(e) => setGifOptions(o => ({ ...o, width: parseInt(e.target.value) || 480 }))}
+                  style={{ width: '100%' }}
+                />
+              </label>
+            </div>
+            <small style={{ display: 'block', marginTop: '8px', color: '#666' }}>Height is calculated automatically to keep the original aspect ratio.</small>
+          </fieldset>
           
           <p id="tsbt">
             <input 
               type="submit" 
               className="btn primary" 
-              value={isUploading ? "Uploading video..." : "Upload video!"} 
+              value={isUploading ? "Converting..." : "Convert to GIF!"} 
               disabled={isUploading}
             />
           </p>

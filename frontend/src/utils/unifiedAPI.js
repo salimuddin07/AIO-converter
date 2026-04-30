@@ -93,6 +93,13 @@ export const api = {
     }
 
     const outputFileName = `gif_output_${Date.now()}.gif`;
+
+    // Parse frameDelays if it was JSON-stringified by the caller
+    let frameDelays = options.frameDelays;
+    if (typeof frameDelays === 'string') {
+      try { frameDelays = JSON.parse(frameDelays); } catch (_) { frameDelays = undefined; }
+    }
+
     return await window.electronAPI.createGifFromImages({
       inputPaths: imagePaths,
       outputPath: outputFileName,
@@ -101,7 +108,13 @@ export const api = {
         height: options.height || 300,
         quality: options.quality || 80,
         fps: options.fps || 10,
-        loop: options.loop !== false
+        loop: options.loop !== false,
+        // Per-frame delays array (one value per frame, in ms)
+        frameDelays: frameDelays,
+        // Global fallback delay (ms); derived from fps if not supplied
+        delay: options.delay || (options.fps ? Math.round(1000 / options.fps) : undefined),
+        fit: options.fit,
+        loopCount: options.loopCount
       }
     });
   },

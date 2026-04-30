@@ -384,13 +384,20 @@ ipcMain.handle('convert-video', async (event, { inputPath, outputPath, format, o
         if (options.duration !== undefined) {
           command = command.duration(options.duration);
         }
-        
-        // GIF-specific options
+
+        const fps = options.fps || 10;
+        const width = options.width || 480;
+
+        // Two-pass palette GIF using a single filter_complex string.
+        // split → palettegen → paletteuse produces a full-colour, properly-sized GIF.
+        const filterComplex =
+          `[0:v]fps=${fps},scale=${width}:-2:flags=lanczos,split[s0][s1];` +
+          `[s0]palettegen=reserve_transparent=0[p];` +
+          `[s1][p]paletteuse=dither=bayer:bayer_scale=5[out]`;
+
         command = command
-          .outputOptions([
-            '-vf', `fps=${options.fps || 10},scale=${options.width || 320}:${options.height || -1}:flags=lanczos,palettegen=reserve_transparent=0`,
-            '-y' // Overwrite output file
-          ])
+          .complexFilter(filterComplex)
+          .outputOptions(['-map [out]', '-y'])
           .toFormat('gif');
       } else {
         // Regular video conversion

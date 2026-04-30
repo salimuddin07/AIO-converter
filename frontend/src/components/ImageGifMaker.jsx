@@ -32,7 +32,7 @@ const sanitizeDelay = (value, fallback = SPEED_PRESETS.normal.delay) => {
   if (Number.isNaN(numeric)) {
     return fallback;
   }
-  return Math.min(2000, Math.max(10, numeric));
+  return Math.max(10, numeric);
 };
 
 const ACCEPTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp', 'image/bmp'];
@@ -150,7 +150,11 @@ export default function ImageGifMaker() {
     setFrames((prev) => prev.map((frame) => {
       if (frame.id !== id) return frame;
       if (key === 'delay') {
-        return { ...frame, delay: sanitizeDelay(value, frame.delay) };
+        // Don't clamp during typing — only store the raw integer so the user
+        // can type values like 3000 without mid-keystroke clamping.
+        // The minimum (10 ms) is enforced at GIF-creation time via sanitizeDelay.
+        const raw = parseInt(value, 10);
+        return { ...frame, delay: Number.isNaN(raw) ? frame.delay : Math.max(1, raw) };
       }
       if (key === 'include') {
         return { ...frame, include: Boolean(value) };
@@ -221,7 +225,10 @@ export default function ImageGifMaker() {
       let next = prev;
 
       if (key === 'frameDelay') {
-        const numeric = sanitizeDelay(value, prev.frameDelay);
+        // Allow free typing; clamp to >= 1 so the number input stays valid.
+        // The 10 ms GIF-spec minimum is enforced at creation time.
+        const raw = parseInt(value, 10);
+        const numeric = Number.isNaN(raw) ? prev.frameDelay : Math.max(1, raw);
         next = { ...prev, frameDelay: numeric, speedPreset: 'custom' };
         applyDelayToAllFrames(numeric);
         return next;
@@ -431,7 +438,7 @@ export default function ImageGifMaker() {
                       <span>Delay (ms)</span>
                       <input
                         type="number"
-                        min="10"
+                        min="1"
                         step="5"
                         value={frame.delay}
                         onChange={(e) => updateFrameValue(frame.id, 'delay', e.target.value)}
@@ -598,7 +605,7 @@ export default function ImageGifMaker() {
             <span>Frame delay (ms)</span>
             <input
               type="number"
-              min="10"
+              min="1"
               step="5"
               value={options.frameDelay}
               onChange={(e) => updateOption('frameDelay', e.target.value)}
